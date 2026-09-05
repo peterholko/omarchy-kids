@@ -25,7 +25,10 @@ pass "the system-mode startup is root-owned and its failures are visible"
 tmp=$(mktemp -d)
 daemon_pid=""
 cleanup() {
-  [[ -n $daemon_pid ]] && kill "$daemon_pid" 2>/dev/null || true
+  if [[ -n $daemon_pid ]]; then
+    kill "$daemon_pid" 2>/dev/null || true
+    wait "$daemon_pid" 2>/dev/null || true
+  fi
   rm -rf "$tmp"
 }
 trap cleanup EXIT
