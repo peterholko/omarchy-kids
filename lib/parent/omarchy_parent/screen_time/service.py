@@ -652,11 +652,15 @@ class Service:
                 users = dict(self.config.get("users", {}))
                 profiles = self.config["profiles"]
                 if enabled:
-                    if name not in profiles:
-                        profiles[name] = config_mod.sanitize_profile(dict(profiles.get(self.config["active_profile"], {}), name=name))
-                    users[name] = {"profile": name}
+                    if name not in users:
+                        key = self.config["disabled_users"].pop(name, {"profile": name})["profile"]
+                        if key not in profiles:
+                            profiles[key] = config_mod.sanitize_profile(dict(profiles.get(self.config["active_profile"], {}), name=name))
+                        users[name] = {"profile": key}
                 else:
-                    users.pop(name, None)
+                    previous = users.pop(name, None)
+                    if previous is not None:
+                        self.config["disabled_users"][name] = previous
                 self.config["users"] = users
                 merged = config_mod.sanitize(self.config)
                 merged["demo"] = bool(self.config.get("demo"))

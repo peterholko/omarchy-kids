@@ -47,13 +47,19 @@ def sanitize(raw):
     active = raw.get("active_profile")
     if not isinstance(active, str) or active not in profiles:
         active = next(iter(profiles))
-    users = {}
-    users_raw = raw.get("users", {})
-    for name, value in (users_raw if isinstance(users_raw, dict) else {}).items():
-        if isinstance(name, str) and name.strip():
+    enrollments = {}
+    for field in ("users", "disabled_users"):
+        source = raw.get(field, {})
+        result = {}
+        for name, value in (source if isinstance(source, dict) else {}).items():
+            if not isinstance(name, str) or not name.strip():
+                continue
             key = value.get("profile", active) if isinstance(value, dict) else active
-            users[name] = {"profile": key if isinstance(key, str) and key in profiles else active}
-    return {"version": 1, "active_profile": active, "profiles": profiles, "users": users}
+            result[name] = {"profile": key if isinstance(key, str) and key in profiles else active}
+        enrollments[field] = result
+    users = enrollments["users"]
+
+    return {"version": 1, "active_profile": active, "profiles": profiles, "users": users, "disabled_users": enrollments["disabled_users"]}
 
 
 def valid_patch(patch):

@@ -92,7 +92,9 @@ def main():
         target = Path(args.path)
         with locked(target.with_name('.' + target.name + '.lock')):
             config = read_json(target, {})
-            config.setdefault('users', {}).pop(username, None)
+            previous = config.setdefault('users', {}).pop(username, None)
+            if previous is not None:
+                config.setdefault('disabled_users', {})[username] = previous
             write_json(target, config)
             write_json(Path(status_path), {'schemaVersion': 1, 'enabled': False, 'mode': 'free'})
             Path(status_path).chmod(0o644)

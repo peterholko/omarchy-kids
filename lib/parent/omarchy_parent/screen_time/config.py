@@ -228,24 +228,27 @@ def sanitize(raw):
         profiles = {"default": sanitize_profile(DEFAULT_PROFILE)}
 
     active = raw.get("active_profile")
-    if active not in profiles:
+    if not isinstance(active, str) or active not in profiles:
         active = next(iter(profiles))
 
-    users_raw = raw.get("users")
-    users_raw = users_raw if isinstance(users_raw, dict) else {}
-    users = {}
-    for name, value in users_raw.items():
-        if not isinstance(name, str) or not name.strip():
-            continue
-        value = value if isinstance(value, dict) else {}
-        profile = value.get("profile")
-        users[name] = {"profile": profile if profile in profiles else active}
+    enrollments = {}
+    for field in ("users", "disabled_users"):
+        source = raw.get(field, {})
+        result = {}
+        for name, value in (source if isinstance(source, dict) else {}).items():
+            if not isinstance(name, str) or not name.strip():
+                continue
+            key = value.get("profile", active) if isinstance(value, dict) else active
+            result[name] = {"profile": key if isinstance(key, str) and key in profiles else active}
+        enrollments[field] = result
+    users = enrollments["users"]
 
     return {
         "version": CONFIG_VERSION,
         "active_profile": active,
         "profiles": profiles,
         "users": users,
+        "disabled_users": enrollments["disabled_users"],
         "demo": bool(raw.get("demo", False)),
     }
 

@@ -78,12 +78,17 @@ class Service:
                 return {"ok": False, "error": "not_allowed"}
             with self.host.lock:
                 if message.get("enabled", True):
-                    profiles = self.config["profiles"]
-                    profiles.setdefault(name, copy.deepcopy(profiles[self.config["active_profile"]]))
-                    profiles[name]["name"] = name
-                    self.config["users"][name] = {"profile": name}
+                    if name not in self.config["users"]:
+                        profiles = self.config["profiles"]
+                        key = self.config["disabled_users"].pop(name, {"profile": name})["profile"]
+                        if key not in profiles:
+                            profiles[key] = copy.deepcopy(profiles[self.config["active_profile"]])
+                            profiles[key]["name"] = name
+                        self.config["users"][name] = {"profile": key}
                 else:
-                    self.config["users"].pop(name, None)
+                    previous = self.config["users"].pop(name, None)
+                    if previous is not None:
+                        self.config["disabled_users"][name] = previous
                     self.policies.pop(target, None)
                     self.override_path(target).unlink(missing_ok=True)
                 write_json(self.path, self.config)

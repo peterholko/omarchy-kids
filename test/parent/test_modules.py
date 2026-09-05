@@ -191,5 +191,25 @@ class ModulesTest(unittest.TestCase):
         self.assertEqual((response['mode'], response['mode_reason']), ('school', 'chosen'))
         self.assertEqual(self.send(restarted, 'school', 'mode.set', mode='free', parent=False)['error'], 'parent_required')
 
+    def test_enabling_again_preserves_shared_profile_assignments(self):
+        host = self.host()
+        for scope in ('school', 'time'):
+            service = host.services[scope]
+            service.config['profiles']['shared'] = copy.deepcopy(service.config['profiles']['default'])
+            service.config['users'][self.user] = {'profile': 'shared'}
+            self.enable(host, scope)
+            self.assertEqual(service.config['users'][self.user]['profile'], 'shared')
+
+            self.send(host, scope, 'users.set', enabled=False)
+            self.enable(host, scope)
+            self.assertEqual(service.config['users'][self.user]['profile'], 'shared')
+
+    def test_migration_accepts_an_unconfigured_school_initializer(self):
+        legacy = {'version': 2, 'active_profile': 'default', 'profiles': {'default': {'name': 'Default', 'blocked_periods': [{'mode': 'free', 'start': '08:00', 'end': '15:00'}]}}, 'users': {}}
+        write_json(self.layout.config_path, legacy)
+        write_json(self.base / 'school-mode.json', {'version': 1, 'active_profile': 'default', 'profiles': {'default': {}}, 'users': {}})
+        migrate(self.layout)
+        self.assertEqual(read_json(self.base / 'school-mode.json')['profiles']['default']['blocked_periods'], legacy['profiles']['default']['blocked_periods'])
+
 if __name__ == '__main__':
     unittest.main()

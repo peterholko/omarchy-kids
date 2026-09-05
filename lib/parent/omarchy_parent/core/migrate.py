@@ -38,9 +38,12 @@ def migrate(layout):
                 # Never overwrite an independently configured school profile.
                 for key, value in school["profiles"].items():
                     current = existing.get("profiles", {}).get(key)
-                    if current is not None and current != value:
+                    if current is not None and (not isinstance(current, dict) or any(field in value and value[field] != configured for field, configured in current.items())):
                         raise ValueError("school configuration already exists; resolve the profile conflict before migration")
-                school["profiles"].update(existing.get("profiles", {}))
+                    if current is not None:
+                        value.update(current)
+                for key, value in existing.get("profiles", {}).items():
+                    school["profiles"].setdefault(key, value)
                 school["users"].update(existing.get("users", {}))
             backup = target.with_name(target.name + ".before-kids-modules")
             if not backup.exists():
