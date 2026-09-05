@@ -20,13 +20,13 @@ A full desktop view followed by short clips from the recorded demo. The GIFs are
 
 ![Full Omarchy Kids desktop with cherry-blossom landscape wallpaper and the screen-time indicator in the top bar](docs/images/demo/desktop.jpg)
 
-**Earn screen time with math.** Practice multiplication and division facts, then collect the reward for a completed set. This demo earns 30 minutes.
-
-![Answering multiplication and division questions and receiving 30 minutes of screen time](docs/images/demo/earn-time-with-math.gif)
-
 **Unlock with either password.** The lock screen accepts the kid password or the adult (parent) password.
 
 ![Entering a masked password at the lock screen and returning to the desktop](docs/images/demo/unlock-with-password.gif)
+
+**Earn screen time with math.** Practice multiplication and division facts, then collect the reward for a completed set. This demo earns 30 minutes.
+
+![Answering multiplication and division questions and receiving 30 minutes of screen time](docs/images/demo/earn-time-with-math.gif)
 
 **Switch to free time.** Returning from school mode requires the parent password.
 
