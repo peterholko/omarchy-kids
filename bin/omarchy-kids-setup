@@ -17,6 +17,10 @@ getent passwd "$user" >/dev/null
 # Establish a working parent-authenticated sudo grant before removing groups.
 # Both deployment paths set root's password before reaching this command.
 omarchy-kids apply --user "$user"
+# Package installation does not enable an optional filter. An existing
+# parent's choice is retained by document; only a missing key is initialized.
+omarchy-kids-files config /etc/omarchy/parent.conf document dns off \
+  "dns: the optional web filter; enable it through Setup > Kids Modules."
 if id -nG "$user" | tr ' ' '\n' | grep -qx docker; then
   gpasswd -d "$user" docker >/dev/null
 fi

@@ -1,6 +1,6 @@
 # Kids module architecture
 
-The implementation starts from `build/kids-all` at `0193e412`. One source snapshot builds a compatible base/settings pair plus five module packages. `packaging/modules.json` defines exclusive ownership; `stage.py` stages those files and removes them from both base packages. Exact package revisions tie the UI, commands and backend together. The build revision comes from the source commit count, and `release.json` records the source, dirty state and archive hashes.
+One source snapshot builds a compatible base/settings pair plus five module packages. `packaging/modules.json` defines exclusive ownership; `stage.py` stages those files and removes them from both base packages. Exact package revisions tie the UI, commands and backend together. The build revision comes from the source commit count, and `release.json` records the source, dirty state and archive hashes.
 
 ## Runtime boundaries
 
@@ -46,4 +46,4 @@ Disabling or removing a module keeps its configuration, lists and collected hist
 
 `test/kids` runs the module-boundary tests and focused Bash, Node and Python regressions. Package subset tests start the real core using only the staged files for each of the 16 optional combinations. Linux CI builds the actual split packages and renders the password field. The complete login/lock/network/desktop path and fresh-ISO provisioning require the disposable Omarchy VM acceptance suite; a component render is not a replacement for that acceptance run.
 
-The installer targets an existing child-profile laptop. Building a new ISO also requires including this release’s packages and cache in that image. No package repository, ISO or changes to other GitHub repositories are published by this implementation.
+The installer can convert a clean Omarchy 4 account or update an existing child-profile laptop. The dedicated Kids ISO uses the same package release, caches all modules on the installed laptop, and calls the shared account setup. See [deployment and validation](kids-deployment.md) for both entry points and the CI workflow.

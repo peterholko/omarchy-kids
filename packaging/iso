@@ -1,0 +1,73 @@
+#!/bin/bash
+# Build/test a Kids ISO from the same verified packages as packaging/install.
+set -euo pipefail
+
+source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+action=${1:-}
+input=${2:-}
+if [[ $action != "build" && $action != "test" || -z $input ]]; then
+  echo "Usage: packaging/iso build PACKAGE_DIRECTORY | test ISO_FILE" >&2
+  exit 2
+fi
+if [[ $(uname -s) != "Linux" || $(uname -m) != "x86_64" ]]; then
+  echo "Build and test on an x86_64 Linux machine with Docker, or use the Kids ISO GitHub workflow." >&2
+  exit 1
+fi
+input=$(realpath "$input")
+revision=$(<"$source_root/packaging/iso-builder.ref")
+[[ $revision =~ ^[0-9a-f]{40}$ ]]
+scratch=$(mktemp -d)
+output="$source_root/build-output/iso"
+mkdir -p "$output"
+cleanup() { rm -rf "$scratch"; }
+trap cleanup EXIT
+git clone --quiet --no-checkout https://github.com/peterholko/omarchy-iso.git "$scratch/builder"
+git -C "$scratch/builder" checkout --quiet --detach "$revision"
+
+if [[ $action == "build" ]]; then
+  (
+    cd "$scratch/builder"
+    ./bin/omarchy-iso-make --kids-packages "$input" --keep-pkg-cache --no-boot-offer --no-cache
+  )
+  for iso in "$scratch/builder/release/"*.iso; do
+    target="$output/$(basename "$iso")"
+    mv "$iso" "$target"
+    (cd "$output" && sha256sum "$(basename "$target")" >"$(basename "$target").sha256")
+  done
+  python3 - "$input/release.json" "$output/build-info.json" "$revision" <<'PY'
+import json, sys
+from pathlib import Path
+release = json.loads(Path(sys.argv[1]).read_text())
+Path(sys.argv[2]).write_text(json.dumps({'kids_source': release['source'], 'iso_builder': sys.argv[3]}, indent=2) + '\n')
+PY
+  echo "Kids ISO and checksum: $output"
+else
+  [[ -c /dev/kvm ]] || { echo "ISO acceptance needs KVM on the Linux test host." >&2; exit 1; }
+  docker_command=(docker)
+  if ! docker version &>/dev/null; then
+    docker_command=(sudo docker)
+  fi
+  # Run the real GUI installer in a disposable VM. The focused suite checks
+  # the installed desktop, passwords, module packages and default enrollment.
+  mkdir -p "$scratch/suite/test/acceptance.d" "$output/test"
+  cp "$source_root/test/acceptance" "$scratch/suite/test/"
+  for name in base session parent kids-deployment; do
+    cp "$source_root/test/acceptance.d/$name-test.sh" "$scratch/suite/test/acceptance.d/"
+  done
+  status=0
+  "${docker_command[@]}" run --rm --privileged --network host \
+    -e OMARCHY_ISO_TEST_DEPS_READY=1 \
+    -v "$scratch/builder:/builder" -v "$scratch/suite:/suite:ro" -v "$input:/kids.iso:ro" \
+    -w /builder archlinux:base-devel bash -e -c '
+      pacman -Syu --noconfirm qemu-system-x86 qemu-img edk2-ovmf socat imagemagick tesseract tesseract-data-eng openssh python
+      ./bin/omarchy-iso-test /kids.iso --child --encrypt --memory 4096 --sync-omarchy /suite --no-preview
+    ' || status=$?
+  # Keep logs/screenshots, not the large disks or temporary SSH private key.
+  if [[ -d $scratch/builder/test-runs ]]; then
+    "${docker_command[@]}" run --rm -v "$scratch/builder/test-runs:/results" \
+      archlinux:base-devel chown -R "$(id -u):$(id -g)" /results
+    tar -C "$scratch/builder/test-runs" --exclude='*.qcow2' --exclude='id_ed25519*' --exclude='*.fd' -cf - . |
+      tar -C "$output/test" -xf -
+  fi
+  exit "$status"
+fi

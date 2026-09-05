@@ -1,0 +1,62 @@
+name: Kids ISO
+on:
+  workflow_dispatch:
+    inputs:
+      package_run:
+        description: 'Successful Kids modules run for this commit (blank selects the latest)'
+        required: false
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select packages from passing CI for this exact commit
+        id: packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_RUN: ${{ inputs.package_run }}
+        run: |
+          if [[ -z $PACKAGE_RUN ]]; then
+            PACKAGE_RUN=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/kids.yml/runs" -f head_sha="$GITHUB_SHA" -f status=completed --jq '[.workflow_runs[] | select(.conclusion == "success")][0].id // empty')
+          fi
+          [[ $PACKAGE_RUN =~ ^[0-9]+$ ]] || { echo 'Run Kids modules CI successfully for this commit first.' >&2; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PACKAGE_RUN" > /tmp/kids-package-run.json
+          jq -e --arg sha "$GITHUB_SHA" '.head_sha == $sha and .conclusion == "success" and .path == ".github/workflows/kids.yml"' /tmp/kids-package-run.json
+          printf 'run_id=%s\n' "$PACKAGE_RUN" >> "$GITHUB_OUTPUT"
+      - uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: omarchy-kids-x86_64
+          path: build-output
+          run-id: ${{ steps.packages.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Build from the verified package release
+        run: ./packaging/iso build ./build-output
+      - name: Fresh encrypted child install and desktop acceptance
+        run: |
+          images=(build-output/iso/*.iso)
+          test "${#images[@]}" -eq 1
+          ./packaging/iso test "${images[0]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kids-iso-test-evidence
+          path: build-output/iso/test/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omarchy-kids-iso-x86_64
+          path: |
+            build-output/iso/*.iso
+            build-output/iso/*.sha256
+            build-output/iso/build-info.json
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error

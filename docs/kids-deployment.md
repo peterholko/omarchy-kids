@@ -18,6 +18,18 @@ The Kids ISO builder accepts a complete, clean, committed x86_64 release directo
 
 The builder is maintained separately from the upstream installer PR, with its revision pinned by Omarchy Kids. The ISO and package artifacts carry their source revision and checksums. A public download release is separate from building an artifact in this private repository.
 
+In GitHub, wait for **Kids modules** CI to pass, then run **Actions → Kids ISO → Run workflow** for that revision. It uses the matching package artifact from the passing tests and conversion checks, builds an ISO, and drives a fresh encrypted child installation in a KVM virtual machine. The ISO download artifact is uploaded only after that acceptance test passes. Test logs and screenshots are retained even on failure. Downloads from this private repository require GitHub access; distributing a public release is a separate step.
+
+To build and test on an x86_64 Linux machine with Docker and enough free space for an ISO and VM disk:
+
+```bash
+./packaging/build
+./packaging/iso build ./build-output
+./packaging/iso test ./build-output/iso/GENERATED_ISO_FILENAME.iso
+```
+
+Use a committed checkout: the ISO builder rejects dirty or mixed package releases. `packaging/iso-builder.ref` pins the installer revision. ISO testing requires `/dev/kvm`. The ISO, SHA-256 checksum and source/build metadata land under `build-output/iso`; acceptance screenshots and logs are in its `test` directory. Flash the resulting ISO to a USB drive and boot the fresh laptop, then follow the kid and parent password prompts.
+
 ## Validation
 
 `./test/kids` includes conversion recovery and release-validation tests. GitHub Actions builds the real packages and tests namespace upgrades. A separate disposable Linux container exercises conversion, real parent-only sudo authentication, PAM configuration, retained child credentials, additive LUKS keys and a repeat installation. The ISO workflow additionally installs a freshly built image into a disposable VM; its screenshots and logs are the evidence for the fresh-install path. Unit and container checks alone do not establish that a laptop boots successfully.

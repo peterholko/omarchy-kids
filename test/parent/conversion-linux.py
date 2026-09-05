@@ -74,6 +74,7 @@ assert subprocess.run(['runuser', '-u', 'kid', '--', 'sudo', '-n', '/usr/bin/tru
 cache = Path('/var/cache/omarchy-kids/packages')
 assert len(list(cache.glob('*.pkg.tar.zst'))) == 7
 assert personal.read_text() == 'keep me'
+assert 'dns=off' in Path('/etc/omarchy/parent.conf').read_text()
 
 # A completed --convert is a normal update on retry; it never resets passwords
 # or spends another LUKS slot.
