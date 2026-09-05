@@ -16,7 +16,9 @@ fi
 # repo, so their presence alone means edge. omarchy / omarchy-settings come
 # from either the stable or rc mirror, distinguished by omarchy-version-channel
 # (which reports the mirror as its first token).
-if pacman -Q omarchy-dev omarchy-settings-dev >/dev/null 2>&1; then
+if pacman -Q omarchy-kids-base omarchy-kids-settings >/dev/null 2>&1; then
+  echo kids
+elif pacman -Q omarchy-dev omarchy-settings-dev >/dev/null 2>&1; then
   echo edge
 elif pacman -Q omarchy omarchy-settings >/dev/null 2>&1; then
   channel=$(omarchy-version-channel 2>/dev/null | awk '{ print $1 }')

@@ -21,7 +21,9 @@ if [[ $OMARCHY_PATH != "/usr/share/omarchy" ]]; then
 fi
 
 package=""
-if pacman -Qq omarchy-dev >/dev/null 2>&1; then
+if pacman -Qq omarchy-kids-base >/dev/null 2>&1; then
+  package=omarchy-kids-base
+elif pacman -Qq omarchy-dev >/dev/null 2>&1; then
   package=omarchy-dev
 elif pacman -Qq omarchy >/dev/null 2>&1; then
   package=omarchy

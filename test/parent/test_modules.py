@@ -4,6 +4,7 @@ import json
 import os
 import pwd
 import sys
+import subprocess
 import tempfile
 import threading
 import time
@@ -17,7 +18,7 @@ sys.path.insert(0, str(ROOT / 'lib/parent'))
 from omarchy_parent.core import paths
 from omarchy_parent.core.auth import ParentAuth
 from omarchy_parent.core.daemon import Daemon
-from omarchy_parent.core.files import browser_change, config_change
+from omarchy_parent.core.files import browser_change, config_change, adopt_browser_policy
 from omarchy_parent.core.migrate import migrate, split_config
 from omarchy_parent.core.storage import write_json, read_json
 from omarchy_parent.school_mode.policy import Policy
@@ -153,6 +154,42 @@ class ModulesTest(unittest.TestCase):
         for t in threads: t.join()
         for name in ('dns', 'wifi', 'test'):
             self.assertIn(name + '=on', target.read_text())
+
+    def test_practice_works_with_enforcement_off(self):
+        self.assertFalse(self.layout.socket_path.exists())
+        output = subprocess.check_output(['bash', str(ROOT / 'bin/omarchy-parent-time-client'), 'practice', 'grade5'], text=True)
+        response = json.loads(output)
+        self.assertTrue(response['ok'])
+        self.assertTrue('×' in response['text'] or '÷' in response['text'])
+        self.assertIsInstance(response['answer'], int)
+
+    def test_legacy_browser_keys_are_adopted_before_removal(self):
+        target = self.base / 'policies.json'
+        original = {'policies': {'Custom': 42, 'DNSOverHTTPS': {'Enabled': False, 'Locked': True}, 'DisablePrivateBrowsing': True}}
+        write_json(target, original)
+        adopt_browser_policy(target, ['dns', 'browsing'])
+        browser_change(target, 'dns', {})
+        self.assertEqual(read_json(target)['policies'], {'Custom': 42, 'DisablePrivateBrowsing': True})
+        browser_change(target, 'browsing', {})
+        self.assertEqual(read_json(target)['policies'], {'Custom': 42})
+        self.assertEqual(read_json(target.with_name('policies.json.before-kids-modules')), original)
+
+    def test_invalid_school_schedule_does_not_change_policy(self):
+        host = self.host(); self.enable(host, 'school')
+        before = copy.deepcopy(host.services['school'].config)
+        for periods in (None, [{'mode': 'block', 'start': '08:00', 'end': '15:00'}], [{'mode': 'free', 'start': '27:00', 'end': '28:00'}]):
+            result = self.send(host, 'school', 'config.patch', patch={'blocked_periods': periods})
+            self.assertEqual(result['error'], 'bad_patch')
+            self.assertEqual(host.services['school'].config, before)
+
+    def test_manual_school_choice_survives_restart(self):
+        host = self.host(); self.enable(host, 'school')
+        self.send(host, 'school', 'mode.set', mode='school', parent=False)
+        host.services['school'].save()
+        restarted = self.host()
+        response = self.send(restarted, 'school', 'mode.get', parent=False)
+        self.assertEqual((response['mode'], response['mode_reason']), ('school', 'chosen'))
+        self.assertEqual(self.send(restarted, 'school', 'mode.set', mode='free', parent=False)['error'], 'parent_required')
 
 if __name__ == '__main__':
     unittest.main()

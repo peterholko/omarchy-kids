@@ -14,14 +14,18 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:
+      - run: pacman -Syu --noconfirm python git imagemagick
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: pacman -Syu --noconfirm python git imagemagick
       - run: |
           useradd -m builder
           chown -R builder:builder "$GITHUB_WORKSPACE"
           runuser -u builder -- ./packaging/build
+      - run: |
+          pacman -Udd --noscriptlet --noconfirm build-output/*.pkg.tar.zst
+          test -f /usr/lib/systemd/system/omarchy-parent-timed.service
+          OMARCHY_PATH=/usr/share/omarchy SCREEN_TIME_ROOT=/tmp/installed-kids python -c 'import sys; sys.path.insert(0, "/usr/share/omarchy/lib/parent"); from omarchy_parent.core.daemon import Daemon; from omarchy_parent.core.paths import detect; assert set(Daemon(detect()).services) == {"school", "time"}'
       - uses: actions/upload-artifact@v4
         with:
           name: omarchy-kids-x86_64

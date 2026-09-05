@@ -36,6 +36,7 @@ print(json.dumps(sorted(host.services)))
                     dest = Path(tmp) / ''.join(str(int(bit)) for bit in bits)
                     for module in ['core', *selected]:
                         stage.stage(ROOT, dest, module)
+                    self.assertTrue((dest / 'usr/lib/systemd/system/omarchy-parent-timed.service').exists())
                     env = {**os.environ, 'SCREEN_TIME_ROOT': str(dest / 'state'), 'OMARCHY_PATH': str(dest / 'usr/share/omarchy')}
                     output = subprocess.check_output([sys.executable, '-I', '-c', script, str(dest / 'usr/share/omarchy/lib/parent')], env=env, text=True)
                     self.assertEqual(json.loads(output), sorted(set(selected) & {'school', 'time'}))

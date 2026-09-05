@@ -171,7 +171,7 @@ conf_document wifi parent "wifi: who may join and change Wi-Fi networks." "  par
 grep -qx 'wifi=parent' "$PARENT_CONF" || fail "conf_document spells out the Wi-Fi default"
 grep -q '^# wifi: who may join' "$PARENT_CONF" || fail "conf_document explains the key above it"
 grep -q '^# Omarchy kids mode' "$PARENT_CONF" || fail "conf_init writes the general header first"
-[[ $(stat -f %Lp "$PARENT_CONF" 2>/dev/null || stat -c %a "$PARENT_CONF") == 644 ]] || fail "parent.conf is world-readable"
+[[ $(python3 -c 'import os, sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777)[2:])' "$PARENT_CONF") == 644 ]] || fail "parent.conf is world-readable"
 [[ $(conf_get wifi parent) == parent ]] || fail "conf_get reads the default it wrote"
 conf_set wifi kid
 conf_document wifi parent "wifi: who may join and change Wi-Fi networks."

@@ -193,7 +193,7 @@ printf '#!/bin/bash\necho "[]"\n' >"$tmp/bin/runuser"
 rm -f "$tmp/state/kid/browsing/titles.tsv"
 PATH="$tmp/bin:$PATH" RUN_ROOT="$tmp/root/run/user" collect_user kid || fail "the collector succeeds with no YouTube window open"
 [[ ! -e $tmp/state/kid/browsing/titles.tsv ]] || fail "no window, no title row"
-[[ $(stat -f %Lp "$tmp/state/kid/browsing/visits.tsv" 2>/dev/null || stat -c %a "$tmp/state/kid/browsing/visits.tsv") == 600 ]] || fail "the log is root's alone"
+[[ $(python3 -c 'import os, sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777)[2:])' "$tmp/state/kid/browsing/visits.tsv") == 600 ]] || fail "the log is root's alone"
 append_chromium "$kid_home/.config/chromium/Default/History" \
   "$((now-30))|https://school.example/fresh-assignment|Fresh assignment"
 fresh_pages=$(PATH="$tmp/bin:$PATH" RUN_ROOT="$tmp/root/run/user" report_pages kid 7 100)

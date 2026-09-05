@@ -31,6 +31,8 @@ def destinations(relative):
     values = [Path('usr/share/omarchy') / relative]
     if relative.parts[:3] == ('default', 'libalpm', 'hooks'):
         values.append(Path('usr/share/libalpm/hooks') / relative.name)
+    if str(relative) == 'default/parent/omarchy-parent-timed.service':
+        values.append(Path('usr/lib/systemd/system') / relative.name)
     return values
 
 

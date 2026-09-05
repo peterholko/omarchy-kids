@@ -214,7 +214,16 @@ def cmd_mode(args):
 
 
 def cmd_practice(args):
-    return _emit(_request(args, {"cmd": "quiz.practice", "level": args.level}), args.human)
+    # Practice grants no time and needs no privileged service. Keep it usable
+    # when parents install Math but leave screen-time enforcement disabled.
+    try:
+        from omarchy_parent.screen_time.quiz import practice
+        from omarchy_parent.screen_time.config import LEVELS
+    except ModuleNotFoundError:
+        return _emit({"ok": False, "error": "module_not_installed", "module": "time"}, args.human)
+    if args.level not in LEVELS:
+        return _emit({"ok": False, "error": "bad_level"}, args.human)
+    return _emit({"ok": True, **practice(args.level)}, args.human)
 
 
 def cmd_answer(args):

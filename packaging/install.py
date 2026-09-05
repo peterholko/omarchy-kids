@@ -73,11 +73,18 @@ def main():
             subprocess.run(['systemctl', 'start', 'omarchy-parent-timed.service'], check=True)
     cache = Path('/var/cache/omarchy-kids/packages')
     cache.mkdir(parents=True, exist_ok=True)
-    for old in cache.glob('*.pkg.tar.zst'):
-        old.unlink()
     for archive in archives.values():
-        shutil.copy2(archive, cache / archive.name)
-    shutil.copy2(args.packages / 'release.json', cache / 'release.json')
+        target = cache / archive.name
+        if archive != target.resolve():
+            stage = target.with_suffix(target.suffix + '.new')
+            shutil.copy2(archive, stage)
+            os.replace(stage, target)
+    current = {archive.name for archive in archives.values()}
+    for old in cache.glob('*.pkg.tar.zst'):
+        if old.name not in current:
+            old.unlink()
+    if (args.packages / 'release.json').resolve() != (cache / 'release.json').resolve():
+        shutil.copy2(args.packages / 'release.json', cache / 'release.json')
     environment = {**os.environ, 'OMARCHY_PATH': '/usr/share/omarchy', 'PATH': '/usr/bin:/bin'}
     sys.path.insert(0, '/usr/share/omarchy/lib/parent')
     from omarchy_parent.core.files import adopt_browser_policy
