@@ -16,11 +16,13 @@ The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` she
 
 ## Install on an existing child laptop
 
-Build on Arch Linux from this checkout, as a normal user:
+On the Omarchy laptop, open a terminal in your `omarchy-kids` checkout. Run these three commands one at a time as the regular signed-in user; the package installation steps will ask for the parent password:
 
 ```bash
 omarchy pkg add base-devel python git imagemagick
+
 ./packaging/build
+
 ./packaging/install ./build-output --user CHILD_USERNAME dns browsing time school
 ```
 
