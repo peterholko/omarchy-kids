@@ -74,6 +74,12 @@ jobs:
           test "${#images[@]}" -eq 1
           ./packaging/iso test "${images[0]}"
       - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kids-iso-test-evidence
+          path: build-output/iso/test/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: kids-iso-candidate
@@ -83,12 +89,6 @@ jobs:
             build-output/iso/build-info.json
           compression-level: 0
           retention-days: 1
-          if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: kids-iso-test-evidence
-          path: build-output/iso/test/
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
