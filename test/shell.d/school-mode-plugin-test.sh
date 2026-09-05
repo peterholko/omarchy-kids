@@ -276,7 +276,7 @@ out=$("$plugin/shortcut-policy" exit)
 grep -q '^hyprctl reload$' "$HYPR_CALLS" && [[ ! -f $tmp/run/omarchy-school-mode/shortcut-policy.active ]] || fail "exit reloads the real configuration and drops the marker"
 pass "the school shortcut layer is applied with hyprctl and undone with a reload"
 
-grep -q '"/var/lib/omarchy/parent/" + userName + "/time/status.json"' "$plugin/Service.qml" || fail "the service reads the mode from the daemon's status.json"
+grep -q '"/var/lib/omarchy/parent/" + userName + "/school-mode/status.json"' "$plugin/Service.qml" || fail "the service reads the mode from the school module's status.json"
 grep -q 'readonly property bool schoolMode: childInstall && schoolEnabled && mode === "school"' "$plugin/Service.qml" || fail "school mode needs a child install with its own enrollment"
 grep -q 'omarchy-profile-child && echo child || echo default' "$plugin/Service.qml" || fail "the service asks whether this is a child install"
 grep -q 'ShellIntegration.activate(config, root.pluginId, root.modePillId, root.modePillPath, root.schoolMode)' "$plugin/Service.qml" || fail "the service takes the menu slot and places the pill"

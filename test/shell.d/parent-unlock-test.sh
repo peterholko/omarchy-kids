@@ -31,10 +31,11 @@ printf 'runuser %s\n' "$*" >>"$CALLS"
 cat >"$STDIN_SEEN"
 exit "${STUB_SUDO_STATUS:-0}"
 SH
-cat >"$stub_root/usr/bin/omarchy-parent-time-client" <<'SH'
+cat >"$stub_root/usr/bin/python3" <<'SH'
 #!/bin/bash
-printf 'quiz %s\n' "$*" >>"$CALLS"
-exit "${STUB_QUIZ_STATUS:-0}"
+printf 'grant %s\n' "$*" >>"$CALLS"
+cat >/dev/null
+exit "${STUB_GRANT_STATUS:-0}"
 SH
 cat >"$test_tmp/idbin/id" <<'SH'
 #!/bin/bash
@@ -50,7 +51,7 @@ chmod +x "$stub_root/usr/bin"/* "$test_tmp/idbin/id"
 # The helper names its privileged commands and its own installed path outright,
 # so the test runs a copy that names the stubs and re-enters that copy.
 helper="$test_tmp/omarchy-parent-unlock"
-sed "s|/usr/bin/sudo|$stub_root/usr/bin/sudo|g; s|/usr/bin/runuser|$stub_root/usr/bin/runuser|g; s|/usr/bin/omarchy-parent-time-client|$stub_root/usr/bin/omarchy-parent-time-client|g; s|/usr/bin/omarchy-parent-unlock|$helper|g" "$unlock" |
+sed "s|/usr/bin/sudo|$stub_root/usr/bin/sudo|g; s|/usr/bin/runuser|$stub_root/usr/bin/runuser|g; s|/usr/bin/python3|$stub_root/usr/bin/python3|g; s|/usr/bin/omarchy-parent-unlock|$helper|g" "$unlock" |
   sed 's/(( EUID == 0 ))/(( ${STUB_ME:-1000} == 0 ))/' >"$helper"
 chmod +x "$helper"
 grep -q '/usr/bin/sudo -k -S -u root -- /usr/bin/omarchy-parent-unlock --grant-unlock-time "$user"' "$unlock" || fail "the helper asks sudo with -k and -S to run its fixed grant mode"
@@ -77,10 +78,10 @@ printf 's3cret' | STUB_ME=0 PAM_USER=kid PAM_TYPE=auth run_helper || fail "the p
 # parent password fail merely because screen time is off or its writer fails.
 : >"$CALLS"
 STUB_ME=0 SUDO_USER=kid run_helper --grant-unlock-time kid || fail "the authenticated grant mode succeeds"
-[[ $(<"$CALLS") == "quiz --user kid grant 5" ]] || fail "a parent unlock adds exactly five minutes" "$(<"$CALLS")"
+[[ $(<"$CALLS") == "grant -I - kid 5" ]] || fail "a parent unlock adds exactly five minutes" "$(<"$CALLS")"
 : >"$CALLS"
-STUB_ME=0 STUB_QUIZ_STATUS=1 SUDO_USER=kid run_helper --grant-unlock-time kid || fail "a screen-time failure does not deny the parent unlock"
-[[ $(<"$CALLS") == "quiz --user kid grant 5" ]] || fail "the failed best-effort grant still targeted the right budget" "$(<"$CALLS")"
+STUB_ME=0 STUB_GRANT_STATUS=1 SUDO_USER=kid run_helper --grant-unlock-time kid || fail "a screen-time failure does not deny the parent unlock"
+[[ $(<"$CALLS") == "grant -I - kid 5" ]] || fail "the failed best-effort grant still targeted the right budget" "$(<"$CALLS")"
 : >"$CALLS"
 if STUB_ME=1000 SUDO_USER=kid run_helper --grant-unlock-time kid 2>/dev/null; then
   fail "the kid cannot invoke the grant mode directly"

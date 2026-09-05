@@ -24,8 +24,8 @@ PARENT_UNLOCK_CREDIT=5
 
 # sudo re-enters this root-owned helper after it has authenticated root's
 # password. Keep the grant mode private to that path: a direct kid invocation
-# is not root, and the account must be the one sudo says invoked it. The quiz
-# command owns the lock around budget updates. Its failure is deliberately
+# is not root, and the account must be the one sudo says invoked it. The daemon
+# owns the lock around budget updates. Its failure is deliberately
 # swallowed so parental access never depends on the optional screen-time
 # subsystem.
 if [[ ${1:-} == "--grant-unlock-time" ]]; then
@@ -34,7 +34,21 @@ if [[ ${1:-} == "--grant-unlock-time" ]]; then
   [[ $user =~ ^[a-z_][a-z0-9_-]*$ && $user != "root" ]] || exit 1
   (( EUID == 0 )) || exit 1
   [[ ${SUDO_USER:-} == $user ]] || exit 1
-  /usr/bin/omarchy-parent-time-client --user "$user" grant "$PARENT_UNLOCK_CREDIT" >/dev/null 2>&1 || true
+  # PAM runs before the desktop session and sudo clears its environment. Talk
+  # to the fixed system socket without importing optional modules or relying
+  # on OMARCHY_PATH. Isolated Python also ignores user import paths.
+  /usr/bin/python3 -I - "$user" "$PARENT_UNLOCK_CREDIT" >/dev/null 2>&1 <<'PY' || true
+import json
+import socket
+import sys
+
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+    connection.settimeout(5)
+    connection.connect("/run/omarchy-parent/screen-time/sock")
+    request = {"scope": "time", "cmd": "grant", "user": sys.argv[1], "minutes": int(sys.argv[2])}
+    connection.sendall((json.dumps(request) + "\n").encode())
+    connection.recv(4096)
+PY
   exit 0
 fi
 
