@@ -19,8 +19,17 @@ spec.loader.exec_module(stage)
 
 
 class PackageTest(unittest.TestCase):
-    def test_all_sixteen_optional_package_combinations(self):
-        optional = ['dns', 'browsing', 'time', 'school']
+    def test_default_child_install_includes_the_catalog_without_duplicate_ids(self):
+        catalog = Manager(ROOT).catalog
+        packages = [line.strip() for line in (ROOT / 'install/omarchy-child.packages').read_text().splitlines()
+                    if line.strip() and not line.startswith('#')]
+        self.assertEqual(set(packages), {item['package'] for item in catalog.values()})
+        self.assertEqual(len(packages), len(set(packages)))
+        plugins = [plugin for item in catalog.values() for plugin in item['shellPlugins']]
+        self.assertEqual(len(plugins), len(set(plugins)))
+
+    def test_all_thirty_two_optional_package_combinations(self):
+        optional = ['dns', 'browsing', 'time', 'school', 'grove']
         script = '''
 import sys, os, json, importlib.util
 sys.path.insert(0, sys.argv[1])
@@ -30,7 +39,7 @@ host = Daemon(detect(), log=lambda _: None)
 print(json.dumps(sorted(host.services)))
 '''
         with tempfile.TemporaryDirectory(prefix='kids-packages-') as tmp:
-            for bits in itertools.product([False, True], repeat=4):
+            for bits in itertools.product([False, True], repeat=len(optional)):
                 selected = [m for m, yes in zip(optional, bits) if yes]
                 with self.subTest(modules=selected):
                     dest = Path(tmp) / ''.join(str(int(bit)) for bit in bits)
@@ -42,13 +51,15 @@ print(json.dumps(sorted(host.services)))
                     self.assertEqual(json.loads(output), sorted(set(selected) & {'school', 'time'}))
                     for module in optional:
                         self.assertEqual((dest / 'usr/bin' / ('omarchy-kids-' + module)).exists(), module in selected)
+                    self.assertEqual((dest / 'usr/share/applications/omarchy-number-grove.desktop').exists(), 'grove' in selected)
+                    self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/number-grove/GameView.qml').exists(), 'grove' in selected)
                     self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/math').exists(), 'time' in selected)
                     self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/school-mode').exists(), 'school' in selected)
 
     def test_base_relinquishes_every_module_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp)
-            for module in ['core', 'dns', 'browsing', 'time', 'school']:
+            for module in ['core', 'dns', 'browsing', 'time', 'school', 'grove']:
                 stage.stage(ROOT, dest, module)
             stage.prune(ROOT, dest)
             for relative in stage.entries(ROOT):
@@ -77,3 +88,17 @@ print(json.dumps(sorted(host.services)))
             manager.install(['browsing'])
             self.assertEqual(run.call_args_list[0].args[0], ['omarchy-pkg-add', 'omarchy-kids-core', 'omarchy-kids-browsing'])
             change.assert_not_called()
+
+    def test_grove_is_an_independent_application(self):
+        manager = Manager(ROOT)
+        self.assertEqual(manager.resolve(['grove']), ['core', 'grove'])
+        with patch.object(manager, 'installed', return_value=True), patch.object(manager, 'refresh_desktops'), patch('subprocess.run') as run:
+            with self.assertRaisesRegex(ValueError, 'ready when installed'):
+                manager.change('grove', True)
+            run.assert_not_called()
+            manager.remove('grove')
+            self.assertEqual(run.call_args_list[0].args[0], ['omarchy-pkg-drop', 'omarchy-kids-grove'])
+        with patch.object(manager, 'installed', side_effect=lambda name: name in ('core', 'grove')), patch('omarchy_kids.core.proto.request', return_value={}):
+            item = next(item for item in manager.listing() if item['id'] == 'grove')
+            self.assertTrue(item['enabled'])
+            self.assertTrue(item['healthy'])

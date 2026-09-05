@@ -1,0 +1,5 @@
+#!/bin/bash
+# omarchy:summary=Connect Number Grove to optional screen-time rewards
+# omarchy:hidden=true
+
+exec python3 -c 'import os, sys; sys.path.insert(0, os.environ["OMARCHY_PATH"] + "/lib/parent"); from omarchy_kids.number_grove.rewards import main; raise SystemExit(main())' "$@"

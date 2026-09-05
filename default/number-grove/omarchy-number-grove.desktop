@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Number Grove
+Comment=Collect arithmetic seeds, dodge drift bugs, and grow your grove
+TryExec=omarchy-kids-grove
+Exec=omarchy-kids-grove
+Terminal=false
+Type=Application
+Icon=applications-education
+Categories=Education;Math;Game;
+StartupNotify=false

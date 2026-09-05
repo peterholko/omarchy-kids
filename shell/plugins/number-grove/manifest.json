@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "omarchy.number-grove",
+  "name": "Number Grove",
+  "version": "1.0.0",
+  "author": "Omarchy Kids",
+  "description": "An original arithmetic garden game with optional screen-time rewards",
+  "kinds": ["panel"],
+  "entryPoints": {"panel": "NumberGrove.qml"}
+}

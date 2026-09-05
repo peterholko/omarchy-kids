@@ -109,7 +109,7 @@ _etc_override_paths=(
   'etc/plymouth/plymouthd.conf'
 )
 
-# packaging/build freezes one checkout for all seven packages.
+# packaging/build freezes one checkout for all eight packages.
 source=()
 sha256sums=()
 : "${OMARCHY_SRC:?Build with packaging/build from the omarchy-kids checkout}"

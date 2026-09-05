@@ -52,5 +52,12 @@
     "lib/parent/omarchy_kids/school_mode",
     "shell/plugins/school-mode",
     "install/user/school-mode.sh"
+  ],
+  "grove": [
+    "bin/omarchy-kids-grove",
+    "bin/omarchy-kids-grove-client",
+    "lib/parent/omarchy_kids/number_grove",
+    "shell/plugins/number-grove",
+    "default/number-grove/omarchy-number-grove.desktop"
   ]
 }

@@ -9,18 +9,18 @@ import subprocess
 import sys
 from pathlib import Path
 from conversion import Conversion, PROFILE
-from release import verify
+from release import MODULE_NAMES, verify
 
-MODULES = ('dns', 'browsing', 'time', 'school')
+MODULES = tuple(name for name in MODULE_NAMES if name != 'core')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('packages', type=Path, help='directory containing the seven built packages and release.json')
+    parser.add_argument('packages', type=Path, help='directory containing all built packages and release.json')
     parser.add_argument('modules', nargs='*', choices=['core', *MODULES], help='additional modules to install; existing selections are retained')
     parser.add_argument('--user', required=True, help='existing account to configure for the kid')
     parser.add_argument('--convert', action='store_true', help='convert a clean Omarchy 4 account; install every module by default')
-    parser.add_argument('--all', action='store_true', help='install all five modules')
+    parser.add_argument('--all', action='store_true', help='install all modules')
     args = parser.parse_args()
     if os.geteuid() != 0 or sys.platform != 'linux':
         parser.error('run packaging/install on the Omarchy laptop')
@@ -122,7 +122,7 @@ def main():
     subprocess.run(['/usr/bin/omarchy-kids-refresh'], env=environment, check=True)
     if conversion:
         conversion.finish()
-    print('Installed. New optional modules remain disabled until you enable them.')
+    print('Installed. Applications are ready to launch. New restriction modules remain disabled until you enable them.')
     print('Reboot before handing the laptop to the kid, then run: omarchy kids plugin pick')
 
 

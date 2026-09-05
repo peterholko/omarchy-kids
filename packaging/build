@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build one compatible base/settings pair and five independently installable modules.
+# Build one compatible base/settings pair and six independently installable modules.
 set -euo pipefail
 
 source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
@@ -9,7 +9,7 @@ if (( EUID == 0 )); then
   exit 1
 fi
 if [[ $(uname -s) != "Linux" ]] || ! command -v makepkg >/dev/null; then
-  echo "Build on Arch Linux with base-devel, python, git, and imagemagick installed." >&2
+  echo "Build on Omarchy with base-devel, python, git, and imagemagick installed." >&2
   exit 1
 fi
 mkdir -p "$output"

@@ -85,6 +85,8 @@ class Manager:
         if not self.installed(name):
             raise ValueError(f'{name} is not installed')
         item = self.catalog[name]
+        if item.get('kind') == 'application':
+            raise ValueError(f'{name} is ready when installed; use add or remove for this application')
         command = [str(self.root / 'bin' / item['command']), item['enable' if enabled else 'disable']]
         if name != 'dns':
             if not user or user == 'root':
@@ -144,7 +146,7 @@ class Manager:
             installed = self.installed(name)
             enabled, healthy = False, None
             if installed:
-                if name == 'core':
+                if name == 'core' or item.get('kind') == 'application':
                     enabled, healthy = True, True
                 elif name in running:
                     enabled = running[name]['users'] > 0
@@ -171,6 +173,8 @@ class Manager:
             action = choice.stdout.strip()
             installed = {i['id']: i['installed'] for i in self.listing()}
             names = [n for n in self.catalog if n != 'core' and (action == 'Install modules' or installed[n])]
+            if action in ('Enable a module', 'Disable a module'):
+                names = [n for n in names if self.catalog[n].get('kind') != 'application']
             labels = {self.catalog[n]['name']: n for n in names}
             if not labels:
                 print('No optional modules are installed.'); continue
@@ -184,6 +188,8 @@ class Manager:
             if action == 'Install modules' and selected:
                 self.install(selected)
                 for name in selected:
+                    if self.catalog[name].get('kind') == 'application':
+                        continue
                     if subprocess.run(['gum', 'confirm', 'Enable ' + self.catalog[name]['name'] + ' now?']).returncode == 0:
                         self.change(name, True, user)
             else:
@@ -229,7 +235,8 @@ def main():
                 manager.install(args.modules)
                 if args.enable:
                     for name in args.modules:
-                        manager.change(name, True, args.user)
+                        if manager.catalog[ALIASES.get(name, name)].get('kind') != 'application':
+                            manager.change(name, True, args.user)
             else:
                 if len(args.modules) != 1: raise ValueError('choose one module')
                 if args.action == 'remove': manager.remove(args.modules[0])

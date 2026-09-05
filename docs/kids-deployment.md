@@ -1,10 +1,10 @@
 # Kids deployment
 
-Omarchy Kids supports converting a clean Omarchy 4 laptop and installing a fresh laptop from the dedicated Kids ISO. Both use the same seven package archives and `omarchy-kids-setup` to configure the account. Upstream PR acceptance is not a prerequisite.
+Omarchy Kids supports converting a clean Omarchy 4 laptop and installing a fresh laptop from the dedicated Kids ISO. Both use the same eight package archives and `omarchy-kids-setup` to configure the account. Upstream PR acceptance is not a prerequisite.
 
 ## Existing laptop
 
-Build with `./packaging/build`, then run `./packaging/install ./build-output --user CHILD_USERNAME --convert`. The default selection is all five modules. Existing child installations use `--all` instead of `--convert`; an update with neither flag retains the installed module selection.
+Build with `./packaging/build`, then run `./packaging/install ./build-output --user CHILD_USERNAME --convert`. The default selection is all six modules. Existing child installations use `--all` instead of `--convert`; an update with neither flag retains the installed module selection.
 
 Conversion requires the standard Omarchy 4 package layout, completed user setup, one regular local account with a working password, and ordinary sudo rules. It checks these conditions, package hashes and identities before installing. The parent supplies a different password, and the current disk-unlock password if encryption is present. It never formats the disk, changes the kid login password, removes existing encryption slots or overwrites the home directory.
 
@@ -14,9 +14,9 @@ Both deployments require a reboot before use by the kid. Conversion removes whee
 
 ## Fresh laptop
 
-The Kids ISO builder accepts a complete, clean, committed x86_64 release directory. It verifies the seven archives, extracts the installer form and package lists from that exact runtime archive, and adds the packages and their dependency closure to the offline mirror. The image always installs the child profile. A matching `release.json` and all seven packages are copied to `/var/cache/omarchy-kids/packages` on the target.
+The Kids ISO builder accepts a complete, clean, committed x86_64 release directory. It verifies the eight archives, extracts the installer form and package lists from that exact runtime archive, and adds the packages and their dependency closure to the offline mirror. The image always installs the child profile. A matching `release.json` and all eight packages are copied to `/var/cache/omarchy-kids/packages` on the target.
 
-The builder is maintained separately from the upstream installer PR, with its revision pinned by Omarchy Kids. The ISO and package artifacts carry their source revision and checksums. A public download release is separate from building an artifact in this private repository.
+The builder is maintained separately from the upstream installer PR, with its revision pinned by Omarchy Kids. The ISO and package artifacts carry their source revision and checksums. A public download release is separate from building an artifact from this repository.
 
 To build on an x86_64 Linux machine with Docker and enough free space for the build and ISO:
 

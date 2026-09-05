@@ -1,0 +1,13 @@
+#!/bin/bash
+# omarchy:summary=Play Number Grove, a game of arithmetic and seed collecting
+
+set -euo pipefail
+if [[ ${1:-} == "--help" || ${1:-} == "-h" ]]; then
+  echo "Usage: omarchy kids grove"
+  echo "Arrow keys or WASD to move; Space to collect; Escape to pause."
+elif (( $# )); then
+  echo "Usage: omarchy kids grove" >&2
+  exit 2
+else
+  omarchy-shell shell summon omarchy.number-grove
+fi

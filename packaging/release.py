@@ -6,15 +6,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+MODULE_NAMES = tuple(json.loads(Path(__file__).with_name('modules.json').read_text()))
 PACKAGE_NAMES = {'omarchy-kids-base', 'omarchy-kids-settings'} | {
-    'omarchy-kids-' + name for name in ('core', 'dns', 'browsing', 'time', 'school')}
+    'omarchy-kids-' + name for name in MODULE_NAMES}
 
 
 def verify(directory, architecture=None):
     """Verify content and package identity before passing anything to pacman."""
     release = json.loads((directory / 'release.json').read_text())
     if set(release['packages']) != PACKAGE_NAMES:
-        raise ValueError('the release must contain the base pair and all five modules')
+        raise ValueError('the release must contain the base pair and all catalog modules')
     archives = {}
     for name, info in release['packages'].items():
         filename = info['file']
@@ -31,7 +32,7 @@ def verify(directory, architecture=None):
         archives[name] = archive.resolve()
     versions = {name: info['pkgver'] for name, info in release['packages'].items()}
     if versions['omarchy-kids-base'] != versions['omarchy-kids-settings'] or len({
-            versions['omarchy-kids-' + name] for name in ('core', 'dns', 'browsing', 'time', 'school')}) != 1:
+            versions['omarchy-kids-' + name] for name in MODULE_NAMES}) != 1:
         raise ValueError('mixed package revisions')
     if len({version.rsplit('-', 1)[-1] for version in versions.values()}) != 1:
         raise ValueError('base and modules were built from different revisions')
@@ -59,9 +60,9 @@ def main():
             if entry in owners:
                 raise SystemExit(f'Package ownership conflict: {entry} ({owners[entry]}, {name})')
             owners[entry] = name
-    expected = {'omarchy-kids-base', 'omarchy-kids-settings'} | {'omarchy-kids-' + n for n in ('core', 'dns', 'browsing', 'time', 'school')}
+    expected = PACKAGE_NAMES
     if set(packages) != expected:
-        raise SystemExit('The release must contain exactly the base pair and all five module packages.')
+        raise SystemExit('The release must contain exactly the base pair and all catalog module packages.')
     commit = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
     dirty = bool(subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain'], text=True).strip())
     (output / 'release.json').write_text(json.dumps({'source': commit, 'dirty': dirty, 'packages': packages}, indent=2) + '\n')

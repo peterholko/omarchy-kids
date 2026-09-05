@@ -62,7 +62,7 @@ case "${1:-}" in
     ;;
   add|remove)
     case "${2:-}" in
-      core|dns|browsing|time|school|screen-time|school-mode)
+      core|dns|browsing|time|school|grove|screen-time|school-mode)
         exec "$OMARCHY_PATH/bin/omarchy-kids-modules" "$@"
         ;;
     esac

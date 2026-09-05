@@ -42,7 +42,7 @@ class ReleaseTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'checksum'):
             self.verify()
         del self.packages['omarchy-kids-core']
-        with self.assertRaisesRegex(ValueError, 'five modules'):
+        with self.assertRaisesRegex(ValueError, 'catalog modules'):
             self.verify()
 
     def test_identity_architecture_and_revision_mismatch(self):

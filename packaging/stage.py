@@ -33,6 +33,8 @@ def destinations(relative):
         values.append(Path('usr/share/libalpm/hooks') / relative.name)
     if str(relative) == 'default/parent/omarchy-kids-timed.service':
         values.append(Path('usr/lib/systemd/system') / relative.name)
+    if str(relative) == 'default/number-grove/omarchy-number-grove.desktop':
+        values.append(Path('usr/share/applications/omarchy-number-grove.desktop'))
     return values
 
 

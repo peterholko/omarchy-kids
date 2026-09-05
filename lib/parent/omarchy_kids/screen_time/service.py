@@ -351,7 +351,7 @@ class Account:
         cap = self.profile["earn"]["daily_cap_minutes"] * 60
         return max(0, cap - self.day.earned)
 
-    def quiz_next(self, now):
+    def quiz_next(self, now, choices=0):
         earn = self.profile["earn"]
         if self.together or not earn["enabled"]:
             return {"ok": False, "error": "earning_disabled"}
@@ -362,13 +362,19 @@ class Account:
         if question is None:
             return {"ok": False, "error": "no_questions"}
         reward = min(config_mod.seconds_per_correct(earn), self.earn_room())
-        return {"ok": True, "question": question.public(reward, earn["question_timeout_seconds"]),
+        public = question.public(reward, earn["question_timeout_seconds"])
+        if choices == 6:
+            public["choices"] = question.choices()
+        return {"ok": True, "question": public,
                 "earn_room_seconds": self.earn_room(),
                 "questions_per_set": earn["questions_per_set"],
                 "set_minutes": earn["set_minutes"], "level": earn["level"]}
 
     def quiz_answer(self, question_id, given, now):
         earn = self.profile["earn"]
+        if self.together or not earn["enabled"]:
+            self.quiz.pending = None
+            return {"ok": False, "error": "earning_disabled"}
         verdict = self.quiz.answer(question_id, given, now)
         if not verdict.get("ok"):
             return verdict
@@ -704,12 +710,16 @@ class Service:
             return {"ok": False, "error": "not_managed"}
 
         if command == "quiz.next":
+            choices = message.get("choices", 0)
+            if type(choices) is not int or choices not in (0, 6):
+                return {"ok": False, "error": "invalid_choices"}
             if demo:
                 return {"ok": True, "question": {"id": "demo", "text": "7 × 8", "kind": "table",
-                                                 "reward_seconds": 180, "timeout_seconds": 1800},
+                                                 "reward_seconds": 180, "timeout_seconds": 1800,
+                                                 **({"choices": [48, 63, 54, 72, 56, 42]} if choices else {})},
                         "earn_room_seconds": 6600, "questions_per_set": 10, "set_minutes": 30, "level": "grade5"}
             with self.lock:
-                return account.quiz_next(now)
+                return account.quiz_next(now, choices)
 
         if command == "quiz.answer":
             if demo:

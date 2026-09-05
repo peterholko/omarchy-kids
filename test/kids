@@ -7,3 +7,4 @@ python3 -m unittest discover -s test/parent -v
 for suite in parent parent-unlock parent-plugin parent-time parent-school parent-dns parent-browsing screen-time-daemon screen-time-plugin school-mode-plugin math-plugin; do
   bash "test/shell.d/$suite-test.sh"
 done
+node --test test/number-grove/engine.test.cjs

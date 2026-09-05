@@ -55,6 +55,15 @@ class Question:
             "timeout_seconds": timeout_seconds,
         }
 
+    def choices(self):
+        """Six unordered candidates; the answer stays unmarked on the server."""
+        rng = secrets.SystemRandom()
+        nearby = [n for n in range(max(0, self.answer - 12), min(144, self.answer + 12) + 1)
+                  if n != self.answer]
+        values = [self.answer, *rng.sample(nearby, 5)]
+        rng.shuffle(values)
+        return values
+
 
 class Generator:
     """One question at a grade. Shared by the earning quiz and practice."""

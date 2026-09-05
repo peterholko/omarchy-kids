@@ -3,5 +3,6 @@
   "dns": {"name": "DNS Filtering", "package": "omarchy-kids-dns", "requires": ["core"], "apiVersion": 1, "command": "omarchy-kids-dns", "enable": "denylist", "disable": "off", "shellPlugins": []},
   "browsing": {"name": "Browsing Logging", "package": "omarchy-kids-browsing", "requires": ["core"], "apiVersion": 1, "command": "omarchy-kids-browsing", "enable": "on", "disable": "off", "shellPlugins": []},
   "time": {"name": "Screen Time and Math", "package": "omarchy-kids-time", "requires": ["core"], "apiVersion": 1, "command": "omarchy-kids-time", "enable": "on", "disable": "off", "shellPlugins": ["omarchy.screen-time", "omarchy.math"]},
-  "school": {"name": "School / Free Time", "package": "omarchy-kids-school", "requires": ["core"], "apiVersion": 1, "command": "omarchy-kids-school", "enable": "on", "disable": "off", "shellPlugins": ["omarchy.school-mode"]}
+  "school": {"name": "School / Free Time", "package": "omarchy-kids-school", "requires": ["core"], "apiVersion": 1, "command": "omarchy-kids-school", "enable": "on", "disable": "off", "shellPlugins": ["omarchy.school-mode"]},
+  "grove": {"name": "Number Grove", "package": "omarchy-kids-grove", "requires": ["core"], "apiVersion": 1, "kind": "application", "shellPlugins": ["omarchy.number-grove"]}
 }
