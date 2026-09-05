@@ -46,6 +46,18 @@ The dedicated Kids ISO carries the same seven packages, including all five modul
 
 The ISO build is independent of upstream accepting the child-profile PR. Build and validation instructions are in [the deployment guide](docs/kids-deployment.md).
 
+### ISO installer screenshots
+
+Captured during an encrypted Kids ISO installation in a test VM. These show setup through the reboot prompt; first-boot disk unlock and desktop validation are still pending. Click a screenshot to view it at full size.
+
+| 1. Welcome screen | 2. Child profile |
+| --- | --- |
+| [![Omarchy ISO welcome screen with the prompt to start installation](docs/images/iso/01-welcome.png)](docs/images/iso/01-welcome.png) | [![Kids ISO profile selection showing Child](docs/images/iso/02-child-profile.png)](docs/images/iso/02-child-profile.png) |
+| **3. Kid password** | **4. Parent password** |
+| [![Kid password entry with the password masked](docs/images/iso/03-kid-password.png)](docs/images/iso/03-kid-password.png) | [![Separate parent password entry for administration with the password masked](docs/images/iso/04-parent-password.png)](docs/images/iso/04-parent-password.png) |
+| **5. Review setup** | **6. Installation complete** |
+| [![Account setup review with separate masked kid and parent passwords](docs/images/iso/05-setup-review.png)](docs/images/iso/05-setup-review.png) | [![Installer completion screen offering Reboot Now](docs/images/iso/06-installation-complete.png)](docs/images/iso/06-installation-complete.png) |
+
 ## Choose modules
 
 From the child’s session:
