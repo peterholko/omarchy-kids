@@ -10,7 +10,7 @@ if [[ $action != "build" && $action != "test" || -z $input ]]; then
   exit 2
 fi
 if [[ $(uname -s) != "Linux" || $(uname -m) != "x86_64" ]]; then
-  echo "Build and test on an x86_64 Linux machine with Docker, or use the Kids ISO GitHub workflow." >&2
+  echo "Build and test on an x86_64 Linux machine with Docker." >&2
   exit 1
 fi
 input=$(realpath "$input")

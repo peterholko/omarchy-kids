@@ -38,7 +38,7 @@ On an already configured kids laptop, install every module with:
 
 For a smaller installation, list the optional modules instead of `--all`, for example `dns school`. Add `--convert` as well when converting a normal installation. Core is always installed, and existing module selections and enrollments are preserved. Installing code alone does not start logging or impose an optional restriction; the parent enables and configures each feature through **Setup → Kids Modules**.
 
-Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All seven package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. CI also supplies an x86_64 package artifact under the repository’s Actions tab. ARM runtime validation remains outstanding.
+Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All seven package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. ARM runtime validation remains outstanding.
 
 ## Install a fresh laptop with the Kids ISO
 
@@ -95,6 +95,6 @@ The [namespace inventory](docs/kids-namespace-rename.md) lists every renamed sou
 ./test/cli
 ```
 
-The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 16 combinations of optional package contents. The GitHub workflow runs those suites on Linux, builds real packages, exercises conversion with real sudo/PAM and LUKS keys in a disposable container, and renders the shared password field for inspection. Full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
+The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 16 combinations of optional package contents. Builds and tests are run manually on local machines. Package-upgrade and conversion integration checks use a disposable Linux container; full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
 
 See [module architecture and migration](docs/kids-modules.md), [the original design](plans/kids-modules.md), and [upstream Omarchy](https://github.com/basecamp/omarchy). Existing source history and vendored MIT licenses are retained.

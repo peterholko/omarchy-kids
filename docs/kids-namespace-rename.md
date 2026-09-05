@@ -18,7 +18,7 @@ The existing `omarchy-kids-base`, `omarchy-kids-settings`, package cache and sch
 
 | Original file | Current file | Original lines |
 | --- | --- | --- |
-| `.github/workflows/kids.yml` | `.github/workflows/kids.yml` | 28, 29 |
+| `.github/workflows/kids.yml` | Removed with the GitHub Actions workflows | 28, 29 |
 | `README.md` | `README.md` | 7, 8, 9, 10, 11, 40, 41, 42, 43, 44, 45, 53, 54, 55, 56, 57, 58 |
 | `applications/child/Math Time.desktop` | `applications/child/Math Time.desktop` | 5 |
 | `bin/omarchy` | `bin/omarchy` | 69 |
@@ -168,4 +168,4 @@ External plugin installation refuses reserved module IDs, built-in command names
 | `test/parent/test_namespace.py`, `test/parent/package-upgrade.py`, `test/shell.d/parent-plugin-test.sh` | Exercises upgrades from the real previous names and existing external plugin commands. |
 | This document | Records the requested before/after inventory. |
 
-All shipped first-party command filenames, module package names, Python imports, service names, hook names, policy filenames, runtime socket paths, CLI routes and active documentation examples use the kids namespace. CI builds both package generations and tests the actual replacement transaction in a disposable container, in addition to the module and CLI regression suites.
+All shipped first-party command filenames, module package names, Python imports, service names, hook names, policy filenames, runtime socket paths, CLI routes and active documentation examples use the kids namespace. The package-upgrade integration test checks the actual replacement transaction in a disposable Linux container after both package generations are built, in addition to the module and CLI regression suites.

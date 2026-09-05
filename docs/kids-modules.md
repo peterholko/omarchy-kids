@@ -44,6 +44,6 @@ Disabling or removing a module keeps its configuration, lists and collected hist
 
 ## Validation limits
 
-`test/kids` runs the module-boundary tests and focused Bash, Node and Python regressions. Package subset tests start the real core using only the staged files for each of the 16 optional combinations. Linux CI builds the actual split packages and renders the password field. The complete login/lock/network/desktop path and fresh-ISO provisioning require the disposable Omarchy VM acceptance suite; a component render is not a replacement for that acceptance run.
+`test/kids` runs the module-boundary tests and focused Bash, Node and Python regressions. Package subset tests start the real core using only the staged files for each of the 16 optional combinations. Package builds and password-field rendering run manually on Linux. The complete login/lock/network/desktop path and fresh-ISO provisioning require the disposable Omarchy VM acceptance suite; a component render is not a replacement for that acceptance run.
 
-The installer can convert a clean Omarchy 4 account or update an existing child-profile laptop. The dedicated Kids ISO uses the same package release, caches all modules on the installed laptop, and calls the shared account setup. See [deployment and validation](kids-deployment.md) for both entry points and the CI workflow.
+The installer can convert a clean Omarchy 4 account or update an existing child-profile laptop. The dedicated Kids ISO uses the same package release, caches all modules on the installed laptop, and calls the shared account setup. See [deployment and validation](kids-deployment.md) for both entry points and local build instructions.
