@@ -24,6 +24,10 @@ A full desktop view followed by short clips from the recorded demo. The GIFs are
 
 ![Answering multiplication and division questions and receiving 30 minutes of screen time](docs/images/demo/earn-time-with-math.gif)
 
+**Unlock with either password.** The lock screen accepts the kid password or the adult (parent) password.
+
+![Entering a masked password at the lock screen and returning to the desktop](docs/images/demo/unlock-with-password.gif)
+
 **Switch to free time.** Returning from school mode requires the parent password.
 
 ![Leaving school mode by entering the parent password and switching to free time](docs/images/demo/school-to-free-time.gif)
