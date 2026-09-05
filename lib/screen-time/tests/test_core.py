@@ -598,11 +598,11 @@ def test_cli_without_daemon():
         return request
 
     try:
-        code, reply = ask(["practice", "grade5"])
+        code, reply = ask(["status"])
         check("nothing listening is JSON, not a traceback",
               code == 1 and reply.get("ok") is False and str(reply.get("error", "")).startswith("no daemon"), reply)
         proto.request = raising(TimeoutError("timed out"))
-        code, reply = ask(["practice", "grade5"])
+        code, reply = ask(["status"])
         check("a daemon that does not answer is JSON too", code == 1 and reply.get("error") == "no daemon: timed out", reply)
         proto.request = raising(proto.ProtocolError("not json"))
         code, reply = ask(["status"])

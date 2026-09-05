@@ -10,6 +10,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y jq sqlite3
       - run: ./test/kids
       - run: ./test/cli
+      - run: bash test/shell.d/channel-test.sh && bash test/shell.d/update-available-test.sh
   packages:
     runs-on: ubuntu-latest
     container: archlinux:base-devel

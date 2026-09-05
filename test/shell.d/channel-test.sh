@@ -81,6 +81,7 @@ write_stub pacman '#!/bin/bash
 [[ $1 == "-Q" ]] || exit 1
 shift
 case "${OMARCHY_TEST_PACKAGES:-}" in
+  kids) [[ $* == "omarchy-kids-base omarchy-kids-settings" ]] ;;
   stable) [[ $* == "omarchy omarchy-settings" ]] ;;
   dev) [[ $* == "omarchy-dev omarchy-settings-dev" ]] ;;
   *) exit 1 ;;
@@ -185,3 +186,6 @@ pass "current channel detects package-backed edge"
 
 [[ $(current_channel edge dev "$test_tmp/dev-checkout") == "dev" ]] || fail "current channel detects dev from OMARCHY_PATH"
 pass "current channel honors a dev link outside ~/omarchy"
+
+[[ $(current_channel unknown kids /usr/share/omarchy) == "kids" ]] || fail "current channel detects the kids base pair"
+pass "current channel detects the kids base pair"

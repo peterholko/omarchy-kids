@@ -15,7 +15,7 @@ cat >"$stub_bin/checkupdates" <<'SH'
 #!/bin/bash
 case "${TEST_CHECKUPDATES:-updates}" in
   updates)
-    printf 'linux 6.1-1 -> 6.1-2\nomarchy 4.0.0-1 -> 4.0.1-1\nomarchy-settings 4.0.0-1 -> 4.0.1-1\nomarchy-dev 4.1.0-1 -> 4.1.1-1\nomarchy-settings-dev 4.1.0-1 -> 4.1.1-1\n'
+    printf 'omarchy-kids-base 4.0.0.alpha.kids0.1.0-1 -> 4.0.0.alpha.kids0.1.0-2\nlinux 6.1-1 -> 6.1-2\nomarchy 4.0.0-1 -> 4.0.1-1\nomarchy-settings 4.0.0-1 -> 4.0.1-1\nomarchy-dev 4.1.0-1 -> 4.1.1-1\nomarchy-settings-dev 4.1.0-1 -> 4.1.1-1\n'
     exit 0
     ;;
   none)
@@ -34,6 +34,9 @@ cat >"$stub_bin/pacman" <<'SH'
 case "$1" in
   -Qq)
     case "${TEST_INSTALLED_PACKAGE:-omarchy}" in
+      omarchy-kids-base)
+        [[ $2 == "omarchy-kids-base" ]]; exit $?
+        ;;
       omarchy)
         [[ $2 == "omarchy" ]]; exit $?
         ;;
@@ -211,3 +214,9 @@ grep -Fx 'omarchy-dev-checkout 1 new commit on origin/quattro' "$stdout" >/dev/n
   fail "update checker reports cached dev commits after a fetch failure" "$(cat "$stdout")"
 [[ ! -s $stderr ]] || fail "update checker keeps dev fetch failures quiet" "$(cat "$stderr")"
 pass "update checker uses cached dev state when fetching is unavailable"
+
+if ! capture_checker "$stdout" "$stderr" TEST_CHECKUPDATES=updates TEST_INSTALLED_PACKAGE=omarchy-kids-base; then
+  fail "the kids package update is detected"
+fi
+grep -q '^omarchy-kids-base ' "$stdout" || fail "the checker names the kids base package"
+pass "update checker recognizes the kids package"
