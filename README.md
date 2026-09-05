@@ -16,6 +16,8 @@ The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` she
 
 ## Install on an existing child laptop
 
+These instructions require an Omarchy laptop already configured with the **child profile**, such as an installation created with a kids ISO. They update the existing kids installation without reinstalling the OS. For initial setup, use an ISO configured for the child profile; conversion of a regular Omarchy installation into a kids installation is not implemented by this installer.
+
 On the Omarchy laptop, open a terminal in your `omarchy-kids` checkout. Run these three commands one at a time as the regular signed-in user; the package installation steps will ask for the parent password:
 
 ```bash
