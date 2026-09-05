@@ -59,7 +59,7 @@ else
     -e OMARCHY_ISO_TEST_DEPS_READY=1 \
     -v "$scratch/builder:/builder" -v "$scratch/suite:/suite:ro" -v "$input:/kids.iso:ro" \
     -w /builder archlinux:base-devel bash -e -c '
-      pacman -Syu --noconfirm qemu-system-x86 qemu-img edk2-ovmf socat imagemagick tesseract tesseract-data-eng openssh python
+      pacman -Syu --noconfirm qemu-full edk2-ovmf socat imagemagick tesseract tesseract-data-eng openssh python
       ./bin/omarchy-iso-test /kids.iso --child --encrypt --memory 4096 --sync-omarchy /suite --no-preview
     ' || status=$?
   # Keep logs/screenshots, not the large disks or temporary SSH private key.

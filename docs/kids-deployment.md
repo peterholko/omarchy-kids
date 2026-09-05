@@ -18,7 +18,7 @@ The Kids ISO builder accepts a complete, clean, committed x86_64 release directo
 
 The builder is maintained separately from the upstream installer PR, with its revision pinned by Omarchy Kids. The ISO and package artifacts carry their source revision and checksums. A public download release is separate from building an artifact in this private repository.
 
-In GitHub, wait for **Kids modules** CI to pass, then run **Actions → Kids ISO → Run workflow** for that revision. It uses the matching package artifact from the passing tests and conversion checks, builds an ISO, and drives a fresh encrypted child installation in a KVM virtual machine. The ISO download artifact is uploaded only after that acceptance test passes. Test logs and screenshots are retained even on failure. Downloads from this private repository require GitHub access; distributing a public release is a separate step.
+In GitHub, wait for **Kids modules** CI to pass, then run **Actions → Kids ISO → Run workflow** for that revision. It uses the matching package artifact from the passing tests and conversion checks, builds an ISO, and drives a fresh encrypted child installation in a KVM virtual machine. The `omarchy-kids-iso-x86_64` artifact is uploaded only after that acceptance test passes. Test logs and screenshots are retained even on failure. An unvalidated `kids-iso-candidate` image is retained for one day after a failure; enter its run ID in `candidate_run` to rerun the test without rebuilding. Downloads from this private repository require GitHub access; distributing a public release is a separate step.
 
 To build and test on an x86_64 Linux machine with Docker and enough free space for an ISO and VM disk:
 
