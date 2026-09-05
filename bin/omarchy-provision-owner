@@ -830,7 +830,7 @@ create_user() {
   # sudo and polkit ask for the parent password, and the kid account holds an
   # explicit grant instead of wheel. Idempotent, so a retry is safe.
   if $CHILD_INSTALL; then
-    omarchy-kids apply --user "$username"
+    omarchy-kids-setup --user "$username"
   fi
 }
 

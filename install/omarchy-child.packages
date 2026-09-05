@@ -3,3 +3,7 @@
 # question. The ISO builder also reads this file when constructing the offline
 # mirror.
 omarchy-kids-core
+omarchy-kids-dns
+omarchy-kids-browsing
+omarchy-kids-time
+omarchy-kids-school

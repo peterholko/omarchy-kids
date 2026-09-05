@@ -14,25 +14,37 @@ The four optional modules can be installed and removed individually. School mode
 
 The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` shell plugins are reused. There is one browser profile. Grades 5 and 6 use multiplication and division tables exclusively; younger grades practice small arithmetic facts. Selecting free time always requires the parent password, and the password field shows “Checking password…” while authentication runs.
 
-## Install on an existing child laptop
+## Install on an existing Omarchy laptop
 
-These instructions require an Omarchy laptop already configured with the **child profile**, such as an installation created with a kids ISO. They update the existing kids installation without reinstalling the OS. For initial setup, use an ISO configured for the child profile; conversion of a regular Omarchy installation into a kids installation is not implemented by this installer.
+A parent can convert a clean **Omarchy 4** installation without reinstalling the OS. Use the laptop’s existing regular account as the kid account. The installer keeps its login password, home and desktop configuration, asks for a separate parent password, and installs all five modules. The parent password authorizes administration and also unlocks the login and lock screens. On an encrypted laptop it is added as another disk-unlock key; existing keys are kept. An unencrypted disk stays unencrypted.
 
-On the Omarchy laptop, open a terminal in your `omarchy-kids` checkout. Run these three commands one at a time as the regular signed-in user; the package installation steps will ask for the parent password:
+In your `omarchy-kids` checkout on the Omarchy laptop, run these commands one at a time as the regular signed-in user:
 
 ```bash
 omarchy pkg add base-devel python git imagemagick
-
 ./packaging/build
-
-./packaging/install ./build-output --user CHILD_USERNAME dns browsing time school
+./packaging/install ./build-output --user CHILD_USERNAME --convert
 ```
 
-Replace `CHILD_USERNAME` with the laptop’s existing child account. Optional module names may be omitted. The installer preserves modules and enrollments already present, including enabled features from the old bundled branch. Newly selected modules remain disabled until a parent enables them.
+Replace `CHILD_USERNAME` with the existing account name (`whoami` shows it). The initial sudo prompt uses the account’s current password; the installer then asks you to choose and confirm the parent password. On an encrypted laptop, enter the current disk-unlock password when asked. Reboot before handing the laptop to the kid: existing processes retain their old administrator groups until then.
 
-This installs a matching `omarchy-kids-base` / `omarchy-kids-settings` pair alongside the selected modules. The base pair replaces the monolithic Omarchy packages and relinquishes ownership of module files in the same pacman transaction. Do not copy these module files over an unrelated Omarchy release. Reboot once after installing to activate `/usr/share/omarchy` as `OMARCHY_PATH`; the previous source checkout is kept.
+Conversion currently supports one regular account with the standard Omarchy 4 package layout and setup. It refuses older layouts and custom sudo rules that need individual review. Recovery copies and a progress journal are kept in the root-only `/var/lib/omarchy/kids-conversion` directory. If an installation stops, fix the reported problem and rerun the same command; it resumes for the same account without removing existing disk keys. Do not restore a LUKS header or account files as a routine undo step; the backup is for recovery from a live USB if needed.
 
-All seven package archives remain in `/var/cache/omarchy-kids/packages`, so the parent can install another module later. CI also builds an x86_64 package artifact under the repository’s Actions tab. ARM package recipes are included; ARM runtime validation remains outstanding.
+On an already configured kids laptop, install every module with:
+
+```bash
+./packaging/install ./build-output --user CHILD_USERNAME --all
+```
+
+For a smaller installation, list the optional modules instead of `--all`, for example `dns school`. Add `--convert` as well when converting a normal installation. Core is always installed, and existing module selections and enrollments are preserved. Installing code alone does not start logging or impose an optional restriction; the parent enables and configures each feature through **Setup → Kids Modules**.
+
+Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All seven package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. CI also supplies an x86_64 package artifact under the repository’s Actions tab. ARM runtime validation remains outstanding.
+
+## Install a fresh laptop with the Kids ISO
+
+The dedicated Kids ISO carries the same seven packages, including all five modules, in its offline mirror. Its setup creates a kid account and asks for separate kid and parent passwords. An encrypted installation accepts either password at disk unlock. Account setup uses the same command as conversion, and the target retains the complete package cache for future module changes.
+
+The ISO build is independent of upstream accepting the child-profile PR. Build and validation instructions are in [the deployment guide](docs/kids-deployment.md).
 
 ## Choose modules
 
@@ -83,6 +95,6 @@ The [namespace inventory](docs/kids-namespace-rename.md) lists every renamed sou
 ./test/cli
 ```
 
-The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 16 combinations of optional package contents. The GitHub workflow runs those suites on Linux, builds real Arch packages, and renders the shared password field for inspection. Full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
+The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 16 combinations of optional package contents. The GitHub workflow runs those suites on Linux, builds real packages, exercises conversion with real sudo/PAM and LUKS keys in a disposable container, and renders the shared password field for inspection. Full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
 
 See [module architecture and migration](docs/kids-modules.md), [the original design](plans/kids-modules.md), and [upstream Omarchy](https://github.com/basecamp/omarchy). Existing source history and vendored MIT licenses are retained.

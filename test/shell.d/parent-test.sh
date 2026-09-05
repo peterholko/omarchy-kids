@@ -70,7 +70,7 @@ for entry in password apply; do
   body=$(sed -n "/^  $entry)/,/;;/p" "$parent")
   [[ $body == *require_child_install* ]] || fail "$entry refuses to run outside the child profile"
 done
-grep -Fq 'omarchy-kids apply --user "$OMARCHY_INSTALL_USER"' "$leaf" || fail "the install leaf calls apply for the install user"
+grep -Fq 'omarchy-kids-setup --user "$OMARCHY_INSTALL_USER"' "$leaf" || fail "the install leaf calls apply for the install user"
 grep -Fq '== "child"' "$leaf" || fail "the install leaf only applies the posture on child installs"
 grep -Fq 'run_logged "$OMARCHY_INSTALL/config/parent.sh"' "$ROOT/install/config/all.sh" || fail "the install leaf is wired into system setup"
 pass "the parental posture is gated on the child profile"

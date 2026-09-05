@@ -3,5 +3,5 @@
 # wheel. A deferred child install has no user yet; first-boot provisioning
 # makes the same call once it has created one and set root's password.
 if [[ ${OMARCHY_INSTALL_PROFILE:-default} == "child" && -n ${OMARCHY_INSTALL_USER:-} ]]; then
-  omarchy-kids apply --user "$OMARCHY_INSTALL_USER"
+  omarchy-kids-setup --user "$OMARCHY_INSTALL_USER"
 fi

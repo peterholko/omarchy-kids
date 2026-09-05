@@ -1,0 +1,39 @@
+#!/bin/bash
+# omarchy:summary=Finish child account setup for an ISO install or conversion
+# omarchy:hidden=true
+# omarchy:requires-sudo=true
+
+set -euo pipefail
+
+if (( EUID != 0 )) || [[ $# != 2 || $1 != "--user" ]]; then
+  echo "Usage: sudo omarchy-kids-setup --user NAME" >&2
+  exit 1
+fi
+user=$2
+omarchy-profile-child
+getent passwd "$user" >/dev/null
+[[ $user != "root" ]]
+
+# Establish a working parent-authenticated sudo grant before removing groups.
+# Both deployment paths set root's password before reaching this command.
+omarchy-kids apply --user "$user"
+if id -nG "$user" | tr ' ' '\n' | grep -qx docker; then
+  gpasswd -d "$user" docker >/dev/null
+fi
+
+OMARCHY_INSTALL_USER="$user" omarchy-apply-lock
+omarchy-kids-apps apply --quiet
+
+# Only add the two module controls; existing personal desktop configuration
+# stays in place. These same leaves also run during fresh-user provisioning.
+for module in screen-time school-mode; do
+  if [[ -f $OMARCHY_PATH/install/user/$module.sh ]]; then
+    runuser -u "$user" -- env OMARCHY_PATH="$OMARCHY_PATH" \
+      bash -e -c 'source "$1"' bash "$OMARCHY_PATH/install/user/$module.sh"
+  fi
+done
+
+# Do not let an administrator's cached sudo authentication carry over to the
+# child profile. Existing processes retain their groups until a reboot.
+runuser -u "$user" -- sudo -K
+echo "Child account configured. Reboot before handing the laptop to the kid."

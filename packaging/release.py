@@ -6,6 +6,37 @@ import subprocess
 import sys
 from pathlib import Path
 
+PACKAGE_NAMES = {'omarchy-kids-base', 'omarchy-kids-settings'} | {
+    'omarchy-kids-' + name for name in ('core', 'dns', 'browsing', 'time', 'school')}
+
+
+def verify(directory, architecture=None):
+    """Verify content and package identity before passing anything to pacman."""
+    release = json.loads((directory / 'release.json').read_text())
+    if set(release['packages']) != PACKAGE_NAMES:
+        raise ValueError('the release must contain the base pair and all five modules')
+    archives = {}
+    for name, info in release['packages'].items():
+        filename = info['file']
+        if Path(filename).name != filename or not filename.endswith('.pkg.tar.zst'):
+            raise ValueError('invalid archive filename')
+        archive = directory / filename
+        if hashlib.sha256(archive.read_bytes()).hexdigest() != info['sha256']:
+            raise ValueError('checksum mismatch: ' + filename)
+        actual = metadata(archive)
+        if actual != {key: info[key] for key in ('pkgname', 'pkgver', 'arch')} or actual['pkgname'] != name:
+            raise ValueError('package identity mismatch: ' + filename)
+        if architecture and actual['arch'] not in ('any', architecture):
+            raise ValueError('package architecture mismatch: ' + filename)
+        archives[name] = archive.resolve()
+    versions = {name: info['pkgver'] for name, info in release['packages'].items()}
+    if versions['omarchy-kids-base'] != versions['omarchy-kids-settings'] or len({
+            versions['omarchy-kids-' + name] for name in ('core', 'dns', 'browsing', 'time', 'school')}) != 1:
+        raise ValueError('mixed package revisions')
+    if len({version.rsplit('-', 1)[-1] for version in versions.values()}) != 1:
+        raise ValueError('base and modules were built from different revisions')
+    return archives
+
 
 def metadata(archive):
     text = subprocess.check_output(['bsdtar', '-xOf', str(archive), '.PKGINFO'], text=True)

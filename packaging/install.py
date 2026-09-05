@@ -1,6 +1,5 @@
 """Install a coherent kids release through one pacman transaction."""
 import argparse
-import hashlib
 import json
 import os
 import pwd
@@ -9,6 +8,8 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from conversion import Conversion, PROFILE
+from release import verify
 
 MODULES = ('dns', 'browsing', 'time', 'school')
 
@@ -17,28 +18,29 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('packages', type=Path, help='directory containing the seven built packages and release.json')
     parser.add_argument('modules', nargs='*', choices=['core', *MODULES], help='additional modules to install; existing selections are retained')
-    parser.add_argument('--user', required=True, help='existing child account')
+    parser.add_argument('--user', required=True, help='existing account to configure for the kid')
+    parser.add_argument('--convert', action='store_true', help='convert a clean Omarchy 4 account; install every module by default')
+    parser.add_argument('--all', action='store_true', help='install all five modules')
     args = parser.parse_args()
     if os.geteuid() != 0 or sys.platform != 'linux':
-        parser.error('run packaging/install on the child Arch Linux laptop')
-    if pwd.getpwnam(args.user).pw_uid == 0 or Path('/etc/omarchy/profile').read_text().strip() != 'child':
-        parser.error('this installer needs an existing child-profile Omarchy installation')
-    release = json.loads((args.packages / 'release.json').read_text())
-    packages = release['packages']
-    expected = {'omarchy-kids-base', 'omarchy-kids-settings', 'omarchy-kids-core'} | {'omarchy-kids-' + m for m in MODULES}
-    if set(packages) != expected:
-        parser.error('incomplete kids release')
-    archives = {}
-    for name, info in packages.items():
-        filename = info['file']
-        if Path(filename).name != filename:
-            parser.error('invalid archive filename')
-        archive = args.packages / filename
-        if hashlib.sha256(archive.read_bytes()).hexdigest() != info['sha256']:
-            parser.error('checksum mismatch: ' + filename)
-        archives[name] = archive.resolve()
+        parser.error('run packaging/install on the Omarchy laptop')
+    if pwd.getpwnam(args.user).pw_uid == 0:
+        parser.error('the kid account cannot be root')
+    source = Path(__file__).resolve().parents[1]
+    conversion = Conversion(args.user, source)
+    profile = PROFILE.read_text().strip() if PROFILE.exists() else 'default'
+    if profile not in ('default', 'child'):
+        parser.error('unknown Omarchy profile')
+    if profile != 'child' or conversion.pending:
+        if not args.convert:
+            parser.error('use --convert to set up the kid and parent passwords on this laptop')
+    else:
+        conversion = None
+    archives = verify(args.packages, os.uname().machine)
     installed = set(subprocess.check_output(['pacman', '-Qq'], text=True).splitlines())
     selected = {'core', *args.modules} | {m for m in MODULES if {'omarchy-kids-' + m, 'omarchy-parent-' + m} & installed}
+    if args.all or args.convert and not args.modules:
+        selected.update(MODULES)
     legacy_policy_modules = []
     # Preserve enabled modules when moving from the tested bundled branch.
     legacy = Path('/etc/omarchy/parent/screen-time.json')
@@ -59,11 +61,13 @@ def main():
         selected.add('browsing')
         legacy_policy_modules.append('browsing')
     names = ['omarchy-kids-settings', 'omarchy-kids-base'] + ['omarchy-kids-' + m for m in sorted(selected)]
-    source = Path(__file__).resolve().parents[1]
     sys.path.insert(0, str(source / 'lib/parent'))
     from omarchy_kids.core.namespace import Migration, check_command_collisions
     check_command_collisions(source)
     Migration().plan()
+    if conversion:
+        conversion.prepare()
+        conversion.begin()
     print('Installing: ' + ', '.join(names), flush=True)
     was_running = subprocess.run(['systemctl', 'is-active', '--quiet', 'omarchy-kids-timed.service']).returncode == 0
     if was_running:
@@ -112,11 +116,18 @@ def main():
     write_private(session_config, updated)
     session_config.chmod(0o644)
     Path('/etc/sudoers.d/omarchy-dev-path').unlink(missing_ok=True)
-    subprocess.run(['/usr/bin/omarchy-kids', 'apply', '--user', args.user], env=environment, check=True)
+    if conversion:
+        conversion.activate()
+    subprocess.run(['/usr/bin/omarchy-kids-setup', '--user', args.user], env=environment, check=True)
     subprocess.run(['/usr/bin/omarchy-kids-refresh'], env=environment, check=True)
+    if conversion:
+        conversion.finish()
     print('Installed. New optional modules remain disabled until you enable them.')
-    print('Reboot to activate the package path, then run: omarchy kids plugin pick')
+    print('Reboot before handing the laptop to the kid, then run: omarchy kids plugin pick')
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as exc:
+        raise SystemExit(f'Installation stopped: {exc}\nFix the reported problem and rerun the same command to resume.')

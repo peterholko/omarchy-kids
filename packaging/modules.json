@@ -1,6 +1,7 @@
 {
   "core": [
     "bin/omarchy-kids",
+    "bin/omarchy-kids-setup",
     "bin/omarchy-kids-unlock",
     "bin/omarchy-kidsd",
     "bin/omarchy-kids-timed",
