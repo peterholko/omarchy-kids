@@ -1,6 +1,6 @@
 # Omarchy Kids
 
-Selectable parental-control modules for Omarchy, based on Peter’s tested `build/kids-all` branch at `0193e412`. This repository is `peterholko/omarchy-kids`.
+Selectable parental-control modules for Omarchy.
 
 | Module | Package | What it includes |
 | --- | --- | --- |
