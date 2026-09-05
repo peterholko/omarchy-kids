@@ -49,19 +49,11 @@ is the old way round, minutes per right answer. budget sets the day's minutes,
 for every day or for DAYS (mon-fri, weekends, sat, daily). grant banks time
 outright; the bank and negative grants stop at zero. pause stops the countdown
 until resume, lock locks her screen now.
-school marks hours that are not screen time at all, as day and time pairs
-(mon-fri 08:00-15:30 sat 09:00-11:00; days also weekdays, weekends, daily, or
-mon,wed,fri), and school off clears them; bedtime locks the screen between two
-times every night. School hours are also school mode: the desktop shows only
-the school apps, their shortcuts, no notifications, and a clean browser profile;
-the rest of the day is free time. A kid may enter school mode, but only the
-parent may deliberately choose free time; a scheduled school start also enters school
-mode automatically. mode sets it by hand, and auto returns control to that
-schedule. School mode chosen by the kid still uses her screen time; school
-mode set through this parent command pauses it until free, auto, or midnight.
-school-apps lists or edits the apps school mode shows, by desktop id. status
-says where she stands, report prints a day's budget, use, earnings, and every
-question with its outcome, history the last two weeks by day.
+bedtime locks the screen between two times every night. School scheduling,
+mode selection, and school apps belong to the separately installed school
+module; the old time school/mode/school-apps commands forward to it.
+status reports the current budget; report prints a day's use and earnings,
+and history reports the last two weeks.
 USAGE
 }
 
@@ -72,12 +64,17 @@ case "${1:-}" in
     ;;
 esac
 
+case "${1:-}" in
+  school) shift; exec "$OMARCHY_PATH/bin/omarchy-parent-school" schedule "$@" ;;
+  mode) shift; exec "$OMARCHY_PATH/bin/omarchy-parent-school" mode "$@" ;;
+  school-apps) shift; exec "$OMARCHY_PATH/bin/omarchy-parent-school" apps "$@" ;;
+esac
+
 if (( EUID != 0 )); then
   mapfile -t gum_env < <(env | grep '^GUM_' || true)
-  exec sudo env "${gum_env[@]}" "$0" "$@"
+  exec sudo env OMARCHY_PATH="$OMARCHY_PATH" "${gum_env[@]}" "$0" "$@"
 fi
 
-OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
 CONFIG="${OMARCHY_PARENT_TIME_CONFIG:-/etc/omarchy/parent/screen-time.json}"
 CLIENT="${OMARCHY_PARENT_TIME_CLIENT:-$OMARCHY_PATH/bin/omarchy-parent-time-client}"
 STATE_ROOT="${OMARCHY_PARENT_STATE_DIR:-/var/lib/omarchy/parent}"
@@ -132,14 +129,14 @@ wait_daemon() {
 config_init() {
   [[ -f $CONFIG ]] && return 0
   install -d -m 0755 "$(dirname "$CONFIG")"
-  printf '{"version": 2, "active_profile": "default", "profiles": {"default": {}}, "users": {}}\n' >"$CONFIG.tmp"
+  printf '{"version": 3, "active_profile": "default", "profiles": {"default": {}}, "users": {}}\n' >"$CONFIG.tmp"
   chmod 0600 "$CONFIG.tmp"
   mv -f "$CONFIG.tmp" "$CONFIG"
 }
 
 # The profile's earning knobs and periods as the daemon holds them.
 profile_json() {
-  client config get | jq -c --arg u "$USER_NAME" '.config.profiles[$u] // .config.profiles[.config.active_profile] // {}'
+  client config get | jq -c --arg u "$USER_NAME" '.config as $c | $c.profiles[$c.users[$u].profile // $u] // $c.profiles[$c.active_profile] // {}'
 }
 
 patch() {
@@ -167,7 +164,7 @@ ensure_bar_pill() {
     source "$OMARCHY_PATH/bin/omarchy-shell-config"
     commit "$NORMALIZE
       | if any(.bar.layout[][]; (if type == \"object\" then .id else . end) == \"omarchy.screen-time\") then . else .bar.layout.right = [{\"id\": \"omarchy.screen-time\"}] + .bar.layout.right end
-      | if any(.bar.layout[][]; (if type == \"object\" then .id else . end) == \"omarchy.school-mode\") then . else .bar.layout.left = .bar.layout.left + [{\"id\": \"omarchy.school-mode\"}] end"
+"
   ' >/dev/null 2>&1 || echo "Could not put the screen-time pill on $USER_NAME's bar; as $USER_NAME, run: omarchy bar put omarchy.screen-time --section right" >&2
 }
 
@@ -207,72 +204,22 @@ $(journalctl -u "$UNIT" -n 12 --no-pager 2>/dev/null | tail -n 12)"
 }
 
 time_off() {
+  if systemd_running && ! daemon_up; then
+    systemctl start "$UNIT"
+    wait_daemon || fail "the parent daemon must respond before disabling a module"
+  fi
   if daemon_up; then
     client_ok users remove "$USER_NAME" >/dev/null
-    if [[ $(client users | jq -r '.users | length') == 0 ]]; then
+    if [[ $(client ping | jq -r '[.modules[].users] | add // 0') == 0 ]]; then
       systemctl disable --now "$UNIT" >/dev/null 2>&1 || true
     fi
   else
-    jq --arg u "$USER_NAME" 'del(.users[$u])' "$CONFIG" >"$CONFIG.tmp" 2>/dev/null && { chmod 0600 "$CONFIG.tmp"; mv -f "$CONFIG.tmp" "$CONFIG"; } || true
+    "$OMARCHY_PATH/bin/omarchy-parent-files" disable "$CONFIG" "$USER_NAME" "$STATE_ROOT/$USER_NAME/time/status.json"
   fi
-  rm -f "$STATE_ROOT/$USER_NAME/time/status.json"
   echo "Screen time is off for $USER_NAME. The days and the settings are kept."
 }
 
-# --- days and windows ---
-
-day_key() {
-  case $(printf '%s' "$1" | tr '[:upper:]' '[:lower:]') in
-    mon|monday) echo mon ;;
-    tue|tues|tuesday) echo tue ;;
-    wed|wednesday) echo wed ;;
-    thu|thur|thurs|thursday) echo thu ;;
-    fri|friday) echo fri ;;
-    sat|saturday) echo sat ;;
-    sun|sunday) echo sun ;;
-    *) return 1 ;;
-  esac
-}
-
-# "mon-fri", "mon,wed,fri", "weekdays", "weekends", "daily" -> a JSON array of day keys.
-days_json() {
-  local spec part first last d days="" week=(mon tue wed thu fri sat sun) i j
-  spec=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
-  case $spec in
-    weekdays) echo '["mon","tue","wed","thu","fri"]'; return 0 ;;
-    weekends) echo '["sat","sun"]'; return 0 ;;
-    daily|everyday|all) echo '["mon","tue","wed","thu","fri","sat","sun"]'; return 0 ;;
-  esac
-  local -a parts
-  IFS=, read -ra parts <<<"$spec"
-  for part in ${parts[@]+"${parts[@]}"}; do
-    if [[ $part == *-* ]]; then
-      first=$(day_key "${part%-*}") || return 1
-      last=$(day_key "${part#*-}") || return 1
-      for i in "${!week[@]}"; do [[ ${week[$i]} == "$first" ]] && break; done
-      for j in "${!week[@]}"; do [[ ${week[$j]} == "$last" ]] && break; done
-      d=$i
-      while :; do
-        days+=" ${week[$d]}"
-        (( d == j )) && break
-        d=$(( (d + 1) % 7 ))
-      done
-    else
-      d=$(day_key "$part") || return 1
-      days+=" $d"
-    fi
-  done
-  [[ -n $days ]] || return 1
-  printf '%s\n' $days | jq -R . | jq -sc 'unique_by(.) | map(select(. != ""))' | jq -c --argjson week '["mon","tue","wed","thu","fri","sat","sun"]' '[$week[] as $d | select(index($d))]'
-}
-
-# "8:00-15:30" -> "08:00" "15:30"
-window_parts() {
-  [[ $1 =~ ^([0-9]{1,2}):([0-9]{2})-([0-9]{1,2}):([0-9]{2})$ ]] || return 1
-  local sh=$((10#${BASH_REMATCH[1]})) sm=$((10#${BASH_REMATCH[2]})) eh=$((10#${BASH_REMATCH[3]})) em=$((10#${BASH_REMATCH[4]}))
-  (( sh < 24 && sm < 60 && eh < 24 && em < 60 )) || return 1
-  printf '%02d:%02d %02d:%02d' "$sh" "$sm" "$eh" "$em"
-}
+source "$OMARCHY_PATH/lib/parent/omarchy_parent/core/schedule.sh"
 
 # Replace the periods with a label and mode by new ones, keeping the rest.
 replace_periods() {
@@ -284,31 +231,6 @@ replace_periods() {
 
 show_periods() {
   profile_json | jq -r '.blocked_periods[]? | select(.enabled) | "  " + (if .mode == "free" then "school time" else "locked" end) + "  " + .label + "  " + (.days | join(" ")) + "  " + .start + "-" + .end'
-}
-
-time_school() {
-  local days window start end entries="[]"
-  if (( $# == 0 )); then
-    echo "Periods for $USER_NAME:"
-    show_periods
-    return 0
-  fi
-  if [[ $1 == off ]]; then
-    replace_periods School free '[]'
-    echo "School hours cleared for $USER_NAME."
-    return 0
-  fi
-  (( $# % 2 == 0 )) || fail "time school takes day and time pairs, like: mon-fri 08:00-15:30"
-  while (( $# )); do
-    days=$(days_json "$1") || fail "unknown days: $1 (use mon-fri, mon,wed,fri, weekdays, weekends, or daily)"
-    read -r start end <<<"$(window_parts "$2")" || fail "bad time window: $2 (use HH:MM-HH:MM)"
-    [[ -n ${end:-} ]] || fail "bad time window: $2 (use HH:MM-HH:MM)"
-    entries=$(jq -c --argjson days "$days" --arg start "$start" --arg end "$end" '. + [{"label": "School", "enabled": true, "start": $start, "end": $end, "days": $days, "mode": "free"}]' <<<"$entries")
-    shift 2
-  done
-  replace_periods School free "$entries"
-  echo "School hours for $USER_NAME, not screen time:"
-  show_periods
 }
 
 time_bedtime() {
@@ -381,34 +303,7 @@ time_command() {
     pause) client_ok pause >/dev/null; echo "Screen time is paused for $USER_NAME until resume." ;;
     resume) client_ok resume >/dev/null; echo "Screen time counts again for $USER_NAME." ;;
     lock) client_ok lock >/dev/null; echo "Locked $USER_NAME's screen." ;;
-    school) shift; time_school "$@" ;;
     bedtime) shift; time_bedtime "$@" ;;
-    mode)
-      [[ -z $value || $value == school || $value == free || $value == auto ]] || fail "time mode takes school, free, or auto"
-      client --human mode ${value:+"$value"}
-      ;;
-    school-apps)
-      local verb=${2:-} ids
-      shift; (( $# )) && shift
-      case $verb in
-        "")
-          echo "School mode shows these apps for $USER_NAME:"
-          profile_json | jq -r '.school_apps[]? | "  " + .'
-          ;;
-        add|remove)
-          (( $# )) || fail "time school-apps $verb needs desktop ids, as the launcher names them (obsidian, org.gnome.Nautilus)"
-          ids=$(printf '%s\n' "$@" | jq -R . | jq -sc .)
-          if [[ $verb == add ]]; then
-            patch "$(profile_json | jq -c --argjson ids "$ids" '{school_apps: ((.school_apps // []) + $ids | unique)}')"
-          else
-            patch "$(profile_json | jq -c --argjson ids "$ids" '{school_apps: [(.school_apps // [])[] | select(. as $a | $ids | index($a) | not)]}')"
-          fi
-          echo "School mode now shows these apps for $USER_NAME:"
-          profile_json | jq -r '.school_apps[]? | "  " + .'
-          ;;
-        *) fail "time school-apps takes add or remove, then desktop ids" ;;
-      esac
-      ;;
     *) usage >&2; exit 1 ;;
   esac
 }

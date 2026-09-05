@@ -7,8 +7,7 @@ import qs.Commons
 import "SchoolSchedule.js" as Schedule
 
 // The School Mode schedule editor. It opens only after the parent password
-// has been checked in the panel, and writes only school-time periods while
-// preserving Screen Time's bedtime, dinner, and other locking periods.
+// has been checked in the panel, and saves only the school module's periods.
 Item {
   id: root
 

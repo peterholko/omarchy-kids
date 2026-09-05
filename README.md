@@ -1,79 +1,80 @@
-# Omarchy
+# Omarchy Kids
 
-Omarchy is a beautiful, fun & agentic Linux distribution by DHH.
+Selectable parental-control modules for Omarchy, based on Peter’s tested `build/kids-all` branch at `0193e412`. This repository is `peterholko/omarchy-kids`.
 
-Read more at [omarchy.org](https://omarchy.org).
+| Module | Package | What it includes |
+| --- | --- | --- |
+| Kids / Parent Password | `omarchy-parent-core` | Required foundation: parent password, child profile controls, shared authentication, module picker and service host. |
+| DNS Filtering | `omarchy-parent-dns` | Domain and page lists, resolver, firewall rules and managed browser policies. |
+| Browsing Logging | `omarchy-parent-browsing` | Browser-history collection, page/video reports and its collection timer. |
+| Screen Time and Math | `omarchy-parent-time` | Daily budgets, bedtime, time grants and arithmetic practice. |
+| School / Free Time | `omarchy-parent-school` | School schedule, app list, desktop restrictions and password-protected free time. |
 
-## The Omarchy Manual
+The four optional modules can be installed and removed individually. School mode works without screen time. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
 
-The manual lives in [`manual/`](manual/), which is its authoritative source. It's
-mirrored to [learn.omacom.io](https://learn.omacom.io/2/the-omarchy-manual), where
-its screenshots are also hosted.
+The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` shell plugins are reused. There is one browser profile. Grades 5 and 6 use multiplication and division tables exclusively; younger grades practice small arithmetic facts. Selecting free time always requires the parent password, and the password field shows “Checking password…” while authentication runs.
 
-- [Welcome to Omarchy!](manual/01-welcome-to-omarchy.md)
+## Install on an existing child laptop
 
-**The Basics**
+Build on Arch Linux from this checkout, as a normal user:
 
-- [Getting Started](manual/02-getting-started.md)
-- [Coming From Mac or Windows](manual/03-coming-from-mac-or-windows.md)
-- [Navigation](manual/04-navigation.md)
-- [The top bar](manual/05-the-top-bar.md)
-- [Themes](manual/06-themes.md)
-- [Hotkeys](manual/07-hotkeys.md)
-- [Unified Clipboard & History](manual/08-unified-clipboard-history.md)
-- [Reminders](manual/09-reminders.md)
-- [Notices](manual/10-notices.md)
-- [Text Extraction & Dictation](manual/11-text-extraction-dictation.md)
-- [Screenshots & Recording](manual/12-screenshots-recording.md)
-- [Toggles, idle & screensaver](manual/13-toggles-idle-screensaver.md)
-- [Omarchy CLI](manual/14-omarchy-cli.md)
+```bash
+omarchy pkg add base-devel python git imagemagick
+./packaging/build
+./packaging/install ./build-output --user CHILD_USERNAME dns browsing time school
+```
 
-**The Applications**
+Replace `CHILD_USERNAME` with the laptop’s existing child account. Optional module names may be omitted. The installer preserves modules and enrollments already present, including enabled features from the old bundled branch. Newly selected modules remain disabled until a parent enables them.
 
-- [Terminal](manual/15-terminal.md)
-- [Neovim](manual/16-neovim.md)
-- [AI](manual/17-ai.md)
-- [Development Tools](manual/18-development-tools.md)
-- [Shell Tools](manual/19-shell-tools.md)
-- [Shell Functions](manual/20-shell-functions.md)
-- [TUIs](manual/21-tuis.md)
-- [GUIs](manual/22-guis.md)
-- [Browsers](manual/23-browsers.md)
-- [Commercial apps/services](manual/24-commercial-apps-services.md)
-- [Web Apps](manual/25-web-apps.md)
-- [Gaming](manual/26-gaming.md)
-- [Filling out PDFs](manual/27-filling-out-pdfs.md)
-- [Windows VM](manual/28-windows-vm.md)
-- [Other Packages](manual/29-other-packages.md)
+This installs a matching `omarchy-kids-base` / `omarchy-kids-settings` pair alongside the selected modules. The base pair replaces the monolithic Omarchy packages and relinquishes ownership of module files in the same pacman transaction. Do not copy these module files over an unrelated Omarchy release. Reboot once after installing to activate `/usr/share/omarchy` as `OMARCHY_PATH`; the previous source checkout is kept.
 
-**Configuration**
+All seven package archives remain in `/var/cache/omarchy-kids/packages`, so the parent can install another module later. CI also builds an x86_64 package artifact under the repository’s Actions tab. ARM package recipes are included; ARM runtime validation remains outstanding.
 
-- [Updates](manual/30-updates.md)
-- [Dotfiles](manual/31-dotfiles.md)
-- [Shell plugins](manual/32-shell-plugins.md)
-- [Monitors](manual/33-monitors.md)
-- [Keyboard, Mouse, Trackpad](manual/34-keyboard-mouse-trackpad.md)
-- [Networking](manual/35-networking.md)
-- [System sleep](manual/36-system-sleep.md)
-- [Hardware authentication](manual/37-hardware-authentication.md)
-- [Fonts](manual/38-fonts.md)
-- [Backgrounds](manual/39-backgrounds.md)
-- [Prompt](manual/40-prompt.md)
-- [Branding](manual/41-branding.md)
-- [Common tweaks](manual/42-common-tweaks.md)
-- [Making your own theme](manual/43-making-your-own-theme.md)
+## Choose modules
 
-**The Rest**
+From the child’s session:
 
-- [Mac support](manual/44-mac-support.md)
-- [Troubleshooting](manual/45-troubleshooting.md)
-- [FAQ](manual/46-faq.md)
-- [System snapshots](manual/47-system-snapshots.md)
-- [Security](manual/48-security.md)
-- [Omarchy on...](manual/49-omarchy-on.md)
-- [Dual Boot Install](manual/50-dual-boot-install.md)
-- [Unattended Installs](manual/51-unattended-installs.md)
+```bash
+omarchy parent plugin pick
+omarchy parent plugin list
+omarchy parent plugin add school
+omarchy parent plugin enable school
+omarchy parent plugin disable time
+omarchy parent plugin remove browsing
+```
 
-## License
+The picker is also under **Setup → Kids Modules**, and is offered during first-boot provisioning when the module packages/cache are included in an image. Administrative actions ask for the parent password. Use `--user CHILD_USERNAME` when running from another account. `add time --enable` installs and enables screen time explicitly. Installing code alone does not start logging or impose a new restriction.
 
-Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).
+Examples of independent configuration:
+
+```bash
+omarchy parent school schedule mon-fri 08:00-15:30
+omarchy parent school apps add obsidian
+omarchy parent school mode free
+omarchy parent time bedtime 20:30-07:00
+omarchy parent time level grade5
+omarchy parent time earn 10 30
+```
+
+The older `time school`, `time mode` and `time school-apps` commands forward to the school module.
+
+## Update this build
+
+```bash
+git pull --ff-only
+./packaging/build
+./packaging/install ./build-output --user CHILD_USERNAME
+```
+
+A successful build replaces the previous package output. The installer verifies the complete release’s checksums and updates the compatible base pair, core and currently installed optional modules together. Standard `omarchy update` continues to update system packages; it does not fetch a new kids release from this private repository. Switching to the upstream stable/edge packages is a separate migration and must not be mixed with these module packages.
+
+## Development and validation
+
+```bash
+./test/kids
+./test/cli
+```
+
+The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 16 combinations of optional package contents. The GitHub workflow runs those suites on Linux, builds real Arch packages, and renders the shared password field for inspection. Full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
+
+See [module architecture and migration](docs/kids-modules.md), [the original design](plans/kids-modules.md), and [upstream Omarchy](https://github.com/basecamp/omarchy). Existing source history and vendored MIT licenses are retained.

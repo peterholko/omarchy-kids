@@ -28,12 +28,10 @@ Panel {
   readonly property var barIdentity: hostWidget || root
   readonly property bool schoolMode: service ? service.schoolMode === true : false
   readonly property string reasonLine: service ? ModeState.reasonLine({
-    enabled: service.timeEnabled, mode: service.mode, reason: service.modeReason,
+    enabled: service.schoolEnabled, mode: service.mode, reason: service.modeReason,
     schoolUntil: service.schoolUntil, schoolLabel: service.schoolLabel }) : ""
   readonly property int schoolAppCount: service && service.allowedDesktopIds ? service.allowedDesktopIds.length : 0
-  readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-parent-time-client"
-  readonly property var timeService: root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function"
-    ? root.bar.shell.serviceFor("omarchy.screen-time") : null
+  readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-parent-school-client"
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color accent: Color.accent
   readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.58)
@@ -145,7 +143,7 @@ Panel {
     root.noteIsError = true
     if (error === "bad_password") root.note = "That is not the parent password."
     else if (error === "password_locked_out") root.note = "Too many tries. Wait " + payload.retry_in_seconds + " s."
-    else root.note = "Could not switch: " + (error || "no answer from screen time")
+    else root.note = "Could not switch: " + (error || "no answer from school mode")
   }
 
   function handleSettingsReply(rawText) {
@@ -197,7 +195,7 @@ Panel {
 
   SchoolSettingsWindow {
     id: schoolSettings
-    service: root.timeService
+    service: root.service
     clientPath: root.clientPath
   }
 
@@ -247,7 +245,7 @@ Panel {
           width: parent.width
           wrapMode: Text.WordWrap
           text: root.schoolMode
-            ? "The menu shows the school apps, their shortcuts alone work, notifications are quiet, and the browser is the school one. Free-time windows are parked and come back after."
+            ? "The menu shows the school apps, their shortcuts alone work, notifications are quiet, and the browser keeps your account. Free-time windows are parked and come back after."
             : "The whole launcher, notifications, and the browser with your account. School hours switch to school mode on their own."
           color: root.dim
           font.family: root.fontFamily
@@ -266,7 +264,7 @@ Panel {
             selected: !root.schoolMode
             focusable: true
             enabled: !modeProc.running && !settingsAuthProc.running
-              && root.service && root.service.timeEnabled === true
+              && root.service && root.service.schoolEnabled === true
             onClicked: root.switchMode()
           }
 
@@ -279,7 +277,7 @@ Panel {
             focusable: true
             bordered: true
             enabled: !modeProc.running && !settingsAuthProc.running
-              && root.timeService && root.timeService.connected === true
+              && root.service && root.service.schoolEnabled === true
             onClicked: root.openSettings()
           }
         }
@@ -289,13 +287,11 @@ Panel {
           spacing: Style.space(6)
           visible: root.askingParent
 
-          TextField {
+          ParentPasswordField {
             id: passwordField
             width: parent.width
             password: true
-            placeholderText: root.checkingParent ? "Checking password…" : "Parent password"
-            readOnly: root.checkingParent
-            cursorVisible: activeFocus && !root.checkingParent
+            checking: root.checkingParent
             activeFocusOnTab: true
             Keys.onPressed: function(event) {
               if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.submitParent(); event.accepted = true }

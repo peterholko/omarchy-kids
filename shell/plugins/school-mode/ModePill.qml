@@ -12,7 +12,7 @@ BarWidget {
 
   readonly property var modeService: bar && bar.shell ? bar.shell.serviceFor("omarchy.school-mode") : null
   readonly property bool schoolMode: modeService ? modeService.schoolMode === true : false
-  readonly property bool timeEnabled: modeService ? modeService.timeEnabled === true : false
+  readonly property bool schoolEnabled: modeService ? modeService.schoolEnabled === true : false
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
   readonly property real openPanelIndicatorWidth: button.opticalSize
@@ -32,8 +32,8 @@ BarWidget {
   function togglePanel() { if (panelLoader.item) panelLoader.item.toggle() }
   function closeForPopoutSwitch() { if (panelLoader.item) panelLoader.item.closeForPopoutSwitch() }
 
-  visible: timeEnabled
-  implicitWidth: timeEnabled ? button.implicitWidth : 0
+  visible: schoolEnabled
+  implicitWidth: schoolEnabled ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
 
   onBarChanged: injectPanel()

@@ -1,52 +1,18 @@
-"""The daemon: counts the time, warns, and locks the screen.
-
-It owns every file. Clients ask it questions over the socket and never touch
-the state themselves, which is what lets the same code run as the child's own
-user service and as a root service the child cannot stop.
-"""
-
+"""Screen-time accounting and operations hosted by the parent core."""
 import json
 import math
 import os
 import pwd
-import signal
-import socket
-import subprocess
-import threading
 import time
 from datetime import datetime
-from pathlib import Path
-
-from . import clock, config as config_mod, paths, quiz as quiz_mod, session, state as state_mod
-
+from . import config as config_mod, paths, quiz as quiz_mod, state as state_mod
+from omarchy_parent.core import session
+from omarchy_parent.core.storage import public_status
 TICK_SECONDS = 5
 SAVE_EVERY = 30
 IDLE_MAX_SECONDS = 4 * 3600
-REST_RESET_SECONDS = 300  # five quiet minutes and a stretch starts over
+REST_RESET_SECONDS = 300
 REFLECTION_LIMIT = 20
-PASSWORD_LOCKOUT = [0, 0, 1, 5, 15, 60, 300]
-
-
-def parent_password_ok(username, password):
-    """Whether this is the parent password: root's, which sudo checks under
-    Defaults rootpw. Asked as the kid, since root asks itself nothing; the
-    password travels on stdin, never as an argument. faillock's limit on root
-    applies to guesses, the same as for sudo itself. In the test layout the
-    check is a fixed word, so no sudo is involved."""
-    if os.environ.get("SCREEN_TIME_ROOT"):
-        return str(password) == os.environ.get("SCREEN_TIME_TEST_PASSWORD", "letmein")
-    if os.geteuid() != 0 or not username or not password:
-        return False
-    try:
-        result = subprocess.run(
-            ["/usr/bin/runuser", "-u", str(username), "--",
-             "/usr/bin/sudo", "-k", "-S", "-u", "root", "--", "/usr/bin/true"],
-            input=str(password) + "\n", capture_output=True, text=True, timeout=15, check=False)
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return result.returncode == 0
-
-
 def _human_time(seconds):
     seconds = max(0, int(seconds))
     if seconds >= 3600:
@@ -56,33 +22,7 @@ def _human_time(seconds):
         return "%dh" % hours if minutes == 0 else "%dh%02d" % (hours, minutes)
     return "%dm" % (seconds // 60)
 
-
-def _bind(server, socket_path):
-    """Bind, working around the 108 byte limit on unix socket paths.
-
-    A long home directory or a test root under /tmp is enough to hit it, and
-    the error ("AF_UNIX path too long") does not say which of your paths is at
-    fault. Binding from inside the directory keeps the name short.
-    """
-    try:
-        server.bind(str(socket_path))
-        return
-    except OSError:
-        pass
-    directory = os.open(str(socket_path.parent), os.O_RDONLY | os.O_DIRECTORY)
-    previous = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
-    try:
-        os.fchdir(directory)
-        server.bind(socket_path.name)
-    finally:
-        os.fchdir(previous)
-        os.close(directory)
-        os.close(previous)
-
-
 class Account:
-    """One child account: its budget, its ledger, its screen."""
-
     def __init__(self, layout, uid, config, owner_uid=None, log=print):
         self.layout = layout
         self.uid = int(uid)
@@ -106,24 +46,10 @@ class Account:
         self.last_lock_ok = False
         self.blocked_since = None
         self.last_save = 0.0
-        self.password_failures = 0
-        self.password_blocked_until = 0.0
-        # School mode follows the schedule: a free period is school mode. On
-        # top of that the kid may choose school mode any time, while only the
-        # parent may take it back to free time. A parent can deliberately make
-        # free time an exception to the school period that is already active,
-        # but a free-time choice made earlier must not suppress a later school
-        # start. Keep who made the choice because only a parent's school-mode
-        # override pauses the screen-time budget.
-        self.mode_override = None
-        self.mode_override_until = 0.0
-        self.mode_override_by_parent = False
-        self.mode_override_suppresses_schedule = False
+        self.school_snapshot = lambda now: {}
 
         self.day = None
         self.rollover(time.time())
-
-    # day handling -------------------------------------------------------
 
     def budget_for(self, now):
         return self.profile["budget_minutes"][state_mod.weekday_key(now)] * 60
@@ -149,8 +75,6 @@ class Account:
                 self.day.budget = wanted
                 self.day.clamp_bank()
                 self.day.dirty = True
-
-    # gates --------------------------------------------------------------
 
     @staticmethod
     def _covers(period, moment, weekday=None):
@@ -182,96 +106,11 @@ class Account:
         """
         return self._period(now, "block")
 
-    def free_period(self, now):
-        """The enabled free period covering this moment: school hours, when
-        the laptop is hers for schoolwork and nothing counts or locks."""
-        return self._period(now, "free")
-
-    # school mode -------------------------------------------------------
-
-    @staticmethod
-    def _period_end(period, now):
-        """When the period covering `now` ends, as a timestamp."""
-        moment = datetime.fromtimestamp(now)
-        hour, minute = (int(x) for x in period["end"].split(":"))
-        end = moment.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        if end.timestamp() <= now:
-            end = end.replace(day=end.day) + (datetime.fromtimestamp(now + 86400) - datetime.fromtimestamp(now))
-        return end.timestamp()
-
-    @staticmethod
-    def _day_end(now):
-        moment = datetime.fromtimestamp(now)
-        return (moment.replace(hour=0, minute=0, second=0, microsecond=0)
-                + (datetime.fromtimestamp(now + 86400) - datetime.fromtimestamp(now))).timestamp()
-
-    def effective_mode(self, now):
-        """(mode, reason): school or free, and why."""
-        period = self.free_period(now)
-        if self.mode_override and now < self.mode_override_until:
-            # A free-time override created before school started yields when
-            # the schedule begins. Only the parent's explicit exception while
-            # that school period was already active suppresses it.
-            if self.mode_override != "free" or period is None \
-                    or self.mode_override_suppresses_schedule:
-                return self.mode_override, ("parent" if self.mode_override_by_parent else "chosen")
-        self.mode_override = None
-        self.mode_override_by_parent = False
-        self.mode_override_suppresses_schedule = False
-        if period is not None:
-            return "school", "schedule"
-        return "free", "free"
-
     def screen_time_exempt(self, now):
-        """Whether this moment is school time that does not use the budget.
-
-        Scheduled school hours always keep their existing precedence. Outside
-        them, only a parent-authorized school-mode choice is free of screen
-        time. A child's own school-mode choice still counts, and a parent
-        choice never overrides a blocking period such as bedtime.
-        """
-        if self.free_period(now) is not None:
+        policy = self.school_snapshot(now)
+        if policy.get("active_period") is not None:
             return True
-        mode, reason = self.effective_mode(now)
-        return self.blocking_period(now) is None and mode == "school" and reason == "parent"
-
-    def set_mode(self, mode, now, by_parent):
-        period = self.free_period(now)
-        selects_free = mode == "free" or (mode == "auto" and period is None)
-        if selects_free and not by_parent:
-            refusal = {"ok": False, "error": "parent_required"}
-            if period is not None:
-                refusal.update({"until": period["end"], "label": period["label"]})
-            return refusal
-        if mode == "auto":
-            self.mode_override = None
-            self.mode_override_by_parent = False
-            self.mode_override_suppresses_schedule = False
-        elif mode == "school":
-            self.mode_override = "school"
-            self.mode_override_until = self._day_end(now)
-            self.mode_override_by_parent = by_parent
-            self.mode_override_suppresses_schedule = False
-        elif mode == "free":
-            self.mode_override = "free"
-            self.mode_override_until = self._period_end(period, now) if period else self._day_end(now)
-            self.mode_override_by_parent = by_parent
-            self.mode_override_suppresses_schedule = period is not None
-        else:
-            return {"ok": False, "error": "bad_mode"}
-        if self.screen_time_exempt(now):
-            self.clear_block()
-        self.day.record("mode", meta={"mode": mode, "by": "parent" if by_parent else "kid"})
-        self.save()
-        return {"ok": True, **self.mode_status(now)}
-
-    def mode_status(self, now):
-        mode, reason = self.effective_mode(now)
-        period = self.free_period(now)
-        return {"mode": mode, "mode_reason": reason,
-                "school_until": period["end"] if period else "",
-                "school_label": period["label"] if period else "",
-                "school_apps": list(self.profile["school_apps"])}
+        return self.blocking_period(now) is None and policy.get("mode") == "school" and policy.get("mode_reason") == "parent"
 
     def next_period(self, now):
         """The enabled period that starts next, for the line under the bar."""
@@ -303,8 +142,6 @@ class Account:
         if self.idle_since is not None:
             return False
         return self.watcher.in_use
-
-    # the tick -----------------------------------------------------------
 
     def tick(self, now, elapsed, demo=False):
         self.rollover(now)
@@ -473,13 +310,13 @@ class Account:
         self.last_save = time.time()
         self.publish_status(time.time())
 
-    # The file the lock screen and Math time read: root's, world-readable,
-    # rewritten whole on every change so a reader never sees half of it.
     def publish_status(self, now):
         try:
             path = self.layout.status_path(self.username)
             earn = self.profile["earn"]
             payload = {
+                "schemaVersion": 1,
+                "updatedAt": now,
                 "enabled": True,
                 "school": self.screen_time_exempt(now),
                 "paused": self.paused,
@@ -500,22 +337,15 @@ class Account:
             payload["modeReason"] = payload.pop("mode_reason")
             payload["schoolUntil"] = payload.pop("school_until")
             payload["schoolLabel"] = payload.pop("school_label")
-            path.parent.mkdir(parents=True, exist_ok=True)
-            os.chmod(path.parent, 0o755)
-            tmp = path.with_name(path.name + ".tmp")
-            tmp.write_text(json.dumps(payload) + "\n")
-            os.chmod(tmp, 0o644)
-            os.replace(tmp, path)
+            public_status(self.layout, self.username, "time", payload)
         except OSError as exc:
             self.log(f"could not publish status for {self.username}: {exc}")
 
     def clear_status(self):
         try:
-            self.layout.status_path(self.username).unlink()
+            public_status(self.layout, self.username, "time", {"schemaVersion": 1, "enabled": False})
         except OSError:
             pass
-
-    # earning ------------------------------------------------------------
 
     def earn_room(self):
         cap = self.profile["earn"]["daily_cap_minutes"] * 60
@@ -574,8 +404,6 @@ class Account:
         period = self.blocking_period(now)
         label = period["label"].strip().lower() if period else "a quiet time"
         return f"It is {label}."
-
-    # status -------------------------------------------------------------
 
     def phase(self, now):
         reason = self.block_reason(now)
@@ -662,6 +490,14 @@ class Account:
             out.append(row)
         return out[-limit:]
 
+    def free_period(self, now):
+        return self.school_snapshot(now).get("active_period")
+
+    def mode_status(self, now):
+        policy = self.school_snapshot(now)
+        return {"mode": policy.get("mode", "free"), "mode_reason": policy.get("mode_reason", "free"),
+                "school_apps": policy.get("school_apps", []), "school_until": policy.get("school_until", ""),
+                "school_label": policy.get("school_label", "")}
 
 DEMO_STATUS = {
     "ok": True,
@@ -716,7 +552,6 @@ DEMO_STATUS = {
     "demo": True,
 }
 
-# The parent password the demo answers to; the demo runs nowhere real.
 DEMO_PASSWORD = "1234"
 
 DEMO_HISTORY = [
@@ -732,25 +567,22 @@ DEMO_HISTORY = [
      "granted_seconds": 600, "correct_answers": 10},
 ]
 
-
-class Daemon:
-    def __init__(self, layout, tick_seconds=TICK_SECONDS, log=print):
-        self.layout = layout
-        self.tick_seconds = tick_seconds
-        self.log = log
-        self.lock = threading.RLock()
-        self.stop_event = threading.Event()
-        self.config = config_mod.load(layout)
+class Service:
+    def __init__(self, host):
+        self.host = host
+        self.layout = host.layout
+        self.lock = host.lock
+        self.log = host.log
+        self.clock = host.clock
+        self.config = config_mod.load(self.layout)
         self.accounts = {}
-        self.watchers = []
+        self.resolve_uid = host.resolve_uid
 
-        self.clock = clock.Clock()
-        self.server = None
-
-    # accounts -----------------------------------------------------------
+    def check_parent(self, uid, account, message, command=""):
+        return self.host.auth.check(uid, message, demo=bool(self.config.get("demo")))
 
     def managed_uids(self):
-        if self.layout.mode == "system":
+        if self.layout.mode in ("system", "test"):
             uids = []
             for name in self.config.get("users", {}):
                 try:
@@ -772,109 +604,13 @@ class Daemon:
             # must not be able to write her own day, and a root-owned
             # directory is what root creates.
             account = Account(self.layout, uid, self.config, owner_uid=None, log=self.log)
+            account.school_snapshot = lambda now: self.host.school_snapshot(uid, now)
             floor = account.meta.get("last_logical")
             if floor and floor > self.clock.now():
                 self.clock.logical = float(floor)
                 self.log("stored time is ahead of the system clock, following the stored one")
             self.accounts[uid] = account
             return account
-
-    # socket -------------------------------------------------------------
-
-    def listen(self):
-        socket_path = self.layout.socket_path
-        if self.layout.mode == "system":
-            self.layout.runtime_dir.mkdir(parents=True, exist_ok=True)
-            os.chmod(self.layout.runtime_dir, 0o755)
-        else:
-            paths.private_dir(self.layout.runtime_dir, scrub=False)
-        if socket_path.exists() or socket_path.is_symlink():
-            socket_path.unlink()
-        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        _bind(server, socket_path)
-        os.chmod(socket_path, 0o666 if self.layout.mode == "system" else 0o600)
-        server.listen(16)
-        server.settimeout(1.0)
-        self.server = server
-        self.log(f"listening on {socket_path} ({self.layout.mode} mode)")
-
-    def serve_forever(self):
-        while not self.stop_event.is_set():
-            try:
-                conn, _ = self.server.accept()
-            except socket.timeout:
-                continue
-            except OSError:
-                break
-            threading.Thread(target=self.handle, args=(conn,), daemon=True).start()
-
-    def handle(self, conn):
-        try:
-            conn.settimeout(30)
-            uid = proto_peer_uid(conn)
-            reader = proto_line_reader(conn)
-            while True:
-                message = reader.read()
-                if message is None:
-                    return
-                if not isinstance(message, dict):
-                    proto_write(conn, {"ok": False, "error": "bad_request"})
-                    continue
-                if message.get("cmd") == "watch":
-                    self.stream(conn, uid)
-                    return
-                proto_write(conn, self.dispatch(uid, message))
-        except Exception as exc:  # a broken client must never take the daemon down
-            try:
-                proto_write(conn, {"ok": False, "error": "internal", "detail": str(exc)[:200]})
-            except OSError:
-                pass
-        finally:
-            try:
-                conn.close()
-            except OSError:
-                pass
-
-    def stream(self, conn, uid):
-        last = None
-        while not self.stop_event.is_set():
-            with self.lock:
-                account = self.account_for(uid)
-                payload = self.status_for(account)
-            if payload != last:
-                proto_write(conn, payload)
-                last = payload
-            if self.stop_event.wait(1.0):
-                return
-
-    # commands -----------------------------------------------------------
-
-    def check_parent(self, uid, account, message, command=""):
-        """Root, or the parent password. Root is `omarchy-parent time`, which
-        sudo already asked the parent password for; anybody else must send it,
-        and it is checked as the kid through sudo, with a backoff on misses on
-        top of faillock's own limit."""
-        if uid == 0:
-            return None
-        password = str(message.get("password", message.get("pin", "")))
-        if self.config.get("demo"):
-            if password == DEMO_PASSWORD:
-                return None
-            return {"ok": False, "error": "bad_password"}
-        now = time.time()
-        if account and now < account.password_blocked_until:
-            return {"ok": False, "error": "password_locked_out",
-                    "retry_in_seconds": math.ceil(account.password_blocked_until - now)}
-        username = account.username if account else session.username_for(uid)
-        if password and parent_password_ok(username, password):
-            if account:
-                account.password_failures = 0
-            return None
-        if account:
-            account.password_failures += 1
-            index = min(account.password_failures, len(PASSWORD_LOCKOUT) - 1)
-            account.password_blocked_until = now + PASSWORD_LOCKOUT[index]
-        return {"ok": False, "error": "bad_password"}
 
     def status_for(self, account):
         if self.config.get("demo"):
@@ -885,19 +621,6 @@ class Daemon:
             payload = account.status(self.clock.now())
             payload["pin_set"] = True
             return payload
-
-    def resolve_uid(self, uid, message):
-        """The account a message is about. Root may name one with `user`;
-        anybody else is always their own."""
-        if uid != 0:
-            return uid
-        name = message.get("user")
-        if not name:
-            return uid
-        try:
-            return pwd.getpwnam(str(name)).pw_uid
-        except KeyError:
-            return uid
 
     def dispatch(self, uid, message):
         command = str(message.get("cmd", ""))
@@ -918,6 +641,12 @@ class Daemon:
             if peer != 0:
                 return {"ok": False, "error": "not_allowed"}
             name = str(message.get("user", ""))
+            try:
+                target_uid = pwd.getpwnam(name).pw_uid
+            except KeyError:
+                return {"ok": False, "error": "unknown_user"}
+            if target_uid == 0:
+                return {"ok": False, "error": "not_allowed"}
             enabled = bool(message.get("enabled", True))
             with self.lock:
                 users = dict(self.config.get("users", {}))
@@ -941,28 +670,9 @@ class Daemon:
                             del self.accounts[existing_uid]
                 for existing in self.accounts.values():
                     existing.apply_config(merged)
+                if not enabled:
+                    public_status(self.layout, name, "time", {"schemaVersion": 1, "enabled": False})
                 return {"ok": True, "users": sorted(users.keys())}
-
-        if command == "mode.get":
-            with self.lock:
-                return {"ok": True, **account.mode_status(now)}
-
-        if command == "mode.set":
-            # The kid may enter school mode, but every deliberate selection of
-            # free time is the parent's. Auto remains available when it resolves
-            # to school, so the schedule can always take over. An
-            # authenticated parent school choice is also distinct because it
-            # pauses the screen-time budget.
-            mode = str(message.get("mode", ""))
-            by_parent = peer == 0
-            if not by_parent and mode in ("school", "free", "auto") \
-                    and "password" in message and str(message.get("password", "")):
-                refusal = self.check_parent(peer, account, message, command)
-                if refusal:
-                    return refusal
-                by_parent = True
-            with self.lock:
-                return account.set_mode(mode, now, by_parent)
 
         if command == "quiz.practice":
             level = str(message.get("level", "grade5"))
@@ -1061,6 +771,7 @@ class Daemon:
         if demo and command in ("grant", "pause", "lock"):
             return {"ok": True, "demo": True, "note": "demo mode, nothing changed"}
 
+        now = self.clock.now()
         if command == "grant":
             minutes = message.get("minutes")
             if not isinstance(minutes, int) or not (-600 <= minutes <= 600):
@@ -1133,8 +844,13 @@ class Daemon:
                 merged["demo"] = bool(incoming.get("demo", self.config.get("demo")))
                 self.config = merged
                 config_mod.save(self.layout, merged)
-                for existing in self.accounts.values():
-                    existing.apply_config(merged)
+                for existing_uid, existing in list(self.accounts.items()):
+                    if existing_uid not in self.managed_uids():
+                        existing.save()
+                        existing.clear_status()
+                        del self.accounts[existing_uid]
+                    else:
+                        existing.apply_config(merged)
                 return {"ok": True, "config_applied": True}
 
         if command == "demo":
@@ -1145,66 +861,19 @@ class Daemon:
 
         return {"ok": False, "error": "unknown_command", "cmd": command}
 
-    # main loop ----------------------------------------------------------
-
-    def run(self):
-        self.listen()
-        signal.signal(signal.SIGTERM, lambda *_: self.shutdown())
-        signal.signal(signal.SIGINT, lambda *_: self.shutdown())
-        threading.Thread(target=self.serve_forever, daemon=True).start()
-
+    def tick(self, now, elapsed):
+        failures = []
         for uid in self.managed_uids():
             try:
-                self.account_for(uid)
-            except Exception as exc:  # one account's trouble must not take the daemon down
-                self.log(f"could not set up uid {uid}: {exc}")
+                account = self.account_for(uid)
+                account.tick(now, elapsed, demo=bool(self.config.get("demo")))
+                account.publish_status(now)
+            except Exception as exc:
+                self.log(f"could not set up uid {uid} or tick screen time: {exc}")
+                failures.append(uid)
+        if failures:
+            raise RuntimeError("screen-time accounts failed: " + str(failures))
 
-        while not self.stop_event.is_set():
-            now, elapsed = self.clock.tick()
-            demo = bool(self.config.get("demo"))
-            with self.lock:
-                for uid in list(self.managed_uids()):
-                    account = self.account_for(uid)
-                    if account:
-                        try:
-                            account.tick(now, elapsed, demo=demo)
-                            account.publish_status(now)
-                        except Exception as exc:
-                            self.log(f"tick failed for uid {uid}: {exc}")
-            if self.clock.last_jump:
-                jump = self.clock.last_jump
-                self.clock.last_jump = None
-                self.log(f"system clock jumped by {jump['drift_seconds']}s, ignored")
-                with self.lock:
-                    for account in self.accounts.values():
-                        account.day.record("clock_jump", meta=jump)
-            self.stop_event.wait(self.tick_seconds)
-
-        with self.lock:
-            for account in self.accounts.values():
-                account.save()
-        self.log("stopped")
-
-    def shutdown(self, *_):
-        self.stop_event.set()
-        if self.server:
-            try:
-                self.server.close()
-            except OSError:
-                pass
-
-
-# small indirections so the socket helpers stay in one module
-def proto_peer_uid(conn):
-    from .proto import peer_uid
-    return peer_uid(conn)
-
-
-def proto_line_reader(conn):
-    from .proto import LineReader
-    return LineReader(conn)
-
-
-def proto_write(conn, payload):
-    from .proto import write_line
-    return write_line(conn, payload)
+    def save(self):
+        for account in self.accounts.values():
+            account.save()

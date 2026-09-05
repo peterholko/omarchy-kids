@@ -8,15 +8,15 @@ source "$(dirname "$0")/base-test.sh"
 # functions run extracted against a scratch system root with nmcli and ufw
 # stubbed; the real command runs as namespaced root where the kernel allows.
 
-dns="$ROOT/bin/omarchy-parent-dns"
+dns="$ROOT/lib/parent/omarchy_parent/dns/command.sh"
 parent="$ROOT/bin/omarchy-parent"
 unit="$ROOT/default/parent/omarchy-parent-dns.service"
 
 grep -q '^# omarchy:summary=Filter the web by domain, allowlist or denylist' "$dns" || fail "omarchy-parent-dns announces itself as a feature"
 grep -q '^# omarchy:requires-sudo=true' "$dns" || fail "the web filter runs as root"
 [[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"dns       Filter the web by domain, allowlist or denylist"* ]] || fail "omarchy-parent lists the web filter as a feature"
-grep -Fq 'source "$OMARCHY_PATH/install/helpers/parent.sh"' "$dns" || fail "the web filter reads parent.conf through the shared helper"
-grep -qx 'dnsmasq' "$ROOT/install/omarchy-child.packages" || fail "dnsmasq ships on child installs"
+grep -Fq 'source "$OMARCHY_PATH/lib/parent/omarchy_parent/core/parent.sh"' "$dns" || fail "the web filter reads parent.conf through the shared helper"
+grep -q 'dnsmasq ufw networkmanager' "$ROOT/packaging/modules.PKGBUILD" || fail "DNS owns its optional dependencies"
 for f in dns-system.list dns-system.deny dns-public-resolvers.list; do
   [[ -f $ROOT/default/parent/$f ]] || fail "default/parent/$f ships"
 done

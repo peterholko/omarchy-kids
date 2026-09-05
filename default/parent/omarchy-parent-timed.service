@@ -1,11 +1,7 @@
-# Omarchy kids mode: the screen-time daemon, counting the kid's time from
-# logind, warning her, locking at zero, and crediting the arithmetic. Installed
-# to /etc/systemd/system by `omarchy-parent time on`. Root, because the point
-# is that the account being limited cannot stop it; it still reaches the
-# desktop through /run/user/<uid>, so the sandboxing stays modest on purpose.
+# Parent core hosts the independently installed school and time services.
 [Unit]
-Description=Omarchy screen-time daemon
-Documentation=file:///usr/share/omarchy/lib/screen-time/README.md
+Description=Omarchy parent module host
+Documentation=https://github.com/peterholko/omarchy-kids
 After=systemd-logind.service
 Wants=systemd-logind.service
 

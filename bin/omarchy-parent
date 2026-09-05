@@ -50,7 +50,6 @@ USAGE
   echo "Optional parent plugins are installed with: omarchy-parent plugin add <git-url> [--enable]"
 }
 
-OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
 
 # Feature commands live beside this one as omarchy-parent-<feature>, each
 # switched on and off by its own subcommand and never editing this file.
@@ -98,7 +97,7 @@ esac
 
 if (( EUID != 0 )); then
   mapfile -t gum_env < <(env | grep '^GUM_' || true)
-  exec sudo env "${gum_env[@]}" "$0" "$@"
+  exec sudo env OMARCHY_PATH="$OMARCHY_PATH" "${gum_env[@]}" "$0" "$@"
 fi
 
 # install_sudoers, SUDOERS_DIR, and the parent.conf helpers (PARENT_CONF,

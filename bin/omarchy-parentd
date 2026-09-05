@@ -1,0 +1,5 @@
+#!/bin/bash
+# omarchy:summary=Host the installed parent screen-time and school-mode modules
+# omarchy:hidden=true
+
+exec python3 -c 'import os, sys; sys.path.insert(0, os.environ["OMARCHY_PATH"] + "/lib/parent"); from omarchy_parent.core.daemon import main; main()' "$@"

@@ -203,6 +203,8 @@ Panel {
     password = String(password || "")
     if (password.trim() === "") return
     root.parentPassword = password
+    passwordField.text = ""
+    togetherPasswordField.text = ""
     unlockProc.running = true
   }
 
@@ -866,13 +868,13 @@ Panel {
               spacing: Style.space(8)
               visible: !root.parentUnlocked
 
-              TextField {
+              ParentPasswordField {
                 id: togetherPasswordField
                 width: Math.max(Style.space(80),
                                 togetherLockRow.width - togetherUnlock.implicitWidth
                                   - togetherLockRow.spacing)
                 password: true
-                placeholderText: "Parent password"
+                checking: unlockProc.running
                 activeFocusOnTab: true
                 Keys.onPressed: function(event) {
                   if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
@@ -1094,12 +1096,12 @@ Panel {
                 spacing: Style.space(8)
                 visible: !root.parentUnlocked
 
-                TextField {
+                ParentPasswordField {
                   id: passwordField
                   width: Math.max(Style.space(80),
                                   lockRow.width - unlockButton.implicitWidth - lockRow.spacing)
                   password: true
-                  placeholderText: "Parent password"
+                  checking: unlockProc.running
                   activeFocusOnTab: true
                   Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {

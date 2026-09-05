@@ -2,4 +2,4 @@
 # kids-mode profile picked by the installer's "Who is this computer for?"
 # question. The ISO builder also reads this file when constructing the offline
 # mirror.
-dnsmasq
+omarchy-parent-core

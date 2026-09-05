@@ -75,7 +75,7 @@ def detect(root=None):
         base = Path(root)
         return Layout("test", base / "config.json", base / "state", base / "sock")
 
-    if SYSTEM_CONFIG_PATH.exists():
+    if SYSTEM_CONFIG_PATH.exists() or Path("/etc/omarchy/parent/school-mode.json").exists() or read_regular(Path("/etc/omarchy/profile")) in ("child", "child\n"):
         return Layout(
             "system",
             SYSTEM_CONFIG_PATH,
@@ -173,6 +173,11 @@ def write_private(path, text, owner_uid=None):
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp, path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
     except BaseException:
         try:
             os.unlink(tmp)
@@ -190,6 +195,7 @@ def read_regular(path):
     try:
         st = os.fstat(fd)
         if not stat.S_ISREG(st.st_mode):
+            os.close(fd)
             return None
         with os.fdopen(fd, "r") as handle:
             return handle.read()

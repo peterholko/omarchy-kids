@@ -1,0 +1,37 @@
+#!/bin/bash
+# Build one compatible base/settings pair and five independently installable modules.
+set -euo pipefail
+
+source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+output=$(realpath -m "${1:-$source_root/build-output}")
+if (( EUID == 0 )); then
+  echo "Run packaging/build as a normal user; makepkg refuses root." >&2
+  exit 1
+fi
+if [[ $(uname -s) != "Linux" ]] || ! command -v makepkg >/dev/null; then
+  echo "Build on Arch Linux with base-devel, python, git, and imagemagick installed." >&2
+  exit 1
+fi
+mkdir -p "$output"
+build_root=$(mktemp -d)
+trap 'rm -rf "$build_root"' EXIT
+python "$source_root/packaging/stage.py" snapshot "$source_root" "$build_root/source"
+export OMARCHY_SRC="$build_root/source"
+export KIDS_PKGREL
+KIDS_PKGREL=$(git -C "$source_root" rev-list --count HEAD)
+mkdir -p "$build_root/release"
+
+for recipe in omarchy-settings omarchy-base modules; do
+  mkdir -p "$build_root/$recipe"
+  cp "$OMARCHY_SRC/packaging/$recipe.PKGBUILD" "$build_root/$recipe/PKGBUILD"
+  if [[ $recipe == "omarchy-settings" ]]; then
+    cp "$OMARCHY_SRC/packaging/omarchy-settings.install" "$build_root/$recipe/"
+  fi
+  (
+    cd "$build_root/$recipe"
+    makepkg --nodeps --clean --force
+    cp -- *.pkg.tar.zst "$build_root/release/"
+  )
+done
+python "$source_root/packaging/release.py" "$build_root/release" "$source_root" "$output"
+echo "Packages and checksums are in $output"

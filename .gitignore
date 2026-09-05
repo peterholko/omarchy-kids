@@ -5,3 +5,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# Local release artifacts
+/build-output/

@@ -2,7 +2,7 @@
 // lock screen and Math time read too: school hours are school mode, and the
 // daemon also holds the kid's own choice and the parent's override.
 function parseStatus(rawText) {
-  var fallback = { enabled: false, mode: "free", reason: "", schoolApps: [], schoolUntil: "", schoolLabel: "" }
+  var fallback = { valid: false, blockedPeriods: [], enabled: false, mode: "free", reason: "", schoolApps: [], schoolUntil: "", schoolLabel: "" }
   var text = String(rawText || "").trim()
   if (!text) return fallback
   var parsed
@@ -12,7 +12,10 @@ function parseStatus(rawText) {
     return fallback
   }
   if (!parsed || typeof parsed !== "object") return fallback
+  if (typeof parsed.enabled !== "boolean" || (parsed.enabled && parsed.mode !== "school" && parsed.mode !== "free")) return fallback
   return {
+    valid: true,
+    blockedPeriods: Array.isArray(parsed.blockedPeriods) ? parsed.blockedPeriods : [],
     enabled: parsed.enabled === true,
     mode: parsed.mode === "school" ? "school" : "free",
     reason: String(parsed.modeReason || ""),
@@ -28,10 +31,10 @@ function schoolMode(status) {
 
 // What the pill's panel says about why.
 function reasonLine(status) {
-  if (!status || !status.enabled) return "Screen time is off"
+  if (!status || !status.enabled) return "School mode is off"
   if (status.mode === "school") {
     if (status.reason === "schedule") return (status.schoolLabel || "School") + (status.schoolUntil ? " until " + status.schoolUntil : "")
-    if (status.reason === "parent") return "Set by a parent; screen time is paused"
+    if (status.reason === "parent") return "Set by a parent"
     if (status.reason === "chosen") return "Chosen for today"
     return "School mode"
   }

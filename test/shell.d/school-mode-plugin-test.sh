@@ -60,10 +60,10 @@ const school = state.parseStatus('{"enabled": true, "mode": "school", "modeReaso
 assert.equal(state.schoolMode(school), true)
 assert.deepEqual(school.schoolApps, ["obsidian", "chromium"])
 assert.equal(state.reasonLine(school), "School until 15:30")
-assert.equal(state.schoolMode(state.parseStatus('{"enabled": false, "mode": "school"}')), false, "no screen time, no school mode")
+assert.equal(state.schoolMode(state.parseStatus('{"enabled": false, "mode": "school"}')), false, "an explicitly disabled school module is off")
 assert.equal(state.schoolMode(state.parseStatus("not json")), false)
 assert.equal(state.reasonLine(state.parseStatus('{"enabled": true, "mode": "free", "modeReason": "parent", "schoolUntil": "15:30"}')), "Free time, set by a parent until 15:30")
-assert.equal(state.reasonLine(state.parseStatus('{"enabled": true, "mode": "school", "modeReason": "parent"}')), "Set by a parent; screen time is paused")
+assert.equal(state.reasonLine(state.parseStatus('{"enabled": true, "mode": "school", "modeReason": "parent"}')), "Set by a parent")
 assert.equal(state.reasonLine(state.parseStatus('{"enabled": true, "mode": "school", "modeReason": "chosen"}')), "Chosen for today")
 NODE
 node - "$plugin/SchoolSchedule.js" <<'NODE'
@@ -138,7 +138,7 @@ const source = fs.readFileSync(path.join(root, 'shell/plugins/school-mode/Panel.
 let focusCount = 0
 let settingsPassword = ''
 const panel = {
-  schoolMode: true, clientPath: '/omarchy/bin/omarchy-parent-time-client',
+  schoolMode: true, clientPath: '/omarchy/bin/omarchy-parent-school-client',
   askingParent: false, pendingAction: '', pendingMode: '',
   controller: { show() {} }, close() {}
 }
@@ -153,7 +153,8 @@ const context = vm.createContext({
 const checking = source.match(/readonly property bool checkingParent: (.+)/)
 assert(checking, 'the password prompt exposes its pending state')
 Object.defineProperty(panel, 'checkingParent', { get() { return vm.runInContext(checking[1], context) } })
-const fieldSource = source.slice(source.indexOf('id: passwordField'))
+const fieldSource = fs.readFileSync(path.join(root, 'shell/Ui/ParentPasswordField.qml'), 'utf8')
+Object.defineProperty(context, 'checking', { get() { return panel.checkingParent } })
 for (const name of ['placeholderText', 'readOnly']) {
   const binding = fieldSource.match(new RegExp(name + ': (.+)'))
   assert(binding, 'the password field binds ' + name)
@@ -276,7 +277,7 @@ grep -q '^hyprctl reload$' "$HYPR_CALLS" && [[ ! -f $tmp/run/omarchy-school-mode
 pass "the school shortcut layer is applied with hyprctl and undone with a reload"
 
 grep -q '"/var/lib/omarchy/parent/" + userName + "/time/status.json"' "$plugin/Service.qml" || fail "the service reads the mode from the daemon's status.json"
-grep -q 'readonly property bool schoolMode: childInstall && timeEnabled && mode === "school"' "$plugin/Service.qml" || fail "school mode needs a child install with screen time on"
+grep -q 'readonly property bool schoolMode: childInstall && schoolEnabled && mode === "school"' "$plugin/Service.qml" || fail "school mode needs a child install with its own enrollment"
 grep -q 'omarchy-profile-child && echo child || echo default' "$plugin/Service.qml" || fail "the service asks whether this is a child install"
 grep -q 'ShellIntegration.activate(config, root.pluginId, root.modePillId, root.modePillPath, root.schoolMode)' "$plugin/Service.qml" || fail "the service takes the menu slot and places the pill"
 grep -q 'serviceFor("omarchy.school-mode")' "$plugin/Menu.qml" && grep -q '"/school-menu.jsonc"' "$plugin/Menu.qml" || fail "the menu wrapper filters by the service in school mode"
@@ -284,6 +285,6 @@ grep -q 'if (SchoolBrowser.SEPARATE_PROFILE) {' "$plugin/Menu.qml" && grep -q 'v
 grep -q '\[root.clientPath, "--password-stdin", "mode", mode\]' "$plugin/Panel.qml" && grep -q 'error === "parent_required"' "$plugin/Panel.qml" || fail "the panel switches through the daemon and asks for the parent password before returning to free time"
 grep -q 'onRunningChanged: if (!running && !launched) root.handleModeReply("")' "$plugin/Panel.qml" && grep -q 'modeProc.launched = false' "$plugin/Panel.qml" || fail "a client that could not start does not leave the panel waiting"
 grep -q 'moduleName: "omarchy.school-mode.mode"' "$plugin/ModePill.qml" && grep -q 'moduleName: "omarchy.school-mode"' "$plugin/BarWidget.qml" || fail "the pill and the button carry their ids"
-grep -q 'omarchy.school-mode' "$ROOT/install/user/screen-time.sh" && grep -q 'omarchy.school-mode' "$ROOT/bin/omarchy-parent-time" || fail "a child install's bar gets the plugin's button"
+grep -q 'omarchy.school-mode' "$ROOT/install/user/school-mode.sh" && grep -q 'omarchy.school-mode' "$ROOT/bin/omarchy-parent-school" || fail "a child install's bar gets the plugin's button"
 grep -q '| School mode   | `omarchy.school-mode`' "$ROOT/shell/plugins/README.md" || fail "the plugin is listed"
 pass "school mode is wired from the daemon's status through the menu, the shortcuts, the windows, and the bar"

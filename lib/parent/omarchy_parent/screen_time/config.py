@@ -12,7 +12,7 @@ from . import paths
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 LEVELS = ["grade1", "grade2", "grade3", "grade4", "grade5", "grade6"]
 PERIOD_MODES = ["block", "free"]
-CONFIG_VERSION = 2
+CONFIG_VERSION = 3
 
 # A set of `questions_per_set` questions at `level` earns `set_minutes` when
 # every answer is right; each right answer is worth its share. The daily cap
@@ -28,25 +28,14 @@ DEFAULT_EARN = {
     "drill_weak": True,
 }
 
-# The apps a child install shows in school mode: school and creativity
-# without the games and the entertainment, by desktop id.
-DEFAULT_SCHOOL_APPS = [
-    "chromium", "libreoffice-startcenter", "libreoffice-writer", "libreoffice-calc",
-    "libreoffice-impress", "libreoffice-draw", "org.gnome.Nautilus", "org.gnome.Evince",
-    "imv", "omawrite", "omacalc", "com.github.xournalpp.xournalpp", "obsidian",
-    "Khan Academy", "Wikipedia", "Math Time",
-]
-
 DEFAULT_PROFILE = {
     "name": "Default",
     # "limits": budget, lock, and earning. "together": no lock and no rewards,
     # just a shared agreement, gentle information, and the child's own notes.
     "philosophy": "limits",
     "budget_minutes": {"mon": 60, "tue": 60, "wed": 60, "thu": 60, "fri": 60, "sat": 90, "sun": 90},
-    # A day can have several periods: school hours, dinner, bedtime. A "block"
-    # period locks the screen; a "free" period is not screen time at all, the
-    # laptop is hers for schoolwork and nothing counts down or locks. Each
-    # period names its days; bedtime is just the one every family starts with.
+    # Screen-time periods are only restrictions (bedtime, meals, breaks).
+    # The school service owns periods that exempt accounting.
     "blocked_periods": [
         {"label": "Bedtime", "enabled": False, "start": "20:00", "end": "07:00",
          "days": list(DAYS), "mode": "block"},
@@ -63,7 +52,6 @@ DEFAULT_PROFILE = {
     "agreement_minutes": 0,
     "break_nudge_minutes": 45,
     "earn": dict(DEFAULT_EARN),
-    "school_apps": list(DEFAULT_SCHOOL_APPS),
 }
 
 DEFAULT_CONFIG = {
@@ -209,7 +197,7 @@ def sanitize_profile(raw):
         "agreement_minutes": _int(raw.get("agreement_minutes"), DEFAULT_PROFILE["agreement_minutes"], 0, 1440),
         "break_nudge_minutes": _int(raw.get("break_nudge_minutes"), DEFAULT_PROFILE["break_nudge_minutes"], 0, 480),
         "budget_minutes": budget,
-        "blocked_periods": blocked,
+        "blocked_periods": [p for p in blocked if p["mode"] == "block"],
         "warn_minutes": warn,
         "on_empty": on_empty,
         "grace_seconds": _int(raw.get("grace_seconds"), DEFAULT_PROFILE["grace_seconds"], 0, 3600),
@@ -217,23 +205,7 @@ def sanitize_profile(raw):
         "unlock_grace_seconds": _int(raw.get("unlock_grace_seconds"),
                                      DEFAULT_PROFILE["unlock_grace_seconds"], 5, 3600),
         "earn": sanitize_earn(raw.get("earn")),
-        "school_apps": sanitize_school_apps(raw.get("school_apps")),
     }
-
-
-def sanitize_school_apps(raw):
-    if not isinstance(raw, list):
-        return list(DEFAULT_SCHOOL_APPS)
-    out = []
-    for entry in raw[:200]:
-        if not isinstance(entry, str):
-            continue
-        name = entry.strip()
-        if name.endswith(".desktop"):
-            name = name[:-8]
-        if name and len(name) <= 80 and name not in out:
-            out.append(name)
-    return out
 
 
 def sanitize(raw):

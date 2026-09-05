@@ -1,0 +1,11 @@
+#!/bin/bash
+# Install/update a locally built kids release; retain installed modules and existing enrollments.
+set -euo pipefail
+source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ ${1:-} == "--help" || ${1:-} == "-h" ]]; then
+  python3 "$source_root/packaging/install.py" --help
+elif (( EUID != 0 )); then
+  exec sudo python3 "$source_root/packaging/install.py" "$@"
+else
+  exec python3 "$source_root/packaging/install.py" "$@"
+fi

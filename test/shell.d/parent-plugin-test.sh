@@ -6,6 +6,7 @@
 set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
+export OMARCHY_PATH="$ROOT"
 
 require_command jq
 require_command git
@@ -68,7 +69,7 @@ fi
 pass "plugin add refuses an unknown id"
 
 list_output=$(run_plugin list)
-[[ -z $list_output ]] || fail "list is empty before anything is installed" "$list_output"
+[[ $list_output == *$'core\tKids / Parent Password\tavailable'* ]] || fail "list offers the required core before optional modules are installed" "$list_output"
 pass "plugin list is empty with no catalog and nothing installed"
 
 run_plugin add "$fixture" --yes >/dev/null || fail "plugin add from a local folder succeeds"
@@ -77,7 +78,7 @@ run_plugin add "$fixture" --yes >/dev/null || fail "plugin add from a local fold
   fail "the symlink points at the installed plugin copy"
 [[ -f $plugin_store/fixture/manifest.json ]] || fail "add copies the plugin into the store"
 list_output=$(run_plugin list)
-[[ $list_output == $'fixture\tFixture\tinstalled' ]] ||
+[[ $list_output == *$'fixture\tFixture\tinstalled' ]] ||
   fail "list shows the installed plugin" "$list_output"
 pass "plugin add from a folder puts the command on PATH"
 

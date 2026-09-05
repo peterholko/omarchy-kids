@@ -13,6 +13,8 @@ import sys
 
 from . import paths, proto
 
+SCOPE = "time"
+
 
 def _fail(message, code=1):
     print(json.dumps({"ok": False, "error": message}))
@@ -34,7 +36,9 @@ def _with_user(args, payload):
 
 
 def _request(args, payload, timeout=5):
-    return proto.request(paths.client_socket_candidates(), _with_user(args, payload), timeout=timeout)
+    payload = dict(payload)
+    payload["scope"] = SCOPE
+    return proto.request(paths.client_socket_candidates(), _with_user(args, payload), timeout=max(timeout, 25) if payload.get("password") else timeout)
 
 
 def _emit(payload, human=False):
@@ -148,7 +152,7 @@ def cmd_day(args):
 def cmd_watch(args):
     sock = proto.connect(paths.client_socket_candidates(), timeout=None)
     try:
-        proto.write_line(sock, _with_user(args, {"cmd": "watch"}))
+        proto.write_line(sock, _with_user(args, {"cmd": "watch", "scope": SCOPE}))
         reader = proto.LineReader(sock)
         while True:
             payload = reader.read()

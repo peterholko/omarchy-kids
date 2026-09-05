@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = omarchy-parent-*
+
+[Action]
+Description = Refreshing Omarchy parent modules...
+When = PostTransaction
+Exec = /usr/bin/env OMARCHY_PATH=/usr/share/omarchy /usr/bin/omarchy-parent-refresh

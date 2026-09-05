@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Ui
 import qs.Commons
-import "../math/MathModel.js" as MathModel
+import "MathModel.js" as MathModel
 
 // The parent's settings, in a window of their own. Opened from the panel
 // after the parent password; every change goes to the daemon as a partial
@@ -85,7 +85,7 @@ Item {
                  start: String(source[i].start || ""),
                  end: String(source[i].end || ""),
                  days: Array.isArray(source[i].days) ? source[i].days.slice() : dayKeys.slice(),
-                 mode: source[i].mode === "free" ? "free" : "block" })
+                 mode: "block" })
     }
     return out
   }
@@ -379,7 +379,7 @@ Item {
 
           Text {
             textFormat: Text.PlainText
-            text: "A locked period locks the screen (bedtime, dinner). School time is not screen time at all: nothing counts down and nothing locks."
+            text: "A locked period locks the screen (bedtime, dinner). Set school hours in School Mode settings."
             width: parent.width
             wrapMode: Text.WordWrap
             color: root.fadeText(0.5)
@@ -464,13 +464,7 @@ Item {
                   onEditingFinished: if (root.validTime(text)) root.setPeriod(periodRow.index, "end", text)
                 }
 
-                Button {
-                  text: periodRow.modelData.mode === "free" ? "School time" : "Locks"
-                  bordered: true
-                  focusable: true
-                  anchors.verticalCenter: parent.verticalCenter
-                  onClicked: root.setPeriod(periodRow.index, "mode", periodRow.modelData.mode === "free" ? "block" : "free")
-                }
+
               }
 
               Row {

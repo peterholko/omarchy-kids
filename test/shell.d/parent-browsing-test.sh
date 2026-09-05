@@ -11,7 +11,7 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
 require_command python3
 
-browsing="$ROOT/bin/omarchy-parent-browsing"
+browsing="$ROOT/lib/parent/omarchy_parent/browsing/command.sh"
 parent="$ROOT/bin/omarchy-parent"
 service="$ROOT/default/parent/omarchy-parent-browsing.service"
 timer="$ROOT/default/parent/omarchy-parent-browsing.timer"
@@ -19,7 +19,7 @@ timer="$ROOT/default/parent/omarchy-parent-browsing.timer"
 grep -q '^# omarchy:summary=Keep a child install' "$browsing" || fail "omarchy-parent-browsing announces itself as a feature"
 grep -q '^# omarchy:requires-sudo=true' "$browsing" || fail "browsing runs as root"
 [[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"browsing  Keep a child install"* ]] || fail "omarchy-parent lists browsing as a feature"
-grep -Fq 'source "$OMARCHY_PATH/install/helpers/parent.sh"' "$browsing" || fail "browsing reads parent.conf through the shared helper"
+grep -Fq 'source "$OMARCHY_PATH/lib/parent/omarchy_parent/core/parent.sh"' "$browsing" || fail "browsing reads parent.conf through the shared helper"
 grep -qx 'ExecStart=/usr/bin/omarchy-parent-browsing collect' "$service" || fail "the service runs the collector"
 grep -q 'ConditionPathExistsGlob=/var/lib/omarchy/parent/\*/browsing/enabled' "$service" || fail "the service only runs when an account has it on"
 grep -qx 'OnUnitActiveSec=1min' "$timer" || fail "the timer runs every minute"

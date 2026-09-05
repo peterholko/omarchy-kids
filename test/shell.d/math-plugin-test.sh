@@ -142,6 +142,6 @@ grep -q 'color: root.paper' "$qml" && grep -q 'readonly property color paper: Qu
 ! grep -q 'Color\.\|Border\.surfaceSpec' "$qml" || fail "the sheet keeps its own ink on every theme"
 ! grep -q 'elapsedSeconds\|formatDuration' "$qml" || fail "no clock on the question screen or the results"
 grep -q 'Quiz.isCalculatorAppId(toplevel.appId)) toplevel.close()' "$qml" || fail "Omacalc is closed while the app is up"
-grep -q '"when":"omarchy-profile-child","action":"omarchy-shell shell summon omarchy.math' "$ROOT/default/omarchy/omarchy-menu.jsonc" || fail "the menu offers Math time on every child install, screen time on or off"
+grep -q '"when":"omarchy-profile-child && omarchy-cmd-present omarchy-parent-time","action":"omarchy-shell shell summon omarchy.math' "$ROOT/default/omarchy/omarchy-menu.jsonc" || fail "the menu offers Math time when its module is installed, screen time on or off"
 grep -q '^Exec=omarchy-shell shell summon omarchy.math$' "$ROOT/applications/child/Math Time.desktop" || fail "the child launcher has a Math Time entry"
 pass "Math time is wired as the child install's math app"

@@ -9,6 +9,7 @@
 set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
+export OMARCHY_PATH="$ROOT"
 
 parent="$ROOT/bin/omarchy-parent"
 leaf="$ROOT/install/config/parent.sh"
@@ -58,7 +59,7 @@ order() { printf '%s\n' "$apply_body" | grep -n -F "$1" | head -1 | cut -d: -f1;
   fail "apply checks root's password before installing rootpw"
 (( $(order 'install_sudoers "omarchy-parent-$user"') < $(order 'gpasswd -d') )) ||
   fail "apply grants the account sudo before taking it out of wheel"
-helper="$ROOT/install/helpers/parent.sh"
+helper="$ROOT/lib/parent/omarchy_parent/core/parent.sh"
 grep -Fq 'visudo -cf "$stage"' "$helper" || fail "apply validates every sudoers file with visudo before it goes live"
 grep -Fq 'mktemp "$SUDOERS_DIR/.$name.XXXXXX"' "$helper" || fail "apply stages sudoers files under a dotted name sudo ignores"
 pass "apply keeps a working sudo path at every step"
@@ -233,7 +234,7 @@ rm -rf "$dispatch_tmp"
 [[ -f $ROOT/install/helpers/parent.sh ]] || fail "the shared parent helper ships"
 grep -Fq 'source "$OMARCHY_PATH/install/helpers/parent.sh"' "$parent" || fail "omarchy-parent sources the shared helper"
 ! grep -q '^install_sudoers() {' "$parent" || fail "install_sudoers lives in the helper, not in omarchy-parent"
-grep -q '^install_sudoers() {' "$ROOT/install/helpers/parent.sh" || fail "the helper defines install_sudoers"
+grep -q '^install_sudoers() {' "$ROOT/lib/parent/omarchy_parent/core/parent.sh" || fail "the helper defines install_sudoers"
 pass "omarchy-parent dispatches to feature commands and shares its sudoers installer"
 
 # Behavioral half: the real command as namespaced root, against scratch

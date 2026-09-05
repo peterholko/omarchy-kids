@@ -1177,6 +1177,13 @@ run_setup() {
     return "$status"
   fi
 
+  if $CHILD_INSTALL && omarchy-cmd-present omarchy-parent-modules; then
+    printf '%s' "$SHOW_CURSOR"
+    clear_logo
+    omarchy-parent-modules pick --user "$username"
+    render_setup_static
+  fi
+
   # One full-bar frame so the finish doesn't cut in mid-progress.
   echo done >"$STATE_FILE"
   render_setup_dynamic

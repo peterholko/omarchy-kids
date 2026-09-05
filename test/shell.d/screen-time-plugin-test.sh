@@ -31,17 +31,17 @@ for f in BarWidget.qml SettingsWindow.qml; do
   grep -q -- '--password-stdin' "$plugin/$f" || fail "$f sends the parent password over stdin"
 done
 grep -q 'moduleName: "omarchy.screen-time"' "$plugin/BarWidget.qml" && grep -q 'serviceFor("omarchy.screen-time")' "$plugin/BarWidget.qml" || fail "the bar widget is omarchy.screen-time"
-grep -q 'placeholderText: "Parent password"' "$plugin/BarWidget.qml" || fail "the parent drawer asks for the parent password"
+grep -q 'ParentPasswordField {' "$plugin/BarWidget.qml" || fail "the parent drawer asks for the parent password"
 grep -q 'root.bar.shell.summon("omarchy.math", "{}")' "$plugin/BarWidget.qml" || fail "the panel opens Math time full screen"
 ! grep -q 'answerField' "$plugin/BarWidget.qml" || fail "the panel no longer takes answers inline"
 grep -q 'if (phase === "school") return iconBook' "$plugin/BarWidget.qml" || fail "school time gets its own glyph"
 grep -q '"earn": { "level": "grade" + (index + 1) }' "$plugin/SettingsWindow.qml" || fail "the settings pick a grade"
-grep -Fq 'import "../math/MathModel.js" as MathModel' "$plugin/SettingsWindow.qml" \
+grep -Fq 'import "MathModel.js" as MathModel' "$plugin/SettingsWindow.qml" \
   && grep -Fq 'MathModel.gradeBlurb(MathModel.levelNumber(root.level))' "$plugin/SettingsWindow.qml" \
   && grep -Fq 'text: root.gradeBlurb' "$plugin/SettingsWindow.qml" \
   || fail "the parent settings and Math time share the same arithmetic-fact descriptions"
 grep -q '"questions_per_set": value' "$plugin/SettingsWindow.qml" && grep -q '"set_minutes": value' "$plugin/SettingsWindow.qml" || fail "the settings set the questions and the minutes of a set"
-grep -q 'togglePeriodDay' "$plugin/SettingsWindow.qml" && grep -q '"School time" : "Locks"' "$plugin/SettingsWindow.qml" || fail "a period has days and a mode"
+grep -q 'togglePeriodDay' "$plugin/SettingsWindow.qml" && ! grep -q '"School time" : "Locks"' "$plugin/SettingsWindow.qml" || fail "time periods have days and cannot write school mode"
 [[ ! -e $plugin/Countdown.qml ]] || fail "the bottom-centre countdown card is retired"
 grep -q '| Screen time   | `omarchy.screen-time`' "$ROOT/shell/plugins/README.md" || fail "the plugin is listed"
 pass "the bar pill, the panel, and the settings speak the parent password and the grades"
@@ -51,7 +51,7 @@ lock="$ROOT/shell/plugins/lock/Service.qml"
 grep -q 'shell.isPluginOpen("omarchy.math")' "$lock" && grep -q 'math: summoned, no time left and nothing on screen' "$lock" || fail "the lock screen re-opens Math time while there is no time"
 ! grep -q 'lock-requested: screen time spent' "$lock" || fail "the lock screen no longer locks at zero itself; the daemon does, a minute after an unlock that earned nothing"
 grep -q 'function isPluginOpen(id: string): string' "$ROOT/shell/shell.qml" || fail "root can ask the shell whether the real Math time plugin is open"
-grep -q 'session.shell_plugin_open(self.uid, "omarchy.math") is True' "$ROOT/lib/screen-time/screen_time/daemon.py" || fail "an open Math time session holds off the zero-budget relock"
+grep -q 'session.shell_plugin_open(self.uid, "omarchy.math") is True' "$ROOT/lib/parent/omarchy_parent/screen_time/service.py" || fail "an open Math time session holds off the zero-budget relock"
 grep -q '"unlock_grace_seconds": 60' "$ROOT/lib/screen-time/screen_time/config.py" || fail "a missing or closed Math time app still gets only a minute before relock"
 grep -q '"grace_seconds": 10' "$ROOT/lib/screen-time/screen_time/config.py" || fail "the normal time-up countdown lasts ten seconds"
 pass "no time left means Math time may stay open, with a one-minute failsafe when it is absent"

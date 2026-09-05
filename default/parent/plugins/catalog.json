@@ -1,0 +1,7 @@
+{
+  "core": {"name": "Kids / Parent Password", "package": "omarchy-parent-core", "requires": [], "apiVersion": 1, "required": true, "shellPlugins": []},
+  "dns": {"name": "DNS Filtering", "package": "omarchy-parent-dns", "requires": ["core"], "apiVersion": 1, "command": "omarchy-parent-dns", "enable": "denylist", "disable": "off", "shellPlugins": []},
+  "browsing": {"name": "Browsing Logging", "package": "omarchy-parent-browsing", "requires": ["core"], "apiVersion": 1, "command": "omarchy-parent-browsing", "enable": "on", "disable": "off", "shellPlugins": []},
+  "time": {"name": "Screen Time and Math", "package": "omarchy-parent-time", "requires": ["core"], "apiVersion": 1, "command": "omarchy-parent-time", "enable": "on", "disable": "off", "shellPlugins": ["omarchy.screen-time", "omarchy.math"]},
+  "school": {"name": "School / Free Time", "package": "omarchy-parent-school", "requires": ["core"], "apiVersion": 1, "command": "omarchy-parent-school", "enable": "on", "disable": "off", "shellPlugins": ["omarchy.school-mode"]}
+}

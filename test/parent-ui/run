@@ -1,0 +1,33 @@
+#!/bin/bash
+# Render the shared field under Xvfb; the complete desktop still uses the VM acceptance suite.
+set -euo pipefail
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+output=$(realpath -m "${1:-$root/build-output/ui}")
+mkdir -p "$output"
+fixture=$(mktemp -d)
+shell_pid=""
+cleanup() {
+  [[ -z $shell_pid ]] || kill "$shell_pid" 2>/dev/null || true
+  rm -rf "$fixture"
+}
+trap cleanup EXIT
+cp "$root/test/parent-ui/shell.qml" "$fixture/shell.qml"
+for module in Ui Commons Services; do
+  ln -s "$root/shell/$module" "$fixture/$module"
+done
+export OMARCHY_PATH="$root" QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software
+quickshell -p "$fixture" --no-color >"$output/quickshell.log" 2>&1 &
+shell_pid=$!
+for attempt in {1..50}; do
+  if grep -q 'RESULT pass' "$output/quickshell.log"; then
+    magick import -window root "$output/parent-password.png"
+    exit 0
+  fi
+  if ! kill -0 "$shell_pid" 2>/dev/null; then
+    cat "$output/quickshell.log"
+    exit 1
+  fi
+  sleep 0.2
+done
+cat "$output/quickshell.log"
+exit 1

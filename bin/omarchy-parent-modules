@@ -1,0 +1,13 @@
+#!/bin/bash
+# omarchy:summary=Choose and manage installable kids modules
+# omarchy:args=<pick|list|add|remove|enable|disable> [MODULE] [--user NAME]
+# omarchy:hidden=true
+
+if [[ ${1:-} != "list" && ${1:-} != "--help" && ${1:-} != "-h" ]] && (( EUID != 0 )); then
+  if [[ -t 0 ]]; then
+    exec sudo env OMARCHY_PATH="$OMARCHY_PATH" "$0" "$@"
+  else
+    exec pkexec env OMARCHY_PATH="$OMARCHY_PATH" "$0" "$@"
+  fi
+fi
+exec python3 -c 'import os, sys; sys.path.insert(0, os.environ["OMARCHY_PATH"] + "/lib/parent"); from omarchy_parent.core.modules import main; main()' "$@"

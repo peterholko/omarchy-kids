@@ -1,5 +1,10 @@
 run_logged "$OMARCHY_INSTALL/user/theme.sh"
-run_logged "$OMARCHY_INSTALL/user/screen-time.sh"
+if omarchy-cmd-present omarchy-parent-time; then
+  run_logged "$OMARCHY_INSTALL/user/screen-time.sh"
+fi
+if omarchy-cmd-present omarchy-parent-school; then
+  run_logged "$OMARCHY_INSTALL/user/school-mode.sh"
+fi
 run_logged "$OMARCHY_INSTALL/user/chromium.sh"
 run_logged "$OMARCHY_INSTALL/user/git.sh"
 run_logged "$OMARCHY_INSTALL/user/xcompose.sh"

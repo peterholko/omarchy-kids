@@ -25,13 +25,15 @@ Item {
   property bool childInstall: false
   property bool childChecked: false
   property bool statusLoaded: false
-  property bool timeEnabled: false
+  property bool schoolEnabled: false
   property string mode: "free"
   property string modeReason: ""
   property string schoolUntil: ""
   property string schoolLabel: ""
   property var allowedDesktopIds: []
-  readonly property bool schoolMode: childInstall && timeEnabled && mode === "school"
+  property var blockedPeriods: []
+  property bool connected: false
+  readonly property bool schoolMode: childInstall && schoolEnabled && mode === "school"
 
   property bool directoryReady: false
   property bool notificationStateLoaded: false
@@ -53,7 +55,7 @@ Item {
 
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
   readonly property string homeDir: Quickshell.env("HOME")
-  readonly property string statusPath: "/var/lib/omarchy/parent/" + userName + "/time/status.json"
+  readonly property string statusPath: "/var/lib/omarchy/parent/" + userName + "/school-mode/status.json"
   readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || homeDir + "/.local/state") + "/omarchy-school-mode"
   readonly property string notificationStatePath: stateDir + "/notifications.json"
   readonly property string pluginDir: omarchyPath + "/shell/plugins/school-mode"
@@ -81,8 +83,11 @@ Item {
 
   function loadStatus(rawText) {
     var status = ModeState.parseStatus(rawText)
+    if (!status.valid) { root.connected = false; return }
+    root.connected = true
+    root.blockedPeriods = status.blockedPeriods
     var ids = Allowlist.normalizeIds(status.schoolApps)
-    timeEnabled = status.enabled
+    schoolEnabled = status.enabled
     mode = status.mode
     modeReason = status.reason
     schoolUntil = status.schoolUntil
@@ -96,6 +101,11 @@ Item {
   }
 
   onSchoolModeChanged: root.applyMode()
+
+  function removalReady() {
+    return !root.schoolEnabled && !root.notificationApplied && !root.shortcutPolicyApplied
+      && !root.shortcutPolicyBusy && !root.windowSessionBusy && root.hiddenWindowCount === 0 ? "ready" : "restoring"
+  }
 
   function applyMode() {
     if (!root.childChecked || !root.statusLoaded) return

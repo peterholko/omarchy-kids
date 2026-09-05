@@ -17,14 +17,15 @@ set -euo pipefail
 export GIT_TERMINAL_PROMPT=0
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -oBatchMode=yes}"
 
-OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
 CATALOG="${OMARCHY_PARENT_PLUGIN_CATALOG:-$OMARCHY_PATH/default/parent/plugins/catalog.json}"
 STORE="${OMARCHY_PARENT_PLUGIN_STORE:-/var/lib/omarchy/plugins}"
 BINDIR="${OMARCHY_PARENT_PLUGIN_BINDIR:-/usr/local/bin}"
 
 usage() {
   cat <<USAGE
-Usage: omarchy-parent plugin add <git-url|id|folder> [--enable] [--user NAME] [--yes]
+Usage: omarchy-parent plugin pick [--user NAME]
+       omarchy-parent plugin <enable|disable> ID [--user NAME]
+       omarchy-parent plugin add <git-url|id|folder> [--enable] [--user NAME] [--yes]
        omarchy-parent plugin remove ID [--purge] [--user NAME]
        omarchy-parent plugin list
 
@@ -54,9 +55,23 @@ case "${1:-}" in
     ;;
 esac
 
+# First-party module packages use the existing parent-plugin entry point.
+case "${1:-}" in
+  pick|enable|disable)
+    exec "$OMARCHY_PATH/bin/omarchy-parent-modules" "$@"
+    ;;
+  add|remove)
+    case "${2:-}" in
+      core|dns|browsing|time|school|screen-time|school-mode)
+        exec "$OMARCHY_PATH/bin/omarchy-parent-modules" "$@"
+        ;;
+    esac
+    ;;
+esac
+
 if [[ ${1:-} == add || ${1:-} == remove ]] && (( EUID != 0 )) && [[ -z ${OMARCHY_PARENT_PLUGIN_UNPRIVILEGED:-} ]]; then
   mapfile -t gum_env < <(env | grep '^GUM_' || true)
-  exec sudo env "${gum_env[@]}" "$0" "$@"
+  exec sudo env OMARCHY_PATH="$OMARCHY_PATH" "${gum_env[@]}" "$0" "$@"
 fi
 
 command="${1:-}"
@@ -215,8 +230,10 @@ enable_plugin() {
 
 cmd_list() {
   local plugin_id name installed dir seen=" "
+  "$OMARCHY_PATH/bin/omarchy-parent-modules" list
   while IFS= read -r plugin_id; do
     [[ -n $plugin_id ]] || continue
+    [[ -z $(catalog_field "$plugin_id" package) ]] || continue
     name=$(catalog_field "$plugin_id" name)
     [[ -n $name ]] || name=$plugin_id
     if plugin_installed "$plugin_id"; then
@@ -326,7 +343,7 @@ cmd_remove() {
     off_args=(off)
     (( purge )) && off_args+=(--purge)
     [[ -n $user ]] && off_args+=(--user "$user")
-    "$dir/bin/omarchy-parent-$id" "${off_args[@]}" || true
+    "$dir/bin/omarchy-parent-$id" "${off_args[@]}" || fail "could not disable $id; it remains installed"
   fi
   unlink_bins "$dir"
   rm -rf "$dir"

@@ -1,0 +1,39 @@
+name: Kids modules
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y jq sqlite3
+      - run: ./test/kids
+      - run: ./test/cli
+  packages:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+      - run: pacman -Syu --noconfirm python git imagemagick
+      - run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          runuser -u builder -- ./packaging/build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omarchy-kids-x86_64
+          path: build-output/
+          if-no-files-found: error
+  password-ui:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+      - run: pacman -Syu --noconfirm quickshell xorg-server-xvfb xorg-xauth imagemagick dbus ttf-dejavu
+      - run: dbus-run-session -- xvfb-run -s '-screen 0 800x500x24' ./test/parent-ui/run
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parent-password-ui
+          path: build-output/ui/

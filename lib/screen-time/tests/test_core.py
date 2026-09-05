@@ -15,6 +15,8 @@ from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), "parent"))
+
 FAILURES = []
 
 
@@ -132,7 +134,7 @@ def test_config():
         "profiles": {"kid": {"grace_seconds": 60}},
     })
     check("the old one-minute default migrates to ten seconds",
-          legacy["version"] == 2 and legacy["profiles"]["kid"]["grace_seconds"] == 10)
+          legacy["version"] == 3 and legacy["profiles"]["kid"]["grace_seconds"] == 10)
     check("a current profile may still choose one minute",
           current["profiles"]["kid"]["grace_seconds"] == 60)
 
@@ -147,10 +149,11 @@ def test_config():
           periods[1]["days"] == config.DAYS and periods[1]["mode"] == "block")
     check("a window with no width is dropped", len(periods) == 2)
 
-    apps = config.sanitize_school_apps(["obsidian", "obsidian", " Khan Academy.desktop ", 7, "x" * 90, ""])
+    from omarchy_parent.school_mode import defaults as school_defaults
+    apps = school_defaults.sanitize_school_apps(["obsidian", "obsidian", " Khan Academy.desktop ", 7, "x" * 90, ""])
     check("the school app list keeps ids once, trimmed, without .desktop", apps == ["obsidian", "Khan Academy"], str(apps))
-    check("no list means the default school apps", config.sanitize_school_apps(None) == config.DEFAULT_SCHOOL_APPS)
-    check("the default school apps have no games or media", not any(a in config.DEFAULT_SCHOOL_APPS for a in ("com.moonlight_stream.Moonlight", "cliamp", "mpv", "Google Maps")))
+    check("no list means the default school apps", school_defaults.sanitize_school_apps(None) == school_defaults.DEFAULT_SCHOOL_APPS)
+    check("the default school apps have no games or media", not any(a in school_defaults.DEFAULT_SCHOOL_APPS for a in ("com.moonlight_stream.Moonlight", "cliamp", "mpv", "Google Maps")))
     merged = config.deep_merge({"earn": {"enabled": True, "level": "grade3"}, "grace_seconds": 60},
                                {"earn": {"enabled": False}})
     check("a patch only touches what it names",
@@ -309,7 +312,9 @@ def test_periods():
         _covers = staticmethod(daemon.Account._covers)
         _period = daemon.Account._period
         blocking_period = daemon.Account.blocking_period
-        free_period = daemon.Account.free_period
+        def free_period(self, now):
+            from omarchy_parent.core.periods import active_period
+            return active_period(self.profile["blocked_periods"], now, "free")
         next_period = daemon.Account.next_period
 
     def fake_with(periods):
@@ -344,35 +349,18 @@ def test_school_mode():
 
     section("school mode")
 
-    class Fake:
-        _covers = staticmethod(daemon.Account._covers)
-        _period = daemon.Account._period
-        free_period = daemon.Account.free_period
-        blocking_period = daemon.Account.blocking_period
-        _period_end = staticmethod(daemon.Account._period_end)
-        _day_end = staticmethod(daemon.Account._day_end)
-        effective_mode = daemon.Account.effective_mode
-        screen_time_exempt = daemon.Account.screen_time_exempt
-        set_mode = daemon.Account.set_mode
-        mode_status = daemon.Account.mode_status
+    from omarchy_parent.school_mode.policy import Policy
+    from omarchy_parent.school_mode import config as school_config
+    from screen_time.daemon import Account
+    raw = {"blocked_periods": [
+        {"label": "School", "enabled": True, "start": "08:00", "end": "15:30", "days": ["mon", "tue", "wed", "thu", "fri"], "mode": "free"},
+        {"label": "Bedtime", "enabled": True, "start": "20:00", "end": "07:00", "mode": "block"}]}
+    fake = Policy(school_config.sanitize_profile(raw))
+    account = Account.__new__(Account)
+    account.profile = config.sanitize_profile(raw)
+    account.school_snapshot = fake.snapshot
+    fake.screen_time_exempt = account.screen_time_exempt
 
-        class _Day:
-            def record(self, *a, **k): pass
-        day = _Day()
-
-        def clear_block(self): pass
-        def save(self): pass
-
-    fake = Fake()
-    fake.mode_override = None
-    fake.mode_override_until = 0.0
-    fake.mode_override_by_parent = False
-    fake.mode_override_suppresses_schedule = False
-    fake.profile = config.sanitize_profile({"blocked_periods": [
-        {"label": "School", "enabled": True, "start": "08:00", "end": "15:30",
-         "days": ["mon", "tue", "wed", "thu", "fri"], "mode": "free"},
-        {"label": "Bedtime", "enabled": True, "start": "20:00", "end": "07:00",
-         "mode": "block"}]})
     school_time = datetime(2026, 9, 2, 10, 0).timestamp()   # a Wednesday
     evening = datetime(2026, 9, 2, 18, 0).timestamp()
     bedtime = datetime(2026, 9, 2, 21, 0).timestamp()
