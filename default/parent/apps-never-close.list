@@ -1,7 +1,7 @@
-# Programs `omarchy-parent apps` never closes, whatever desktop entry names
+# Programs `omarchy-kids apps` never closes, whatever desktop entry names
 # them: the interpreters and launchers many entries start with, and the
 # terminal emulators, since the menu's floating terminal is how a parent runs
-# omarchy-parent at all. One program name per line.
+# omarchy-kids at all. One program name per line.
 bash
 sh
 zsh

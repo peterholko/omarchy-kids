@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# omarchy:summary=Keep a child install's browsing history where the kid cannot erase it
-# omarchy:args=<status|on|off|videos|pages|collect> [DAYS [N]] [--user NAME]
-# omarchy:examples=sudo omarchy-parent browsing on | sudo omarchy-parent browsing videos | sudo omarchy-parent browsing pages 30
-# omarchy:requires-sudo=true
-
-source "$OMARCHY_PATH/lib/parent/omarchy_parent/browsing/command.sh"

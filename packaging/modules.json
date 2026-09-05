@@ -1,41 +1,42 @@
 {
   "core": [
-    "bin/omarchy-parent",
-    "bin/omarchy-parent-unlock",
-    "bin/omarchy-parentd",
-    "bin/omarchy-parent-timed",
-    "bin/omarchy-parent-client",
-    "bin/omarchy-parent-plugin",
-    "bin/omarchy-parent-modules",
-    "bin/omarchy-parent-files",
-    "bin/omarchy-parent-refresh",
-    "lib/parent/omarchy_parent/__init__.py",
-    "lib/parent/omarchy_parent/core",
+    "bin/omarchy-kids",
+    "bin/omarchy-kids-unlock",
+    "bin/omarchy-kidsd",
+    "bin/omarchy-kids-timed",
+    "bin/omarchy-kids-client",
+    "bin/omarchy-kids-plugin",
+    "bin/omarchy-kids-modules",
+    "bin/omarchy-kids-files",
+    "bin/omarchy-kids-refresh",
+    "bin/omarchy-kids-migrate",
+    "lib/parent/omarchy_kids/__init__.py",
+    "lib/parent/omarchy_kids/core",
     "install/helpers/parent.sh",
     "install/config/parent.sh",
-    "default/parent/omarchy-parent-timed.service",
+    "default/parent/omarchy-kids-timed.service",
     "default/parent/plugins",
-    "default/libalpm/hooks/95-omarchy-parent-modules.hook"
+    "default/libalpm/hooks/95-omarchy-kids-modules.hook"
   ],
   "dns": [
-    "bin/omarchy-parent-dns",
-    "lib/parent/omarchy_parent/dns",
-    "default/parent/omarchy-parent-dns.service",
+    "bin/omarchy-kids-dns",
+    "lib/parent/omarchy_kids/dns",
+    "default/parent/omarchy-kids-dns.service",
     "default/parent/dns-public-resolvers.list",
     "default/parent/dns-system.list",
     "default/parent/dns-system.deny",
     "install/config/parent-dns.sh"
   ],
   "browsing": [
-    "bin/omarchy-parent-browsing",
-    "lib/parent/omarchy_parent/browsing",
-    "default/parent/omarchy-parent-browsing.service",
-    "default/parent/omarchy-parent-browsing.timer"
+    "bin/omarchy-kids-browsing",
+    "lib/parent/omarchy_kids/browsing",
+    "default/parent/omarchy-kids-browsing.service",
+    "default/parent/omarchy-kids-browsing.timer"
   ],
   "time": [
-    "bin/omarchy-parent-time",
-    "bin/omarchy-parent-time-client",
-    "lib/parent/omarchy_parent/screen_time",
+    "bin/omarchy-kids-time",
+    "bin/omarchy-kids-time-client",
+    "lib/parent/omarchy_kids/screen_time",
     "lib/screen-time/screen_time",
     "lib/screen-time/README.md",
     "lib/screen-time/LICENSE",
@@ -45,9 +46,9 @@
     "applications/child/Math Time.desktop"
   ],
   "school": [
-    "bin/omarchy-parent-school",
-    "bin/omarchy-parent-school-client",
-    "lib/parent/omarchy_parent/school_mode",
+    "bin/omarchy-kids-school",
+    "bin/omarchy-kids-school-client",
+    "lib/parent/omarchy_kids/school_mode",
     "shell/plugins/school-mode",
     "install/user/school-mode.sh"
   ]

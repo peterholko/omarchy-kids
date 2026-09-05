@@ -1,9 +1,0 @@
-#!/bin/bash
-# omarchy:summary=Reload the parent module host after a complete package transaction
-# omarchy:hidden=true
-
-set -euo pipefail
-if [[ -d /run/systemd/system ]] && ! systemd-detect-virt --quiet --chroot; then
-  systemctl daemon-reload
-  systemctl try-restart omarchy-parent-timed.service
-fi

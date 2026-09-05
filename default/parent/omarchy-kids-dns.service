@@ -1,0 +1,23 @@
+# Omarchy kids mode: the DNS filter, dnsmasq answering on 127.0.0.1 from the
+# parent's lists. Installed to /etc/systemd/system by `omarchy-kids dns`,
+# which also writes /etc/omarchy/parent/dnsmasq.conf; the upstream servers
+# come from NetworkManager through omarchy-kids-dns upstreams.
+[Unit]
+Description=Omarchy kids mode DNS filter
+Documentation=man:dnsmasq(8)
+After=network.target
+Before=nss-lookup.target
+Wants=nss-lookup.target
+
+[Service]
+Type=simple
+RuntimeDirectory=omarchy-kids/dns
+RuntimeDirectoryPreserve=yes
+ExecStartPre=/usr/bin/omarchy-kids-dns upstreams
+ExecStart=/usr/bin/dnsmasq --keep-in-foreground --pid-file= --conf-file=/etc/omarchy/parent/dnsmasq.conf
+ExecReload=/usr/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=2s
+
+[Install]
+WantedBy=multi-user.target

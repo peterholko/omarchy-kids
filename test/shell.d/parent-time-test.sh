@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# `omarchy-parent time` switches screen time on and off for the kid account and
+# `omarchy-kids time` switches screen time on and off for the kid account and
 # tunes it, over the daemon's client as root. The functions run extracted
 # against a scratch tree, with the client, systemctl, and runuser stubbed and
 # their calls recorded; the daemon itself is covered by
@@ -12,8 +12,8 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
 require_command jq
 
-parent="$ROOT/bin/omarchy-parent"
-parent_time="$ROOT/bin/omarchy-parent-time"
+parent="$ROOT/bin/omarchy-kids"
+parent_time="$ROOT/bin/omarchy-kids-time"
 test_tmp=$(mktemp -d)
 trap 'rm -rf "$test_tmp"' EXIT
 
@@ -21,7 +21,7 @@ stub_bin="$test_tmp/bin"
 mkdir -p "$stub_bin" "$test_tmp/sudoers.d" "$test_tmp/units" "$test_tmp/etc" "$test_tmp/home/kid"
 export CALLS="$test_tmp/calls" PROFILE_JSON="$test_tmp/profile.json"
 printf '{"earn": {"questions_per_set": 5, "set_minutes": 30, "level": "grade5", "daily_cap_minutes": 120}, "blocked_periods": [{"label": "Bedtime", "enabled": false, "start": "20:00", "end": "07:00", "days": ["mon","tue","wed","thu","fri","sat","sun"], "mode": "block"}]}\n' >"$PROFILE_JSON"
-cat >"$stub_bin/omarchy-parent-time-client" <<'SH'
+cat >"$stub_bin/omarchy-kids-time-client" <<'SH'
 #!/bin/bash
 printf 'client %s\n' "$*" >>"$CALLS"
 case "$*" in
@@ -46,8 +46,8 @@ SH
 chmod +x "$stub_bin"/*
 export PATH="$stub_bin:$ROOT/bin:$PATH" TEST_HOME="$test_tmp/home"
 export OMARCHY_SUDOERS_DIR="$test_tmp/sudoers.d" OMARCHY_SYSTEM_UNIT_DIR="$test_tmp/units" \
-  OMARCHY_PARENT_STATE_DIR="$test_tmp/state" OMARCHY_PATH="$ROOT" \
-  OMARCHY_PARENT_TIME_CONFIG="$test_tmp/etc/screen-time.json" OMARCHY_PARENT_TIME_CLIENT="$stub_bin/omarchy-parent-time-client"
+  OMARCHY_KIDS_STATE_DIR="$test_tmp/state" OMARCHY_PATH="$ROOT" \
+  OMARCHY_KIDS_TIME_CONFIG="$test_tmp/etc/screen-time.json" OMARCHY_KIDS_TIME_CLIENT="$stub_bin/omarchy-kids-time-client"
 
 source "$ROOT/install/helpers/parent.sh"
 eval "$(sed -n '/^CONFIG=/,/^USER_NAME=""/p' "$parent_time")"
@@ -57,15 +57,15 @@ systemd_running() { [[ ${STUB_SYSTEMD:-running} == running ]]; }
 USER_NAME=kid
 
 : >"$CALLS"
-printf 'kid ALL=(root) NOPASSWD: /usr/bin/omarchy-parent-quiz question\n' >"$test_tmp/sudoers.d/omarchy-parent-kid-time"
-: >"$test_tmp/units/omarchy-parent-time.timer"
+printf 'kid ALL=(root) NOPASSWD: /usr/bin/omarchy-kids-quiz question\n' >"$test_tmp/sudoers.d/omarchy-kids-kid-time"
+: >"$test_tmp/units/omarchy-kids-time.timer"
 time_on >/dev/null
 [[ -f $test_tmp/etc/screen-time.json ]] && jq -e '.version == 3 and .users == {} and .profiles.default' "$test_tmp/etc/screen-time.json" >/dev/null || fail "time on writes the daemon's current config once" "$(cat "$test_tmp/etc/screen-time.json" 2>/dev/null)"
-[[ -f $test_tmp/units/omarchy-parent-timed.service ]] || fail "time on installs the daemon's unit"
-grep -q 'systemctl enable --now omarchy-parent-timed.service' "$CALLS" || fail "time on starts the daemon" "calls: $(<"$CALLS")"
+[[ -f $test_tmp/units/omarchy-kids-timed.service ]] || fail "time on installs the daemon's unit"
+grep -q 'systemctl enable --now omarchy-kids-timed.service' "$CALLS" || fail "time on starts the daemon" "calls: $(<"$CALLS")"
 grep -q '^client --user kid users add kid$' "$CALLS" || fail "time on tells the daemon to manage the account" "calls: $(<"$CALLS")"
-[[ ! -e $test_tmp/sudoers.d/omarchy-parent-kid-time && ! -e $test_tmp/units/omarchy-parent-time.timer ]] || fail "time on takes the old design's grant and timer away"
-grep -q 'systemctl disable --now omarchy-parent-time.timer' "$CALLS" || fail "time on stops the old timer" "calls: $(<"$CALLS")"
+[[ ! -e $test_tmp/sudoers.d/omarchy-kids-kid-time && ! -e $test_tmp/units/omarchy-kids-time.timer ]] || fail "time on takes the old design's grant and timer away"
+grep -q 'systemctl disable --now omarchy-kids-time.timer' "$CALLS" || fail "time on stops the old timer" "calls: $(<"$CALLS")"
 grep -q '^runuser -u kid -- env OMARCHY_PATH=' "$CALLS" && grep -q 'omarchy.screen-time' "$CALLS" || fail "time on puts the pill on the kid's bar, as the kid" "calls: $(<"$CALLS")"
 pass "time on installs the daemon, names the account, and retires the old design"
 
@@ -110,7 +110,7 @@ pass "bedtime belongs to screen time"
 : >"$CALLS"
 STUB_USERS='[]' time_off >/dev/null
 grep -q '^client --user kid users remove kid$' "$CALLS" || fail "time off tells the daemon to drop the account" "calls: $(<"$CALLS")"
-grep -q 'systemctl disable --now omarchy-parent-timed.service' "$CALLS" || fail "time off stops the daemon when no account is left" "calls: $(<"$CALLS")"
+grep -q 'systemctl disable --now omarchy-kids-timed.service' "$CALLS" || fail "time off stops the daemon when no account is left" "calls: $(<"$CALLS")"
 [[ -f $test_tmp/etc/screen-time.json ]] || fail "time off keeps the settings"
 : >"$CALLS"
 STUB_USERS='["sib"]' time_off >/dev/null
@@ -120,9 +120,9 @@ STUB_USERS='[]' STUB_SCHOOL_USERS=1 time_off >/dev/null
 ! grep -q 'disable' "$CALLS" || fail "the parent host stays while school mode is on"
 pass "time off drops the account and stops the daemon only with the last one"
 
-grep -q '^# omarchy:summary=Screen time earned with arithmetic' "$parent_time" || fail "omarchy-parent-time announces itself as a feature"
-! grep -q '^  time)' "$parent" || fail "omarchy-parent carries no time code of its own"
-[[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"time      Screen time earned with arithmetic"* ]] || fail "omarchy-parent --help lists screen time as a feature"
-grep -q 'omarchy-parent time earn QUESTIONS MINUTES' "$parent_time" || fail "the usage offers earn QUESTIONS MINUTES"
-grep -q '^ExecStart=/usr/bin/omarchy-parent-timed$' "$ROOT/default/parent/omarchy-parent-timed.service" && grep -q '^WantedBy=multi-user.target$' "$ROOT/default/parent/omarchy-parent-timed.service" || fail "the daemon's unit runs it as root at boot"
-pass "screen time plugs into omarchy-parent as a feature command over the daemon"
+grep -q '^# omarchy:summary=Screen time earned with arithmetic' "$parent_time" || fail "omarchy-kids-time announces itself as a feature"
+! grep -q '^  time)' "$parent" || fail "omarchy-kids carries no time code of its own"
+[[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"time      Screen time earned with arithmetic"* ]] || fail "omarchy-kids --help lists screen time as a feature"
+grep -q 'omarchy-kids time earn QUESTIONS MINUTES' "$parent_time" || fail "the usage offers earn QUESTIONS MINUTES"
+grep -q '^ExecStart=/usr/bin/omarchy-kids-timed$' "$ROOT/default/parent/omarchy-kids-timed.service" && grep -q '^WantedBy=multi-user.target$' "$ROOT/default/parent/omarchy-kids-timed.service" || fail "the daemon's unit runs it as root at boot"
+pass "screen time plugs into omarchy-kids as a feature command over the daemon"

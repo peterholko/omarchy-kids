@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The single connection to omarchy-parent-timed (lib/screen-time), the
+// The single connection to omarchy-kids-timed (lib/screen-time), the
 // screen-time daemon of a child install, vendored from Jankees van Woezik's
 // omarchy-screen-time. The bar widget reads its state from here, so there is
 // one stream and everything shows the same numbers. Math time reads the
@@ -61,7 +61,7 @@ Item {
     return Math.max(0, base)
   }
 
-  readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-parent-time-client"
+  readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-time-client"
 
   function applyEvent(event) {
     if (!event || event.ok !== true) {

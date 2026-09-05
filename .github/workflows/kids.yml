@@ -10,6 +10,10 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y jq sqlite3
       - run: ./test/kids
       - run: ./test/cli
+      - run: |
+          for suite in parent-apps provision-owner lock-budget-gate sudoless-docker-posture; do
+            bash "test/shell.d/$suite-test.sh"
+          done
       - run: bash test/shell.d/channel-test.sh && bash test/shell.d/update-available-test.sh
   packages:
     runs-on: ubuntu-latest
@@ -24,9 +28,12 @@ jobs:
           chown -R builder:builder "$GITHUB_WORKSPACE"
           runuser -u builder -- ./packaging/build
       - run: |
-          pacman -Udd --noscriptlet --noconfirm build-output/*.pkg.tar.zst
-          test -f /usr/lib/systemd/system/omarchy-parent-timed.service
-          OMARCHY_PATH=/usr/share/omarchy SCREEN_TIME_ROOT=/tmp/installed-kids python -c 'import sys; sys.path.insert(0, "/usr/share/omarchy/lib/parent"); from omarchy_parent.core.daemon import Daemon; from omarchy_parent.core.paths import detect; assert set(Daemon(detect()).services) == {"school", "time"}'
+          runuser -u builder -- git worktree add --detach /tmp/kids-before-rename 7e4c9031
+          runuser -u builder -- /tmp/kids-before-rename/packaging/build
+          pacman -Udd --noscriptlet --noconfirm /tmp/kids-before-rename/build-output/*.pkg.tar.zst
+          python test/parent/package-upgrade.py
+          test -f /usr/lib/systemd/system/omarchy-kids-timed.service
+          OMARCHY_PATH=/usr/share/omarchy SCREEN_TIME_ROOT=/tmp/installed-kids python -c 'import sys; sys.path.insert(0, "/usr/share/omarchy/lib/parent"); from omarchy_kids.core.daemon import Daemon; from omarchy_kids.core.paths import detect; assert set(Daemon(detect()).services) == {"school", "time"}'
       - uses: actions/upload-artifact@v4
         with:
           name: omarchy-kids-x86_64

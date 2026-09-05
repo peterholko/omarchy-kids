@@ -138,7 +138,7 @@ const source = fs.readFileSync(path.join(root, 'shell/plugins/school-mode/Panel.
 let focusCount = 0
 let settingsPassword = ''
 const panel = {
-  schoolMode: true, clientPath: '/omarchy/bin/omarchy-parent-school-client',
+  schoolMode: true, clientPath: '/omarchy/bin/omarchy-kids-school-client',
   askingParent: false, pendingAction: '', pendingMode: '',
   controller: { show() {} }, close() {}
 }
@@ -285,6 +285,6 @@ grep -q 'if (SchoolBrowser.SEPARATE_PROFILE) {' "$plugin/Menu.qml" && grep -q 'v
 grep -q '\[root.clientPath, "--password-stdin", "mode", mode\]' "$plugin/Panel.qml" && grep -q 'error === "parent_required"' "$plugin/Panel.qml" || fail "the panel switches through the daemon and asks for the parent password before returning to free time"
 grep -q 'onRunningChanged: if (!running && !launched) root.handleModeReply("")' "$plugin/Panel.qml" && grep -q 'modeProc.launched = false' "$plugin/Panel.qml" || fail "a client that could not start does not leave the panel waiting"
 grep -q 'moduleName: "omarchy.school-mode.mode"' "$plugin/ModePill.qml" && grep -q 'moduleName: "omarchy.school-mode"' "$plugin/BarWidget.qml" || fail "the pill and the button carry their ids"
-grep -q 'omarchy.school-mode' "$ROOT/install/user/school-mode.sh" && grep -q 'omarchy.school-mode' "$ROOT/bin/omarchy-parent-school" || fail "a child install's bar gets the plugin's button"
+grep -q 'omarchy.school-mode' "$ROOT/install/user/school-mode.sh" && grep -q 'omarchy.school-mode' "$ROOT/bin/omarchy-kids-school" || fail "a child install's bar gets the plugin's button"
 grep -q '| School mode   | `omarchy.school-mode`' "$ROOT/shell/plugins/README.md" || fail "the plugin is listed"
 pass "school mode is wired from the daemon's status through the menu, the shortcuts, the windows, and the bar"

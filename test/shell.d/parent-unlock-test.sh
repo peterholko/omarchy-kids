@@ -2,14 +2,14 @@
 #
 # On a child install the parent password opens the lock screen too. The stack
 # omarchy-apply-lock writes tries the kid's password first and then hands the
-# typed password to omarchy-parent-unlock, which asks sudo whether it is root's
+# typed password to omarchy-kids-unlock, which asks sudo whether it is root's
 # and credits five minutes when screen time is on. Both run here against stubs.
 
 set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
-unlock="$ROOT/bin/omarchy-parent-unlock"
+unlock="$ROOT/bin/omarchy-kids-unlock"
 apply_lock="$ROOT/bin/omarchy-apply-lock"
 test_tmp=$(mktemp -d)
 trap 'rm -rf "$test_tmp"' EXIT
@@ -50,11 +50,11 @@ SH
 chmod +x "$stub_root/usr/bin"/* "$test_tmp/idbin/id"
 # The helper names its privileged commands and its own installed path outright,
 # so the test runs a copy that names the stubs and re-enters that copy.
-helper="$test_tmp/omarchy-parent-unlock"
-sed "s|/usr/bin/sudo|$stub_root/usr/bin/sudo|g; s|/usr/bin/runuser|$stub_root/usr/bin/runuser|g; s|/usr/bin/python3|$stub_root/usr/bin/python3|g; s|/usr/bin/omarchy-parent-unlock|$helper|g" "$unlock" |
+helper="$test_tmp/omarchy-kids-unlock"
+sed "s|/usr/bin/sudo|$stub_root/usr/bin/sudo|g; s|/usr/bin/runuser|$stub_root/usr/bin/runuser|g; s|/usr/bin/python3|$stub_root/usr/bin/python3|g; s|/usr/bin/omarchy-kids-unlock|$helper|g" "$unlock" |
   sed 's/(( EUID == 0 ))/(( ${STUB_ME:-1000} == 0 ))/' >"$helper"
 chmod +x "$helper"
-grep -q '/usr/bin/sudo -k -S -u root -- /usr/bin/omarchy-parent-unlock --grant-unlock-time "$user"' "$unlock" || fail "the helper asks sudo with -k and -S to run its fixed grant mode"
+grep -q '/usr/bin/sudo -k -S -u root -- /usr/bin/omarchy-kids-unlock --grant-unlock-time "$user"' "$unlock" || fail "the helper asks sudo with -k and -S to run its fixed grant mode"
 grep -q '/usr/bin/runuser -u "\$user" -- /usr/bin/sudo -k -S -u root' "$unlock" || fail "the helper drops to the account before asking sudo when it runs as root"
 
 run_helper() {
@@ -110,7 +110,7 @@ if printf 's3cret' | PAM_USER=kid PAM_TYPE=account run_helper 2>/dev/null; then
   fail "the helper only answers the auth phase"
 fi
 [[ ! -s $CALLS ]] || fail "a refused call never reaches sudo or runuser" "$(<"$CALLS")"
-pass "omarchy-parent-unlock checks the parent password as the kid from the lock screen and the login screen"
+pass "omarchy-kids-unlock checks the parent password as the kid from the lock screen and the login screen"
 
 # The stack omarchy-apply-lock writes, with /etc/pam.d redirected into scratch.
 stub_bin="$test_tmp/bin"
@@ -144,10 +144,10 @@ run_apply_lock() {
 packaged_sddm=$'#%PAM-1.0\n\nauth\t\tinclude\t\tsystem-login\naccount\t\tinclude\t\tsystem-login\npassword\tinclude\t\tsystem-login\nsession\t\toptional\tpam_keyinit.so force revoke\nsession\t\tinclude\t\tsystem-login\n-session\toptional\tpam_gnome_keyring.so auto_start'
 printf '%s\n' "$packaged_sddm" >"$pam_dir/sddm"
 
-parent_line='auth       [success=1 default=ignore]  pam_exec.so quiet seteuid expose_authtok /usr/bin/omarchy-parent-unlock'
+parent_line='auth       [success=1 default=ignore]  pam_exec.so quiet seteuid expose_authtok /usr/bin/omarchy-kids-unlock'
 
 STUB_PROFILE=default run_apply_lock
-! grep -qF 'omarchy-parent-unlock' "$pam_dir/omarchy-lock-password" || fail "a default install's lock screen knows no parent password"
+! grep -qF 'omarchy-kids-unlock' "$pam_dir/omarchy-lock-password" || fail "a default install's lock screen knows no parent password"
 grep -qF 'auth       [success=1 default=bad]     pam_unix.so try_first_pass nullok' "$pam_dir/omarchy-lock-password" || fail "a default install's stack is unchanged"
 pass "a default install's lock stack is as it was"
 
@@ -172,9 +172,9 @@ sddm=$(<"$pam_dir/sddm")
 ! grep -qE '^auth[[:space:]]+include[[:space:]]+system-login' "$pam_dir/sddm" || fail "the auth include line is replaced, not kept beside the block"
 grep -qE $'^account\t\tinclude\t\tsystem-login$' "$pam_dir/sddm" && grep -qE $'^-session\toptional\tpam_gnome_keyring.so auto_start$' "$pam_dir/sddm" || fail "the account, password, and session lines stay as packaged, tabs and all" "$sddm"
 [[ $(<"$pam_dir/sddm.omarchy-orig") == "$packaged_sddm" ]] || fail "the packaged file is kept beside it"
-[[ $(grep -c 'omarchy-parent-unlock' "$pam_dir/sddm") == 1 ]] || fail "the helper appears once"
+[[ $(grep -c 'omarchy-kids-unlock' "$pam_dir/sddm") == 1 ]] || fail "the helper appears once"
 STUB_PROFILE=child run_apply_lock
-[[ $(grep -c 'omarchy-parent-unlock' "$pam_dir/sddm") == 1 && $(<"$pam_dir/sddm.omarchy-orig") == "$packaged_sddm" ]] || fail "a rerun rebuilds from the kept copy rather than stacking"
+[[ $(grep -c 'omarchy-kids-unlock' "$pam_dir/sddm") == 1 && $(<"$pam_dir/sddm.omarchy-orig") == "$packaged_sddm" ]] || fail "a rerun rebuilds from the kept copy rather than stacking"
 grep -q 'pam_exec.so quiet seteuid expose_authtok' "$pam_dir/omarchy-lock-password" && grep -q 'pam_exec.so quiet seteuid expose_authtok' "$pam_dir/sddm" || fail "both stacks run the helper with seteuid"
 pass "a child install's login screen takes the parent password too"
 

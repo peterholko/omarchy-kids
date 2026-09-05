@@ -1,0 +1,10 @@
+#!/bin/bash
+# omarchy:summary=Reload the parent module host after a complete package transaction
+# omarchy:hidden=true
+
+set -euo pipefail
+"$OMARCHY_PATH/bin/omarchy-kids-migrate"
+if [[ -d /run/systemd/system ]] && ! systemd-detect-virt --quiet --chroot; then
+  systemctl daemon-reload
+  systemctl try-restart omarchy-kids-timed.service
+fi

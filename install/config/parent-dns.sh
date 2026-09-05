@@ -4,7 +4,7 @@
 # list to keep. apply writes the resolver config, the resolved and
 # NetworkManager drop-ins, the firewall block, and the browser policies, and
 # enables the resolver, which starts with the machine. A parent's later
-# `sudo omarchy-parent dns off` is kept: apply reads the settings file first.
+# `sudo omarchy-kids dns off` is kept: apply reads the settings file first.
 if [[ ${OMARCHY_INSTALL_PROFILE:-default} == "child" ]]; then
-  omarchy-parent-dns apply
+  omarchy-kids-dns apply
 fi

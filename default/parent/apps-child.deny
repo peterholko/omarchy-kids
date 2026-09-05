@@ -2,7 +2,7 @@
 # id per line, copied into /etc/omarchy/parent/apps.deny the first time the
 # app list is applied; edit that file afterwards, not this one. Peter's policy
 # for an eleven-year-old (plans/kids-apps-themes.md): the supervision tier,
-# which a parent opens with `sudo omarchy-parent apps allow NAME` when needed,
+# which a parent opens with `sudo omarchy-kids apps allow NAME` when needed,
 # and the hidden tier of terminals, developer tools, and disks. An id that is
 # not installed matches nothing and does no harm.
 

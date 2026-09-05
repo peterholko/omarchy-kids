@@ -2,7 +2,7 @@
 #
 # Math time is the arithmetic app of a child install: practice at any grade,
 # checked in the app, or a set that earns screen time through
-# omarchy-parent-quiz. The model is pure JavaScript shared with QML, so Node
+# omarchy-kids-quiz. The model is pure JavaScript shared with QML, so Node
 # exercises it; the wiring is asserted from the QML source.
 
 set -euo pipefail
@@ -109,7 +109,7 @@ grep -q 'IdleInhibitor {' "$qml" && grep -q 'enabled: root.opened' "$qml" || fai
 grep -q 'questionProc.command = \[clientPath, "quiz"\]' "$qml" || fail "an earning question comes from the daemon"
 grep -q 'answerProc.command = \[clientPath, "answer", questionId, answer\]' "$qml" || fail "an earning answer goes to the daemon, which keeps the answers"
 grep -q 'questionProc.command = \[clientPath, "practice", Quiz.levelName(grade)\]' "$qml" || fail "a practice question comes from the daemon's generator with its answer"
-grep -q 'bin/omarchy-parent-time-client' "$qml" || fail "the app talks through the daemon's client"
+grep -q 'bin/omarchy-kids-time-client' "$qml" || fail "the app talks through the daemon's client"
 ! grep -q 'sudo' "$qml" || fail "the app needs no sudo grant any more"
 grep -q 'readonly property bool parentBypassAvailable: forcedOpen && status.enabled && status.gated' "$qml" || fail "the parent bypass exists only after the lock-screen handoff at zero"
 grep -q 'bypassProc.command = \[clientPath, "--password-stdin", "grant", "5"\]' "$qml" || fail "the bypass sends the parent password on stdin and grants five minutes"
@@ -142,6 +142,6 @@ grep -q 'color: root.paper' "$qml" && grep -q 'readonly property color paper: Qu
 ! grep -q 'Color\.\|Border\.surfaceSpec' "$qml" || fail "the sheet keeps its own ink on every theme"
 ! grep -q 'elapsedSeconds\|formatDuration' "$qml" || fail "no clock on the question screen or the results"
 grep -q 'Quiz.isCalculatorAppId(toplevel.appId)) toplevel.close()' "$qml" || fail "Omacalc is closed while the app is up"
-grep -q '"when":"omarchy-profile-child && omarchy-cmd-present omarchy-parent-time","action":"omarchy-shell shell summon omarchy.math' "$ROOT/default/omarchy/omarchy-menu.jsonc" || fail "the menu offers Math time when its module is installed, screen time on or off"
+grep -q '"when":"omarchy-profile-child && omarchy-cmd-present omarchy-kids-time","action":"omarchy-shell shell summon omarchy.math' "$ROOT/default/omarchy/omarchy-menu.jsonc" || fail "the menu offers Math time when its module is installed, screen time on or off"
 grep -q '^Exec=omarchy-shell shell summon omarchy.math$' "$ROOT/applications/child/Math Time.desktop" || fail "the child launcher has a Math Time entry"
 pass "Math time is wired as the child install's math app"

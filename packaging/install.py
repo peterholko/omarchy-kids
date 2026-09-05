@@ -25,7 +25,7 @@ def main():
         parser.error('this installer needs an existing child-profile Omarchy installation')
     release = json.loads((args.packages / 'release.json').read_text())
     packages = release['packages']
-    expected = {'omarchy-kids-base', 'omarchy-kids-settings', 'omarchy-parent-core'} | {'omarchy-parent-' + m for m in MODULES}
+    expected = {'omarchy-kids-base', 'omarchy-kids-settings', 'omarchy-kids-core'} | {'omarchy-kids-' + m for m in MODULES}
     if set(packages) != expected:
         parser.error('incomplete kids release')
     archives = {}
@@ -38,7 +38,7 @@ def main():
             parser.error('checksum mismatch: ' + filename)
         archives[name] = archive.resolve()
     installed = set(subprocess.check_output(['pacman', '-Qq'], text=True).splitlines())
-    selected = {'core', *args.modules} | {m for m in MODULES if 'omarchy-parent-' + m in installed}
+    selected = {'core', *args.modules} | {m for m in MODULES if {'omarchy-kids-' + m, 'omarchy-parent-' + m} & installed}
     legacy_policy_modules = []
     # Preserve enabled modules when moving from the tested bundled branch.
     legacy = Path('/etc/omarchy/parent/screen-time.json')
@@ -58,11 +58,16 @@ def main():
     if list(Path('/var/lib/omarchy/parent').glob('*/browsing/enabled')):
         selected.add('browsing')
         legacy_policy_modules.append('browsing')
-    names = ['omarchy-kids-settings', 'omarchy-kids-base'] + ['omarchy-parent-' + m for m in sorted(selected)]
+    names = ['omarchy-kids-settings', 'omarchy-kids-base'] + ['omarchy-kids-' + m for m in sorted(selected)]
+    source = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(source / 'lib/parent'))
+    from omarchy_kids.core.namespace import Migration, check_command_collisions
+    check_command_collisions(source)
+    Migration().plan()
     print('Installing: ' + ', '.join(names), flush=True)
-    was_running = subprocess.run(['systemctl', 'is-active', '--quiet', 'omarchy-parent-timed.service']).returncode == 0
+    was_running = subprocess.run(['systemctl', 'is-active', '--quiet', 'omarchy-kids-timed.service']).returncode == 0
     if was_running:
-        subprocess.run(['systemctl', 'stop', 'omarchy-parent-timed.service'], check=True)
+        subprocess.run(['systemctl', 'stop', 'omarchy-kids-timed.service'], check=True)
     try:
         # This is the release update entrypoint. No file-overwrite flags: the
         # base recipes relinquish module ownership in the same transaction.
@@ -70,7 +75,7 @@ def main():
                        env={**os.environ, 'OMARCHY_UPDATE_PACMAN': '1'}, check=True)
     finally:
         if was_running:
-            subprocess.run(['systemctl', 'start', 'omarchy-parent-timed.service'], check=True)
+            subprocess.run(['systemctl', 'start', 'omarchy-kids-timed.service'], check=True)
     cache = Path('/var/cache/omarchy-kids/packages')
     cache.mkdir(parents=True, exist_ok=True)
     for archive in archives.values():
@@ -87,8 +92,8 @@ def main():
         shutil.copy2(args.packages / 'release.json', cache / 'release.json')
     environment = {**os.environ, 'OMARCHY_PATH': '/usr/share/omarchy', 'PATH': '/usr/bin:/bin'}
     sys.path.insert(0, '/usr/share/omarchy/lib/parent')
-    from omarchy_parent.core.files import adopt_browser_policy
-    from omarchy_parent.core.paths import write_private
+    from omarchy_kids.core.files import adopt_browser_policy
+    from omarchy_kids.core.paths import write_private
     if legacy_policy_modules:
         for file in ('/usr/lib/firefox/distribution/policies.json', '/opt/zen-browser/distribution/policies.json'):
             if Path(file).exists():
@@ -107,10 +112,10 @@ def main():
     write_private(session_config, updated)
     session_config.chmod(0o644)
     Path('/etc/sudoers.d/omarchy-dev-path').unlink(missing_ok=True)
-    subprocess.run(['/usr/bin/omarchy-parent', 'apply', '--user', args.user], env=environment, check=True)
-    subprocess.run(['/usr/bin/omarchy-parent-refresh'], env=environment, check=True)
+    subprocess.run(['/usr/bin/omarchy-kids', 'apply', '--user', args.user], env=environment, check=True)
+    subprocess.run(['/usr/bin/omarchy-kids-refresh'], env=environment, check=True)
     print('Installed. New optional modules remain disabled until you enable them.')
-    print('Reboot to activate the package path, then run: omarchy parent plugin pick')
+    print('Reboot to activate the package path, then run: omarchy kids plugin pick')
 
 
 if __name__ == '__main__':

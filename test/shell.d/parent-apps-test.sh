@@ -2,33 +2,33 @@
 
 source "$(dirname "$0")/base-test.sh"
 
-# `omarchy-parent apps` is the child install's app list: a blocked app's
+# `omarchy-kids apps` is the child install's app list: a blocked app's
 # desktop entry loses its world-read bit and its program its world-execute
 # bit, root records and restores the modes, and a pacman hook re-applies the
 # lists. The functions run extracted against a scratch system root owned by
 # the test user; the real command runs as namespaced root where allowed.
 
-apps="$ROOT/bin/omarchy-parent-apps"
-parent="$ROOT/bin/omarchy-parent"
-hook="$ROOT/default/parent/omarchy-parent-apps.hook"
+apps="$ROOT/bin/omarchy-kids-apps"
+parent="$ROOT/bin/omarchy-kids"
+hook="$ROOT/default/parent/omarchy-kids-apps.hook"
 
-grep -q '^# omarchy:summary=Choose which apps the kid can open, allowlist or denylist' "$apps" || fail "omarchy-parent-apps announces itself as a feature"
+grep -q '^# omarchy:summary=Choose which apps the kid can open, allowlist or denylist' "$apps" || fail "omarchy-kids-apps announces itself as a feature"
 grep -q '^# omarchy:requires-sudo=true' "$apps" || fail "the app list runs as root"
-[[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"apps      Choose which apps the kid can open, allowlist or denylist"* ]] || fail "omarchy-parent lists the app list as a feature"
+[[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"apps      Choose which apps the kid can open, allowlist or denylist"* ]] || fail "omarchy-kids lists the app list as a feature"
 grep -Fq 'source "$OMARCHY_PATH/install/helpers/parent.sh"' "$apps" || fail "the app list reads parent.conf through the shared helper"
 [[ -f $ROOT/default/parent/apps-never-close.list ]] || fail "the never-close list ships"
-grep -qx 'Exec = /usr/bin/omarchy-parent-apps apply --quiet' "$hook" || fail "the hook re-applies the list quietly"
+grep -qx 'Exec = /usr/bin/omarchy-kids-apps apply --quiet' "$hook" || fail "the hook re-applies the list quietly"
 grep -qx 'When = PostTransaction' "$hook" && grep -qx 'Target = usr/share/applications/\*' "$hook" && grep -qx 'Target = usr/bin/\*' "$hook" || fail "the hook fires after transactions touching entries and programs"
 [[ -f $ROOT/default/parent/apps-child.deny ]] || fail "the child install's starting deny list ships"
 ! grep -v '^#' "$ROOT/default/parent/apps-child.deny" | grep -v '^$' | grep -q '[^A-Za-z0-9._-]' || fail "the shipped deny list holds desktop ids only" "$(grep -v '^#' "$ROOT/default/parent/apps-child.deny")"
 leaf="$ROOT/install/config/parent-apps.sh"
-grep -qx '  omarchy-parent-apps apply --quiet' "$leaf" && grep -q 'OMARCHY_INSTALL_PROFILE:-default} == "child"' "$leaf" || fail "the install leaf applies the list on a child install only"
+grep -qx '  omarchy-kids-apps apply --quiet' "$leaf" && grep -q 'OMARCHY_INSTALL_PROFILE:-default} == "child"' "$leaf" || fail "the install leaf applies the list on a child install only"
 [[ $(grep -n -E 'config/(parent|parent-apps)\.sh' "$ROOT/install/config/all.sh" | tr '\n' ' ') == *'parent.sh'*'parent-apps.sh'* ]] || fail "the leaf runs after the parent posture"
 pass "the app list ships as a feature command with its hook, never-close list, starting deny list, and install leaf"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-export OMARCHY_PATH="$ROOT" OMARCHY_PARENT_SYSROOT="$tmp/root" OMARCHY_PARENT_CONF="$tmp/root/etc/omarchy/parent.conf" OMARCHY_PARENT_APPS_OWNER="$(id -un)"
+export OMARCHY_PATH="$ROOT" OMARCHY_KIDS_SYSROOT="$tmp/root" OMARCHY_KIDS_CONF="$tmp/root/etc/omarchy/parent.conf" OMARCHY_KIDS_APPS_OWNER="$(id -un)"
 mkdir -p "$tmp/root/etc/omarchy" "$tmp/root/usr/share/applications" "$tmp/root/usr/bin" "$tmp/root/opt/foo" "$tmp/root/usr/lib/foo"
 
 entry() {
@@ -160,7 +160,7 @@ pass "apply keeps the hook in step with the mode"
 
 # Behavioral half: the real command as namespaced root.
 if ! unshare --user --map-root-user true 2>/dev/null; then
-  pass "no unprivileged user namespace; skipping the omarchy-parent apps on/off probes"
+  pass "no unprivileged user namespace; skipping the omarchy-kids apps on/off probes"
   exit 0
 fi
 mkdir -p "$tmp/bin"
@@ -188,4 +188,4 @@ fi
 run_apps off >/dev/null || fail "apps off succeeds"
 [[ $(mode usr/share/applications/steam.desktop) == 644 && $(mode usr/bin/steam) == 755 && ! -e $HOOK_DIR/$HOOK ]] || fail "off restores the modes and removes the hook"
 [[ -f $DENY_FILE ]] || fail "off keeps the lists"
-pass "omarchy-parent apps switches on, blocks, and switches off through the real command"
+pass "omarchy-kids apps switches on, blocks, and switches off through the real command"

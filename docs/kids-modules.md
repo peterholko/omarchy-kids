@@ -4,13 +4,13 @@ The implementation starts from `build/kids-all` at `0193e412`. One source snapsh
 
 ## Runtime boundaries
 
-- `lib/parent/omarchy_parent/core/`: shared OS parent authentication, peer credentials, socket transport, clock, atomic storage, parent.conf writes, Firefox policy ownership, migration and module management.
-- `dns/command.sh`: DNS filtering and its resolver/firewall/browser lifecycle. The public command remains `omarchy-parent-dns`.
-- `browsing/command.sh`: independently enabled history collection and reports. The public command remains `omarchy-parent-browsing`.
+- `lib/parent/omarchy_kids/core/`: shared OS parent authentication, peer credentials, socket transport, clock, atomic storage, parent.conf writes, Firefox policy ownership, migration and module management.
+- `dns/command.sh`: DNS filtering and its resolver/firewall/browser lifecycle. The public command remains `omarchy-kids-dns`.
+- `browsing/command.sh`: independently enabled history collection and reports. The public command remains `omarchy-kids-browsing`.
 - `screen_time/`: budgets, accounting, bedtime and arithmetic. This module owns both the screen-time and Math shell plugins.
 - `school_mode/`: school profiles, enrollment, schedules, persistent manual mode overrides and the school-mode shell plugin. It imports no screen-time code.
 
-The root host, `omarchy-parentd`, uses the existing `omarchy-parent-timed.service` and socket path for compatibility. Only installed, allowlisted backend modules are loaded. Core can run with neither optional backend. DNS and browsing retain their separate service/timer lifecycles.
+The root host, `omarchy-kidsd`, runs through `omarchy-kids-timed.service` and listens on `/run/omarchy-kids/screen-time/sock`. Only installed, allowlisted backend modules are loaded. Core can run with neither optional backend. DNS and browsing retain their separate service/timer lifecycles. The package hook migrates integration files from the previous namespace; see the [rename inventory](kids-namespace-rename.md).
 
 Each socket request carries a scope (`time` or `school`), and the host identifies the caller using Unix peer credentials. A non-root caller cannot select another account. Shared authentication does not hold the accounting lock during the OS password check and throttles guesses across feature endpoints. Passwords travel over stdin and the local socket, never in command arguments. The fixed test password exists only in the explicit `SCREEN_TIME_ROOT` test layout.
 
@@ -32,7 +32,7 @@ Shared parent.conf updates are locked and atomic. Firefox’s single policies.js
 
 ## Lifecycle and migration
 
-`omarchy parent plugin` delegates the five first-party IDs to a package manager while retaining the existing Git-plugin path for external add-ons. Dependencies are resolved before installation. Core is required and cannot be removed from a child install. The module picker distinguishes install, enable, disable and remove; diagnostics report installation, enablement and service health where available.
+`omarchy kids plugin` delegates the five first-party IDs to a package manager while retaining the existing Git-plugin path for external add-ons. Dependencies are resolved before installation. Core is required and cannot be removed from a child install. The module picker distinguishes install, enable, disable and remove; diagnostics report installation, enablement and service health where available.
 
 Before removing school mode, the manager disables it and waits for the live shell to restore notifications, shortcuts and hidden windows. Failure leaves the package installed for repair/retry. Removing screen time leaves school enrollment intact, and vice versa. Shared services remain running while either has managed users. Package transactions reload the backend, and the manager restarts active shells to discover the new package contents.
 

@@ -1,5 +1,5 @@
 # Add the screen-time control only when its module is installed.
-if omarchy-profile-child 2>/dev/null && omarchy-cmd-present omarchy-parent-time; then
+if omarchy-profile-child 2>/dev/null && omarchy-cmd-present omarchy-kids-time; then
   (
     source "$OMARCHY_PATH/bin/omarchy-shell-config"
     commit "$NORMALIZE

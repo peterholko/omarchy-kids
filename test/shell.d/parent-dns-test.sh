@@ -2,33 +2,33 @@
 
 source "$(dirname "$0")/base-test.sh"
 
-# `omarchy-parent dns` is the child install's web filter: dnsmasq behind
+# `omarchy-kids dns` is the child install's web filter: dnsmasq behind
 # systemd-resolved answering from the parent's lists, the firewall closing the
 # ways around it, the browsers told not to bring their own resolver. The
 # functions run extracted against a scratch system root with nmcli and ufw
 # stubbed; the real command runs as namespaced root where the kernel allows.
 
-dns="$ROOT/lib/parent/omarchy_parent/dns/command.sh"
-parent="$ROOT/bin/omarchy-parent"
-unit="$ROOT/default/parent/omarchy-parent-dns.service"
+dns="$ROOT/lib/parent/omarchy_kids/dns/command.sh"
+parent="$ROOT/bin/omarchy-kids"
+unit="$ROOT/default/parent/omarchy-kids-dns.service"
 
-grep -q '^# omarchy:summary=Filter the web by domain, allowlist or denylist' "$dns" || fail "omarchy-parent-dns announces itself as a feature"
+grep -q '^# omarchy:summary=Filter the web by domain, allowlist or denylist' "$dns" || fail "omarchy-kids-dns announces itself as a feature"
 grep -q '^# omarchy:requires-sudo=true' "$dns" || fail "the web filter runs as root"
-[[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"dns       Filter the web by domain, allowlist or denylist"* ]] || fail "omarchy-parent lists the web filter as a feature"
-grep -Fq 'source "$OMARCHY_PATH/lib/parent/omarchy_parent/core/parent.sh"' "$dns" || fail "the web filter reads parent.conf through the shared helper"
+[[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"dns       Filter the web by domain, allowlist or denylist"* ]] || fail "omarchy-kids lists the web filter as a feature"
+grep -Fq 'source "$OMARCHY_PATH/lib/parent/omarchy_kids/core/parent.sh"' "$dns" || fail "the web filter reads parent.conf through the shared helper"
 grep -q 'dnsmasq ufw networkmanager' "$ROOT/packaging/modules.PKGBUILD" || fail "DNS owns its optional dependencies"
 for f in dns-system.list dns-system.deny dns-public-resolvers.list; do
   [[ -f $ROOT/default/parent/$f ]] || fail "default/parent/$f ships"
 done
 grep -qx 'ExecStart=/usr/bin/dnsmasq --keep-in-foreground --pid-file= --conf-file=/etc/omarchy/parent/dnsmasq.conf' "$unit" || fail "the unit runs dnsmasq on the generated config"
-grep -qx 'ExecStartPre=/usr/bin/omarchy-parent-dns upstreams' "$unit" || fail "the unit writes the upstreams before starting"
-grep -qx 'RuntimeDirectory=omarchy-parent/dns' "$unit" || fail "the unit owns the runtime directory"
+grep -qx 'ExecStartPre=/usr/bin/omarchy-kids-dns upstreams' "$unit" || fail "the unit writes the upstreams before starting"
+grep -qx 'RuntimeDirectory=omarchy-kids/dns' "$unit" || fail "the unit owns the runtime directory"
 grep -qx 'Restart=always' "$unit" || fail "the resolver comes back on its own"
 pass "the web filter ships as a feature command with its unit and lists"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-export OMARCHY_PATH="$ROOT" OMARCHY_PARENT_SYSROOT="$tmp/root" OMARCHY_PARENT_CONF="$tmp/root/etc/omarchy/parent.conf" CALLS="$tmp/calls"
+export OMARCHY_PATH="$ROOT" OMARCHY_KIDS_SYSROOT="$tmp/root" OMARCHY_KIDS_CONF="$tmp/root/etc/omarchy/parent.conf" CALLS="$tmp/calls"
 mkdir -p "$tmp/root/etc/omarchy" "$tmp/bin"
 : >"$CALLS"
 
@@ -89,7 +89,7 @@ conf="$(dnsmasq_conf denylist auto)"$'\n'
 [[ $conf == *$'\naddress=/tiktok.com/\n'* && $conf == *$'\naddress=/mail.google.com/\n'* ]] || fail "denylist refuses the deny list" "$conf"
 [[ $conf == *$'\naddress=/use-application-dns.net/\n'* && $conf == *$'\naddress=/dns.google/\n'* ]] || fail "the canary and the public resolvers are refused under both modes"
 [[ $conf != *'address=/#/'* && $conf != *'server=/'* ]] || fail "denylist forwards everything else"
-[[ $conf == *$'\nresolv-file=/run/omarchy-parent/dns/resolv.conf\n'* && $conf == *$'\nuser=dnsmasq\n'* && $conf == *$'\nlisten-address=127.0.0.1\n'* && $conf == *$'\nlog-queries\n'* ]] || fail "dnsmasq listens on loopback as its own user, polls the upstream file, and logs"
+[[ $conf == *$'\nresolv-file=/run/omarchy-kids/dns/resolv.conf\n'* && $conf == *$'\nuser=dnsmasq\n'* && $conf == *$'\nlisten-address=127.0.0.1\n'* && $conf == *$'\nlog-queries\n'* ]] || fail "dnsmasq listens on loopback as its own user, polls the upstream file, and logs"
 conf="$(dnsmasq_conf allowlist auto)"$'\n'
 [[ $conf == *$'\naddress=/#/\n'* ]] || fail "allowlist refuses everything by default"
 [[ $conf == *$'\nserver=/google.com/#\n'* && $conf == *$'\nserver=/omarchy.org/#\n'* && $conf == *$'\nserver=/archlinux.org/#\n'* ]] || fail "allowlist forwards the allow list and the system list"
@@ -115,7 +115,7 @@ write_upstreams
 [[ $(grep '^nameserver' "$RESOLV_FILE") == $'nameserver 1.1.1.1\nnameserver 192.168.1.1\nnameserver 2606:4700:4700::1111' ]] || fail "upstreams come from the connected devices with loopback dropped" "$(<"$RESOLV_FILE")"
 [[ $(resolved_conf) == *$'\nDNS=\nDNS=127.0.0.1\nFallbackDNS=\nDomains=~.\nDNSOverTLS=no'* ]] || fail "resolved is pointed at the filter alone with no fallback"
 [[ $(nm_conf) == *$'\ndns=none\nsystemd-resolved=false'* ]] || fail "NetworkManager stops publishing its servers"
-[[ $(dispatcher_script) == *'exec /usr/bin/omarchy-parent-dns upstreams'* ]] || fail "the dispatcher refreshes the upstreams"
+[[ $(dispatcher_script) == *'exec /usr/bin/omarchy-kids-dns upstreams'* ]] || fail "the dispatcher refreshes the upstreams"
 pass "the upstreams, resolved, and NetworkManager drop-ins render"
 
 cat >"$tmp/bin/nmcli" <<'SH'
@@ -126,7 +126,7 @@ SH
 chmod +x "$tmp/bin/nmcli"
 write_upstreams || fail "write_upstreams succeeds with no NetworkManager"
 ! grep -q '^nameserver' "$RESOLV_FILE" || fail "no nameserver lines when there is no network yet" "$(<"$RESOLV_FILE")"
-grep -q 'Written by omarchy-parent-dns' "$RESOLV_FILE" || fail "the resolv file is still written with no network"
+grep -q 'Written by omarchy-kids-dns' "$RESOLV_FILE" || fail "the resolv file is still written with no network"
 pass "no NetworkManager yet still writes an empty upstreams file"
 
 cat >"$tmp/bin/nmcli" <<'SH'
@@ -189,20 +189,20 @@ pass "history tallies every site the laptop asked for"
 mkdir -p "$SYSROOT/etc/chromium/policies/managed" "$SYSROOT/usr/lib/firefox/distribution"
 printf '{"policies":{"Preferences":{"apz.overscroll.enabled":{"Value":true}}}}\n' >"$SYSROOT/usr/lib/firefox/distribution/policies.json"
 install_browser_policies
-grep -q '"DnsOverHttpsMode": "off"' "$SYSROOT/etc/chromium/policies/managed/omarchy-parent-dns.json" || fail "Chromium gets DoH switched off by policy" "$(cat "$SYSROOT/etc/chromium/policies/managed/omarchy-parent-dns.json")"
-[[ ! -e $SYSROOT/etc/brave/policies/managed/omarchy-parent-dns.json ]] || fail "a browser that is not installed gets no policy directory"
+grep -q '"DnsOverHttpsMode": "off"' "$SYSROOT/etc/chromium/policies/managed/omarchy-kids-dns.json" || fail "Chromium gets DoH switched off by policy" "$(cat "$SYSROOT/etc/chromium/policies/managed/omarchy-kids-dns.json")"
+[[ ! -e $SYSROOT/etc/brave/policies/managed/omarchy-kids-dns.json ]] || fail "a browser that is not installed gets no policy directory"
 if command -v jq >/dev/null; then
   [[ $(jq -c '.policies.DNSOverHTTPS' "$SYSROOT/usr/lib/firefox/distribution/policies.json") == '{"Enabled":false,"Locked":true}' ]] || fail "Firefox gets DoH locked off in its policies"
   [[ $(jq -c '.policies.Preferences' "$SYSROOT/usr/lib/firefox/distribution/policies.json") == '{"apz.overscroll.enabled":{"Value":true}}' ]] || fail "the Firefox merge keeps the shipped preferences"
 fi
 [[ $(browser_report) == *"/etc/chromium/policies/managed"* ]] || fail "the status names the browsers covered"
-grep -q '"youtube.com/shorts"' "$SYSROOT/etc/chromium/policies/managed/omarchy-parent-dns.json" || fail "the installed Chromium policy refuses the page"
+grep -q '"youtube.com/shorts"' "$SYSROOT/etc/chromium/policies/managed/omarchy-kids-dns.json" || fail "the installed Chromium policy refuses the page"
 if command -v jq >/dev/null; then
   [[ $(jq -c '.policies.WebsiteFilter.Block' "$SYSROOT/usr/lib/firefox/distribution/policies.json") == '["*://youtube.com/shorts*","*://*.youtube.com/shorts*"]' ]] || fail "Firefox refuses the page by WebsiteFilter" "$(jq -c '.policies.WebsiteFilter' "$SYSROOT/usr/lib/firefox/distribution/policies.json")"
 fi
 [[ $(browser_report) == *"Pages refused by the browser: 1"* ]] || fail "the status counts the refused pages"
 remove_browser_policies
-[[ ! -e $SYSROOT/etc/chromium/policies/managed/omarchy-parent-dns.json ]] || fail "off removes the Chromium policy"
+[[ ! -e $SYSROOT/etc/chromium/policies/managed/omarchy-kids-dns.json ]] || fail "off removes the Chromium policy"
 if command -v jq >/dev/null; then
   [[ $(jq -c '.policies | keys' "$SYSROOT/usr/lib/firefox/distribution/policies.json") == '["Preferences"]' ]] || fail "off takes the Firefox keys back out"
 fi
@@ -224,7 +224,7 @@ pass "parent.conf carries the web filter's keys"
 # restarting; the defaults it reads make the filter on, through Cloudflare for
 # Families, from the first boot.
 leaf="$ROOT/install/config/parent-dns.sh"
-grep -qx '  omarchy-parent-dns apply' "$leaf" && grep -q 'OMARCHY_INSTALL_PROFILE:-default} == "child"' "$leaf" || fail "the install leaf runs apply on a child install only"
+grep -qx '  omarchy-kids-dns apply' "$leaf" && grep -q 'OMARCHY_INSTALL_PROFILE:-default} == "child"' "$leaf" || fail "the install leaf runs apply on a child install only"
 [[ $(grep -n -E 'config/(firewall|parent-dns)\.sh' "$ROOT/install/config/all.sh" | tr '\n' ' ') == *'firewall.sh'*'parent-dns.sh'* ]] || fail "the leaf runs after the firewall is set up"
 printf '#!/bin/bash\nprintf "systemctl %%s\\n" "$*" >>"$CALLS"\n' >"$tmp/bin/systemctl"
 chmod +x "$tmp/bin/systemctl"
@@ -263,11 +263,11 @@ pass "a child install's apply lands the filter, on through Cloudflare for Famili
 
 # Behavioral half: the real command as namespaced root.
 if ! unshare --user --map-root-user true 2>/dev/null; then
-  pass "no unprivileged user namespace; skipping the omarchy-parent dns on/off probes"
+  pass "no unprivileged user namespace; skipping the omarchy-kids dns on/off probes"
   exit 0
 fi
 if ! systemd-detect-virt --quiet --chroot 2>/dev/null; then :; fi
-[[ -d /run/systemd/system ]] || { pass "no running systemd; skipping the omarchy-parent dns on/off probes"; exit 0; }
+[[ -d /run/systemd/system ]] || { pass "no running systemd; skipping the omarchy-kids dns on/off probes"; exit 0; }
 
 for stub in systemctl resolvectl journalctl dnsmasq; do
   printf '#!/bin/bash\nprintf "%s %%s\\n" "$*" >>"$CALLS"\n' "$stub" >"$tmp/bin/$stub"
@@ -304,7 +304,7 @@ grep -q "^systemctl restart $UNIT$" "$CALLS" && grep -q '^systemctl reload-or-re
 grep -q '^resolvectl revert wlan0$' "$CALLS" || fail "denylist forgets the per-link servers"
 firewall_closed || fail "denylist closes the firewall"
 [[ $(<"$tmp/out") == *"Web filter: denylist"* && $(<"$tmp/out") == *"Answering: the filter"* ]] || fail "denylist ends with the status" "$(<"$tmp/out")"
-pass "omarchy-parent dns denylist installs the filter"
+pass "omarchy-kids dns denylist installs the filter"
 
 run_dns deny TikTok.com >/dev/null || fail "dns deny succeeds"
 grep -qx 'tiktok.com' "$DENY_FILE" && grep -q '^address=/tiktok.com/$' "$DNSMASQ_CONF" || fail "deny lands in the list and the resolver config"
@@ -317,7 +317,7 @@ fi
 if STUB_PROFILE=default run_dns status >/dev/null 2>&1; then
   fail "the web filter refuses outside the child profile"
 fi
-pass "omarchy-parent dns edits the lists through the running filter"
+pass "omarchy-kids dns edits the lists through the running filter"
 
 : >"$CALLS"
 run_dns off >/dev/null || fail "dns off succeeds"
@@ -326,4 +326,4 @@ grep -qx 'dns=off' "$PARENT_CONF" || fail "off records the mode"
 [[ -f $ALLOW_FILE && -f $DENY_FILE ]] || fail "off keeps the lists"
 grep -q "^systemctl disable --now $UNIT$" "$CALLS" && grep -q '^nmcli general reload dns-full$' "$CALLS" || fail "off stops the resolver and hands DNS back to NetworkManager" "$(<"$CALLS")"
 ! firewall_closed || fail "off reopens the firewall"
-pass "omarchy-parent dns off is the reverse of on"
+pass "omarchy-kids dns off is the reverse of on"

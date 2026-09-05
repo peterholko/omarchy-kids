@@ -3,6 +3,6 @@
   "name": "Fixture",
   "version": "1.0.0",
   "bins": [
-    "omarchy-parent-fixture"
+    "omarchy-kids-fixture"
   ]
 }

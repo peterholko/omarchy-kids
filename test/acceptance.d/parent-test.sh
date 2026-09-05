@@ -40,11 +40,11 @@ printf '%s\n' "$OMARCHY_ACCEPTANCE_SUDO_PASSWORD" | sudo -S -k -v 2>/dev/null ||
   fail "sudo accepts the parent password"
 pass "sudo accepts the parent password"
 
-sudo -n grep -qx 'Defaults rootpw' /etc/sudoers.d/omarchy-parent ||
+sudo -n grep -qx 'Defaults rootpw' /etc/sudoers.d/omarchy-kids ||
   fail "sudo is configured to ask for root's password"
-sudo -n test -f "/etc/sudoers.d/omarchy-parent-$USER" ||
+sudo -n test -f "/etc/sudoers.d/omarchy-kids-$USER" ||
   fail "the kid account holds its own sudo grant"
-grep -q 'return \["unix-user:root"\]' /etc/polkit-1/rules.d/40-omarchy-parent.rules ||
+grep -q 'return \["unix-user:root"\]' /etc/polkit-1/rules.d/40-omarchy-kids.rules ||
   fail "polkit authenticates administrative prompts as root"
 pass "sudo and polkit are pointed at the parent password"
 
@@ -65,9 +65,9 @@ pass "the install profile marker records a child install"
 # stacks carry the helper after the kid's own password, run with seteuid, and
 # SDDM's packaged file is kept beside it. The harness proves the login itself
 # by typing the parent password at SDDM on a child run.
-helper='pam_exec.so quiet seteuid expose_authtok /usr/bin/omarchy-parent-unlock'
-sudo -n grep -qF "$helper" /etc/pam.d/omarchy-lock-password || fail "the lock screen's stack hands the parent password to omarchy-parent-unlock"
-sudo -n grep -qF "$helper" /etc/pam.d/sddm || fail "the login screen's stack hands the parent password to omarchy-parent-unlock"
+helper='pam_exec.so quiet seteuid expose_authtok /usr/bin/omarchy-kids-unlock'
+sudo -n grep -qF "$helper" /etc/pam.d/omarchy-lock-password || fail "the lock screen's stack hands the parent password to omarchy-kids-unlock"
+sudo -n grep -qF "$helper" /etc/pam.d/sddm || fail "the login screen's stack hands the parent password to omarchy-kids-unlock"
 sudo -n grep -qE '^auth[[:space:]]+\[success=2 default=ignore\][[:space:]]+pam_unix\.so' /etc/pam.d/sddm || fail "the login screen tries the kid's password first"
 sudo -n test -f /etc/pam.d/sddm.omarchy-orig || fail "the packaged login stack is kept beside the child one"
 sudo -n grep -qE '^auth[[:space:]]+requisite[[:space:]]+pam_nologin\.so' /etc/pam.d/sddm || fail "the login stack keeps the nologin check"
@@ -76,7 +76,7 @@ pass "the parent password is wired into the lock screen and the login screen"
 # The web filter is on from the first boot: denylist mode with nothing in it,
 # answered by Cloudflare for Families, the resolver running and the firewall
 # closed to any other.
-filter=$(sudo -n omarchy-parent-dns status 2>&1) || fail "omarchy-parent dns status answers the parent" "$filter"
+filter=$(sudo -n omarchy-kids-dns status 2>&1) || fail "omarchy-kids dns status answers the parent" "$filter"
 [[ $filter == *"Web filter: denylist"*"upstream Cloudflare for Families."* ]] || fail "a fresh child install filters through Cloudflare for Families" "$filter"
 [[ $filter == *"Resolver: running."* && $filter == *"Answering: the filter"* && $filter == *"Firewall: other resolvers closed off."* ]] || fail "the filter answers on a fresh child install" "$filter"
 pass "the web filter is on from the first boot"

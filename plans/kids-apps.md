@@ -1,4 +1,4 @@
-# Kids mode, app allowlist: `sudo omarchy-parent apps`
+# Kids mode, app allowlist: `sudo omarchy-kids apps`
 
 Rev 1, 2026-09-01. Branch `kids/apps`, cut from `kids/child-profile`; lands after phase 0 as its own PR, beside the web filter (`plans/kids-dns.md`) and before screen time (`plans/kids-screen-time.md`).
 
@@ -7,22 +7,22 @@ Rev 1, 2026-09-01. Branch `kids/apps`, cut from `kids/child-profile`; lands afte
 A parent decides which desktop apps the kid can open. In **denylist** mode every app is available except the ones the parent denies; in **allowlist** mode only the apps the parent allows are, and anything installed later stays out until allowed. A blocked app disappears from the launcher and its program stops running for the kid, by permissions root sets and puts back, re-applied after every package install or upgrade. Off until a parent turns it on.
 
 ```
-sudo omarchy-parent apps                     # status
-sudo omarchy-parent apps list                # every app, allowed or blocked
-sudo omarchy-parent apps denylist            # on: everything but the deny list
-sudo omarchy-parent apps allowlist           # on: only the allow list (seeded from today's apps)
-sudo omarchy-parent apps off
-sudo omarchy-parent apps allow APP...        # by launcher name or desktop id
-sudo omarchy-parent apps deny APP...
-sudo omarchy-parent apps remove APP...
-sudo omarchy-parent apps apply               # after editing the lists by hand
+sudo omarchy-kids apps                     # status
+sudo omarchy-kids apps list                # every app, allowed or blocked
+sudo omarchy-kids apps denylist            # on: everything but the deny list
+sudo omarchy-kids apps allowlist           # on: only the allow list (seeded from today's apps)
+sudo omarchy-kids apps off
+sudo omarchy-kids apps allow APP...        # by launcher name or desktop id
+sudo omarchy-kids apps deny APP...
+sudo omarchy-kids apps remove APP...
+sudo omarchy-kids apps apply               # after editing the lists by hand
 ```
 
 ## Decisions
 
-- **On by default, denylist, seeded.** Peter's launcher policy for an eleven-year-old (2026-09-02, `plans/kids-apps-themes.md`) has a supervision tier and a hidden tier of packaged apps, so a child install starts with `apps=denylist` and `/etc/omarchy/parent/apps.deny` seeded from `default/parent/apps-child.deny` the first time the list is applied: LocalSend, Moonlight, OBS Studio, the terminal's own entries (foot stays on the never-close list, so Super+Return still works), btop, Neovim, Disks, and the Avahi browsers. `install/config/parent-apps.sh` runs `omarchy-parent-apps apply --quiet` on a child install, which also installs the pacman hook; `sudo omarchy-parent apps allow NAME` is the supervision, and a parent's off is kept by later applies.
+- **On by default, denylist, seeded.** Peter's launcher policy for an eleven-year-old (2026-09-02, `plans/kids-apps-themes.md`) has a supervision tier and a hidden tier of packaged apps, so a child install starts with `apps=denylist` and `/etc/omarchy/parent/apps.deny` seeded from `default/parent/apps-child.deny` the first time the list is applied: LocalSend, Moonlight, OBS Studio, the terminal's own entries (foot stays on the never-close list, so Super+Return still works), btop, Neovim, Disks, and the Avahi browsers. `install/config/parent-apps.sh` runs `omarchy-kids-apps apply --quiet` on a child install, which also installs the pacman hook; `sudo omarchy-kids apps allow NAME` is the supervision, and a parent's off is kept by later applies.
 - **Enforced by permissions, not by hiding alone.** A blocked app's desktop entry loses its world-read bit, so the launcher, which reads `/usr/share/applications` as the kid, no longer lists it; and the program it starts loses its world execute bit, so a terminal cannot start it either. Both files are root's, so the kid cannot put them back. A pacman hook re-applies the lists after any transaction that touches applications or programs, since a package upgrade restores the packaged modes. The original modes are recorded so `off` and a change of mind restore exactly what was there.
-- **Programs are shared, so a program is only closed when every app that uses it is blocked.** LibreOffice's Writer and Calc entries start the same `libreoffice`; deny Calc alone and its entry hides while the program stays for Writer, and `list` says so. A short never-close list keeps the interpreters and launchers a desktop entry might name (`bash`, `env`, `python`, `xdg-open`, `gtk-launch`, and the terminal emulators) out of reach of the feature entirely: closing those would break the desktop, and closing the terminal would lock the parent out of the floating terminal the menu uses to run `omarchy-parent` itself.
+- **Programs are shared, so a program is only closed when every app that uses it is blocked.** LibreOffice's Writer and Calc entries start the same `libreoffice`; deny Calc alone and its entry hides while the program stays for Writer, and `list` says so. A short never-close list keeps the interpreters and launchers a desktop entry might name (`bash`, `env`, `python`, `xdg-open`, `gtk-launch`, and the terminal emulators) out of reach of the feature entirely: closing those would break the desktop, and closing the terminal would lock the parent out of the floating terminal the menu uses to run `omarchy-kids` itself.
 - **The terminal stays.** Following from the above, the terminal cannot be blocked here; the web filter and the parent password around installs are what bound what a terminal can do.
 - **Web apps are the browser.** Omarchy's web app launchers live in the kid's own `~/.local/share/applications`, which she can rewrite, and each is only a browser window on a site; they are governed by the web filter and by whether the browser itself is allowed, not by this list.
 - **Allowlist starts from today.** Switching to allowlist with an empty allow list seeds it with every app installed and not denied, so the switch hides nothing by surprise; from then on a newly installed app stays hidden until allowed, which is the difference between the modes.
@@ -33,15 +33,15 @@ sudo omarchy-parent apps apply               # after editing the lists by hand
 
 | What | Name |
 | --- | --- |
-| Command | `bin/omarchy-parent-apps`, reached as `sudo omarchy-parent apps ...` |
+| Command | `bin/omarchy-kids-apps`, reached as `sudo omarchy-kids apps ...` |
 | Setting | `apps=off\|denylist\|allowlist` in `/etc/omarchy/parent.conf` |
 | Lists | `/etc/omarchy/parent/apps.allow`, `/etc/omarchy/parent/apps.deny` (desktop ids) |
 | Never closed | `default/parent/apps-never-close.list` (program basenames) |
 | Record of original modes | `/var/lib/omarchy/parent/apps/restore`, `MODE PATH` per line |
-| Hook | `default/parent/omarchy-parent-apps.hook` → `/etc/pacman.d/hooks/omarchy-parent-apps.hook` |
+| Hook | `default/parent/omarchy-kids-apps.hook` → `/etc/pacman.d/hooks/omarchy-kids-apps.hook` |
 | Entries considered | `/usr/share/applications/*.desktop` and `/usr/local/share/applications/*.desktop`, `Type=Application`, not `NoDisplay` or `Hidden` |
 | Programs considered | the first word of `Exec=` after any `env` and `VAR=value` words, resolved in `/usr/local/bin`, `/usr/bin`, `/bin`, following symlinks, and only under `/usr/bin`, `/usr/local/bin`, `/usr/lib`, or `/opt`, owned by root |
-| Test overrides | `OMARCHY_PARENT_SYSROOT` prefixes every system path; `OMARCHY_PARENT_APPS_OWNER` is the owner a program must have (root) |
+| Test overrides | `OMARCHY_KIDS_SYSROOT` prefixes every system path; `OMARCHY_KIDS_APPS_OWNER` is the owner a program must have (root) |
 
 ## Design
 
@@ -78,12 +78,12 @@ Target = opt/*
 [Action]
 Description = Applying the parent's app list...
 When = PostTransaction
-Exec = /usr/bin/omarchy-parent-apps apply --quiet
+Exec = /usr/bin/omarchy-kids-apps apply --quiet
 ```
 
 ### Tests
 
-`test/shell.d/parent-apps-test.sh`. Extracted functions against `OMARCHY_PARENT_SYSROOT` with a scratch `usr/share/applications`, `usr/bin`, and `opt`, owner override to the test user: field reading and displayability; `Exec` resolution through `env`, `VAR=`, quotes, absolute paths, symlinks, and the never-close list; name resolution by id, by name, and the ambiguity refusal; the verdicts under both modes; apply hiding entries and closing programs, leaving a shared program open, restoring on a change of mind, restoring everything on off, and dropping records of vanished files; the seed under allowlist; the hook text. Then the fake-root half (Linux) running the real command through `denylist`, `deny`, `allowlist`, `off`.
+`test/shell.d/parent-apps-test.sh`. Extracted functions against `OMARCHY_KIDS_SYSROOT` with a scratch `usr/share/applications`, `usr/bin`, and `opt`, owner override to the test user: field reading and displayability; `Exec` resolution through `env`, `VAR=`, quotes, absolute paths, symlinks, and the never-close list; name resolution by id, by name, and the ambiguity refusal; the verdicts under both modes; apply hiding entries and closing programs, leaving a shared program open, restoring on a change of mind, restoring everything on off, and dropping records of vanished files; the seed under allowlist; the hook text. Then the fake-root half (Linux) running the real command through `denylist`, `deny`, `allowlist`, `off`.
 
 ### Manual
 

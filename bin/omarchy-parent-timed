@@ -1,5 +1,0 @@
-#!/bin/bash
-# omarchy:summary=Compatibility launcher for the parent module host
-# omarchy:hidden=true
-
-exec "$OMARCHY_PATH/bin/omarchy-parentd" "$@"

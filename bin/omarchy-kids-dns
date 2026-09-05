@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# omarchy:summary=Filter the web by domain, allowlist or denylist
+# omarchy:args=<status|denylist|allowlist|off|allow|deny|remove|list|log|history|upstream|apply> [VALUE ...]
+# omarchy:examples=sudo omarchy-kids dns denylist | sudo omarchy-kids dns deny tiktok.com | sudo omarchy-kids dns deny youtube.com/shorts | sudo omarchy-kids dns log
+# omarchy:requires-sudo=true
+
+source "$OMARCHY_PATH/lib/parent/omarchy_kids/dns/command.sh"

@@ -1,0 +1,394 @@
+#!/bin/bash
+
+# omarchy:summary=Install optional parent features
+# omarchy:args=<add|remove|list> [git-url|id]
+# omarchy:examples=sudo omarchy-kids plugin add https://github.com/example/parent-plugin.git --enable
+# omarchy:hidden=true
+# omarchy:requires-sudo=true
+
+# Optional parent-feature plugins: privileged add-ons a parent installs after
+# a child OS install. Not shell plugins. add clones a git repo (or copies a
+# local plugin folder) into /var/lib/omarchy/plugins/<id>/ and symlinks its
+# commands into /usr/local/bin. An optional catalog at
+# default/parent/plugins/catalog.json can map short ids to git URLs.
+
+set -euo pipefail
+
+export GIT_TERMINAL_PROMPT=0
+export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -oBatchMode=yes}"
+
+CATALOG="${OMARCHY_KIDS_PLUGIN_CATALOG:-$OMARCHY_PATH/default/parent/plugins/catalog.json}"
+STORE="${OMARCHY_KIDS_PLUGIN_STORE:-/var/lib/omarchy/plugins}"
+BINDIR="${OMARCHY_KIDS_PLUGIN_BINDIR:-/usr/local/bin}"
+
+usage() {
+  cat <<USAGE
+Usage: omarchy-kids plugin pick [--user NAME]
+       omarchy-kids plugin <enable|disable> ID [--user NAME]
+       omarchy-kids plugin add <git-url|id|folder> [--enable] [--user NAME] [--yes]
+       omarchy-kids plugin remove ID [--purge] [--user NAME]
+       omarchy-kids plugin list
+
+add     Clone a parent plugin from git (or copy a local folder) into
+        /var/lib/omarchy/plugins and put its commands on PATH. --enable
+        also turns it on, for features that have an on command.
+remove  Take the feature off PATH and delete the installed copy. Turns it
+        off first when it has an off command. --purge also deletes its
+        journal and reports.
+list    Show catalogued and installed parent plugins.
+USAGE
+}
+
+fail() {
+  echo "Error: $1" >&2
+  exit 1
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  "")
+    usage >&2
+    exit 1
+    ;;
+esac
+
+# First-party module packages use the existing parent-plugin entry point.
+case "${1:-}" in
+  pick|enable|disable)
+    exec "$OMARCHY_PATH/bin/omarchy-kids-modules" "$@"
+    ;;
+  add|remove)
+    case "${2:-}" in
+      core|dns|browsing|time|school|screen-time|school-mode)
+        exec "$OMARCHY_PATH/bin/omarchy-kids-modules" "$@"
+        ;;
+    esac
+    ;;
+esac
+
+if [[ ${1:-} == add || ${1:-} == remove ]] && (( EUID != 0 )) && [[ -z ${OMARCHY_KIDS_PLUGIN_UNPRIVILEGED:-} ]]; then
+  mapfile -t gum_env < <(env | grep '^GUM_' || true)
+  exec sudo env OMARCHY_PATH="$OMARCHY_PATH" "${gum_env[@]}" "$0" "$@"
+fi
+
+command="${1:-}"
+shift
+
+enable=0
+purge=0
+assume_yes=0
+user=""
+positional=()
+while (($#)); do
+  case "$1" in
+    --enable)
+      enable=1
+      shift
+      ;;
+    --purge)
+      purge=1
+      shift
+      ;;
+    --yes|-y)
+      assume_yes=1
+      shift
+      ;;
+    --user)
+      user="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      positional+=("$1")
+      shift
+      ;;
+  esac
+done
+
+source_arg="${positional[0]:-}"
+
+require_child_install() {
+  omarchy-profile-child || fail "this is not a child install; omarchy-kids plugin only applies to the kids mode profile"
+}
+
+valid_id() {
+  [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] && [[ $1 != *".."* ]]
+}
+
+interactive() {
+  [[ -t 0 && -t 1 ]]
+}
+
+confirm() {
+  local prompt="$1"
+  (( assume_yes )) && return 0
+  [[ -n ${OMARCHY_KIDS_PLUGIN_UNPRIVILEGED:-} ]] && return 0
+  if interactive; then
+    gum confirm "$prompt"
+  else
+    fail "refusing to continue without confirmation; pass --yes"
+  fi
+}
+
+is_git_url() {
+  [[ $1 == *://* || $1 == git@* || $1 == *.git ]]
+}
+
+is_local_plugin() {
+  [[ -d $1 && -f $1/manifest.json ]]
+}
+
+catalog_field() {
+  local id="$1" field="$2"
+  [[ -f $CATALOG ]] || return 1
+  jq -r --arg id "$id" --arg field "$field" '.[$id][$field] // empty' "$CATALOG"
+}
+
+catalog_ids() {
+  [[ -f $CATALOG ]] || return 0
+  jq -r 'keys[]' "$CATALOG"
+}
+
+plugin_dir_for() {
+  printf '%s/%s\n' "$STORE" "$1"
+}
+
+plugin_bins_from() {
+  local manifest="$1/manifest.json"
+  [[ -f $manifest ]] || fail "plugin manifest is missing in $1"
+  jq -r '.bins[]?' "$manifest"
+}
+
+validate_plugin_dir() {
+  local dir="$1" manifest id bin
+  manifest="$dir/manifest.json"
+  [[ -f $manifest ]] || fail "plugin is missing manifest.json"
+  jq -e . "$manifest" >/dev/null 2>&1 || fail "plugin manifest.json is not valid JSON"
+  id=$(jq -r '.id // ""' "$manifest")
+  valid_id "$id" || fail "plugin manifest has an invalid id"
+  [[ -z $(catalog_field "$id" package) ]] || fail "plugin id '$id' belongs to a built-in kids module"
+  [[ $(jq -r '.name // empty' "$manifest") != "" ]] || fail "plugin manifest is missing name"
+  [[ $(jq -r '.version // empty' "$manifest") != "" ]] || fail "plugin manifest is missing version"
+  jq -e '(.bins | type) == "array" and (.bins | length) > 0' "$manifest" >/dev/null 2>&1 \
+    || fail "plugin manifest bins must be a non-empty array"
+  while IFS= read -r bin; do
+    [[ -n $bin ]] || continue
+    [[ $bin != */* && $bin != *..* ]] || fail "plugin bin name is not a plain filename: $bin"
+    [[ -x $dir/bin/$bin ]] || fail "plugin is missing executable bin/$bin"
+    # Refuse both overwrites in /usr/local/bin and PATH shadowing of packaged
+    # commands, including an add-on that still uses the previous prefix.
+    local canonical=${bin/#omarchy-parent/omarchy-kids}
+    [[ ! -e $OMARCHY_PATH/bin/$canonical && ! -L $OMARCHY_PATH/bin/$canonical ]] || fail "plugin command '$bin' collides with a built-in command"
+    if [[ -e $BINDIR/$bin || -L $BINDIR/$bin ]]; then
+      [[ -L $BINDIR/$bin && $(readlink "$BINDIR/$bin") == "$STORE/$id/bin/$bin" ]] || fail "plugin command '$bin' already belongs to another installation"
+    fi
+  done < <(plugin_bins_from "$dir")
+}
+
+plugin_installed() {
+  local id="$1" dir bin
+  dir=$(plugin_dir_for "$id")
+  [[ -f $dir/manifest.json ]] || return 1
+  [[ -d $BINDIR ]] || return 1
+  while IFS= read -r bin; do
+    [[ -n $bin ]] || continue
+    [[ -L $BINDIR/$bin ]] || return 1
+  done < <(plugin_bins_from "$dir")
+}
+
+link_bins() {
+  local dir="$1" bin src
+  mkdir -p "$BINDIR"
+  while IFS= read -r bin; do
+    [[ -n $bin ]] || continue
+    src="$dir/bin/$bin"
+    [[ -x $src ]] || fail "plugin is missing $bin"
+    if [[ -L $BINDIR/$bin && $(readlink "$BINDIR/$bin") == "$src" ]]; then
+      continue
+    fi
+    ln -s "$src" "$BINDIR/$bin"
+  done < <(plugin_bins_from "$dir")
+}
+
+unlink_bins() {
+  local dir="$1" bin
+  [[ -f $dir/manifest.json ]] || return 0
+  while IFS= read -r bin; do
+    [[ -n $bin ]] || continue
+    if [[ -L $BINDIR/$bin && $(readlink "$BINDIR/$bin") == "$dir/bin/$bin" ]]; then
+      rm "$BINDIR/$bin"
+    fi
+  done < <(plugin_bins_from "$dir")
+}
+
+plugin_command() {
+  local dir="$1" id="$2"
+  if [[ -x $dir/bin/omarchy-kids-$id ]]; then
+    printf '%s\n' "$dir/bin/omarchy-kids-$id"
+  elif [[ -x $dir/bin/omarchy-parent-$id ]]; then
+    printf '%s\n' "$dir/bin/omarchy-parent-$id"
+  fi
+}
+
+enable_plugin() {
+  local dir="$1" id="$2"
+  local feature
+  feature=$(plugin_command "$dir" "$id")
+  [[ -n $feature ]] || return 0
+  local -a on_args
+  on_args=(on)
+  [[ -n $user ]] && on_args+=(--user "$user")
+  "$feature" "${on_args[@]}"
+}
+
+cmd_list() {
+  local plugin_id name installed dir seen=" "
+  "$OMARCHY_PATH/bin/omarchy-kids-modules" list
+  while IFS= read -r plugin_id; do
+    [[ -n $plugin_id ]] || continue
+    [[ -z $(catalog_field "$plugin_id" package) ]] || continue
+    name=$(catalog_field "$plugin_id" name)
+    [[ -n $name ]] || name=$plugin_id
+    if plugin_installed "$plugin_id"; then
+      installed=installed
+    else
+      installed=available
+    fi
+    printf '%s\t%s\t%s\n' "$plugin_id" "$name" "$installed"
+    seen+=" $plugin_id "
+  done < <(catalog_ids)
+  [[ -d $STORE ]] || return 0
+  for dir in "$STORE"/*; do
+    [[ -d $dir && -f $dir/manifest.json ]] || continue
+    plugin_id=$(jq -r '.id // ""' "$dir/manifest.json")
+    [[ -n $plugin_id ]] || continue
+    [[ $seen == *" $plugin_id "* ]] && continue
+    name=$(jq -r '.name // .id' "$dir/manifest.json")
+    if plugin_installed "$plugin_id"; then
+      installed=installed
+    else
+      installed=available
+    fi
+    printf '%s\t%s\t%s\n' "$plugin_id" "$name" "$installed"
+  done
+}
+
+installed_id=""
+
+install_from_dir() {
+  local source_dir="$1" expected_id="${2:-}" id dir
+  validate_plugin_dir "$source_dir"
+  id=$(jq -r '.id' "$source_dir/manifest.json")
+  [[ -z $expected_id || $expected_id == "$id" ]] || fail "plugin id is '$id', not '$expected_id'"
+  dir=$(plugin_dir_for "$id")
+  mkdir -p "$STORE"
+  if [[ $(cd -- "$source_dir" && pwd) != "$dir" ]]; then
+    rm -rf "$dir"
+    cp -a "$source_dir" "$dir"
+  fi
+  link_bins "$dir"
+  installed_id=$id
+}
+
+clone_from_url() {
+  local url="$1" expected_id="${2:-}" stage id dir
+  omarchy-git-url-check "$url" || exit 1
+  if (( ! assume_yes )) && [[ -z ${OMARCHY_KIDS_PLUGIN_UNPRIVILEGED:-} ]]; then
+    cat >&2 <<WARN
+
+⚠️  Parent plugins run as root. They can install systemd units, browser
+  policies, and anything else the parent password can do. Only add a repo
+  you trust.
+
+      URL: $url
+
+WARN
+    confirm "Clone and add this parent plugin?" || fail "aborted"
+  fi
+  mkdir -p "$STORE"
+  stage="$STORE/.add.tmp.$$"
+  rm -rf "$stage"
+  trap 'rm -rf "$stage"' EXIT
+  git clone --quiet -- "$url" "$stage" || fail "failed to clone $url"
+  validate_plugin_dir "$stage"
+  id=$(jq -r '.id' "$stage/manifest.json")
+  if [[ -n $expected_id && $expected_id != "$id" ]]; then
+    fail "plugin id is '$id', not '$expected_id'"
+  fi
+  dir=$(plugin_dir_for "$id")
+  rm -rf "$dir"
+  trap - EXIT
+  mv "$stage" "$dir"
+  link_bins "$dir"
+  installed_id=$id
+}
+
+cmd_add() {
+  local dir url
+  require_child_install
+  [[ -n $source_arg ]] || fail "add needs a git URL, catalog id, or plugin folder"
+  if is_local_plugin "$source_arg"; then
+    install_from_dir "$source_arg"
+  elif is_git_url "$source_arg"; then
+    clone_from_url "$source_arg"
+  else
+    valid_id "$source_arg" || fail "invalid plugin id '$source_arg'"
+    url=$(catalog_field "$source_arg" url) || true
+    [[ -n $url ]] || fail "unknown parent plugin '$source_arg'"
+    clone_from_url "$url" "$source_arg"
+  fi
+  dir=$(plugin_dir_for "$installed_id")
+  echo "Parent plugin '$installed_id' is installed."
+  if (( enable )); then
+    enable_plugin "$dir" "$installed_id"
+  else
+    echo "Turn it on with: sudo omarchy-kids $installed_id on"
+  fi
+}
+
+cmd_remove() {
+  local id="$source_arg" dir off_args feature
+  require_child_install
+  valid_id "$id" || fail "invalid plugin id '$id'"
+  dir=$(plugin_dir_for "$id")
+  [[ -d $dir ]] || fail "parent plugin '$id' is not installed"
+  feature=$(plugin_command "$dir" "$id")
+  if [[ -n $feature ]]; then
+    off_args=(off)
+    (( purge )) && off_args+=(--purge)
+    [[ -n $user ]] && off_args+=(--user "$user")
+    "$feature" "${off_args[@]}" || fail "could not disable $id; it remains installed"
+  fi
+  unlink_bins "$dir"
+  rm -rf "$dir"
+  echo "Parent plugin '$id' is removed."
+}
+
+case "$command" in
+  list)
+    cmd_list
+    ;;
+  add)
+    cmd_add
+    ;;
+  remove)
+    [[ -n $source_arg ]] || fail "remove needs a plugin id"
+    cmd_remove
+    ;;
+  *)
+    echo "Unknown command: $command" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

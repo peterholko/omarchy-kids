@@ -2,7 +2,7 @@
 #
 # The screen-time daemon of a child install (lib/screen-time): its own unit
 # tests, then a live daemon in the test layout driven through the client the
-# shell and omarchy-parent time use, with the parent password stubbed to a
+# shell and omarchy-kids time use, with the parent password stubbed to a
 # fixed word and the lock command to true.
 
 set -euo pipefail
@@ -16,10 +16,10 @@ python3 "$ROOT/lib/screen-time/tests/test_core.py" >"$ROOT/../.screen-time-unit.
 }
 pass "the daemon's unit tests pass"
 
-grep -q 'Account(self.layout, uid, self.config, owner_uid=None, log=self.log)' "$ROOT/lib/parent/omarchy_parent/screen_time/service.py" || fail "the state is root's in every layout; handing it to the kid was the crash at startup"
-grep -q 'could not set up uid' "$ROOT/lib/parent/omarchy_parent/screen_time/service.py" || fail "one account's trouble does not take the daemon down"
-grep -q '"OMARCHY_PATH": omarchy_path' "$ROOT/lib/parent/omarchy_parent/core/session.py" || fail "root hands the kid's session OMARCHY_PATH for omarchy-shell"
-grep -q 'journalctl -u "\$UNIT" -n 12' "$ROOT/bin/omarchy-parent-time" || fail "a daemon that does not start shows its journal"
+grep -q 'Account(self.layout, uid, self.config, owner_uid=None, log=self.log)' "$ROOT/lib/parent/omarchy_kids/screen_time/service.py" || fail "the state is root's in every layout; handing it to the kid was the crash at startup"
+grep -q 'could not set up uid' "$ROOT/lib/parent/omarchy_kids/screen_time/service.py" || fail "one account's trouble does not take the daemon down"
+grep -q '"OMARCHY_PATH": omarchy_path' "$ROOT/lib/parent/omarchy_kids/core/session.py" || fail "root hands the kid's session OMARCHY_PATH for omarchy-shell"
+grep -q 'journalctl -u "\$UNIT" -n 12' "$ROOT/bin/omarchy-kids-time" || fail "a daemon that does not start shows its journal"
 pass "the system-mode startup is root-owned and its failures are visible"
 
 tmp=$(mktemp -d)
@@ -36,10 +36,10 @@ cat >"$SCREEN_TIME_ROOT/config.json" <<JSON
 {"version": 2, "users": {"$me": {"profile": "$me"}}, "active_profile": "$me", "profiles": {"$me": {"name": "Kid", "budget_minutes": {"mon":60,"tue":60,"wed":60,"thu":60,"fri":60,"sat":60,"sun":60}, "earn": {"level": "grade1", "questions_per_set": 3, "set_minutes": 30, "min_answer_seconds": 0},
   "blocked_periods": [{"label": "School", "enabled": true, "start": "00:00", "end": "23:59", "mode": "free"}]}}}
 JSON
-bash "$ROOT/bin/omarchy-parent-timed" >"$tmp/daemon.log" 2>&1 &
+bash "$ROOT/bin/omarchy-kids-timed" >"$tmp/daemon.log" 2>&1 &
 daemon_pid=$!
-client() { bash "$ROOT/bin/omarchy-parent-time-client" "$@"; }
-school_client() { bash "$ROOT/bin/omarchy-parent-school-client" "$@"; }
+client() { bash "$ROOT/bin/omarchy-kids-time-client" "$@"; }
+school_client() { bash "$ROOT/bin/omarchy-kids-school-client" "$@"; }
 for _ in $(seq 1 50); do [[ -S $SCREEN_TIME_ROOT/sock ]] && break; sleep 0.1; done
 [[ -S $SCREEN_TIME_ROOT/sock ]] || fail "the daemon listens on its socket" "$(cat "$tmp/daemon.log")"
 [[ $(client ping | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["ok"], d["mode"])') == "True test" ]] || fail "ping answers with the layout"

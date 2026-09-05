@@ -165,7 +165,7 @@ browser_policy_setup_firefox_distribution() {
   browser_policy_setup_parent "$distribution_dir"
   browser_policy_purge_dir "$distribution_dir"
   browser_policy_install_firefox_policies "$distribution_dir" "$policies"
-  if omarchy-cmd-present omarchy-parent-files; then
-    as_root env OMARCHY_PATH="$OMARCHY_PATH" omarchy-parent-files browser-reapply "$distribution_dir/policies.json"
+  if omarchy-cmd-present omarchy-kids-files; then
+    as_root env OMARCHY_PATH="$OMARCHY_PATH" omarchy-kids-files browser-reapply "$distribution_dir/policies.json"
   fi
 }

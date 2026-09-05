@@ -23,7 +23,7 @@ as_root() {
 echo "Configuring lock screen password authentication..."
 
 # On a child install the parent password opens the lock screen too, after the
-# kid's own has been refused: omarchy-parent-unlock checks the typed password
+# kid's own has been refused: omarchy-kids-unlock checks the typed password
 # against root's through sudo and adds five minutes to an enabled screen-time
 # budget. The jumps skip the failure line on either success; a wrong password
 # falls through to it as before. The kid's password is tried first so a normal
@@ -39,7 +39,7 @@ lock_password_stack() {
   if omarchy-profile-child; then
     echo '-auth      [success=3 default=ignore]  pam_systemd_home.so'
     echo 'auth       [success=2 default=ignore]  pam_unix.so try_first_pass nullok'
-    echo 'auth       [success=1 default=ignore]  pam_exec.so quiet seteuid expose_authtok /usr/bin/omarchy-parent-unlock'
+    echo 'auth       [success=1 default=ignore]  pam_exec.so quiet seteuid expose_authtok /usr/bin/omarchy-kids-unlock'
   else
     echo '-auth      [success=2 default=ignore]  pam_systemd_home.so'
     echo 'auth       [success=1 default=bad]     pam_unix.so try_first_pass nullok'
@@ -69,7 +69,7 @@ auth       requisite                   pam_nologin.so
 auth       required                    pam_faillock.so preauth silent deny=10 unlock_time=120
 -auth      [success=3 default=ignore]  pam_systemd_home.so
 auth       [success=2 default=ignore]  pam_unix.so try_first_pass nullok
-auth       [success=1 default=ignore]  pam_exec.so quiet seteuid expose_authtok /usr/bin/omarchy-parent-unlock
+auth       [success=1 default=ignore]  pam_exec.so quiet seteuid expose_authtok /usr/bin/omarchy-kids-unlock
 auth       [default=die]               pam_faillock.so authfail deny=10 unlock_time=120
 auth       optional                    pam_permit.so
 auth       required                    pam_env.so

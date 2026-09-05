@@ -1,5 +1,5 @@
 # Add the school-mode control only when its module is installed.
-if omarchy-profile-child 2>/dev/null && omarchy-cmd-present omarchy-parent-school; then
+if omarchy-profile-child 2>/dev/null && omarchy-cmd-present omarchy-kids-school; then
   (
     source "$OMARCHY_PATH/bin/omarchy-shell-config"
     commit "$NORMALIZE

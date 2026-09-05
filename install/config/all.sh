@@ -2,7 +2,7 @@ run_logged "$OMARCHY_INSTALL/config/theme-system.sh"
 run_logged "$OMARCHY_INSTALL/config/browser-policy.sh"
 run_logged "$OMARCHY_INSTALL/config/increase-lockout-limit.sh"
 run_logged "$OMARCHY_INSTALL/config/lockscreen-pam.sh"
-if omarchy-cmd-present omarchy-parent; then
+if omarchy-cmd-present omarchy-kids; then
   run_logged "$OMARCHY_INSTALL/config/parent.sh"
 fi
 run_logged "$OMARCHY_INSTALL/config/parent-apps.sh"
@@ -15,6 +15,6 @@ run_logged "$OMARCHY_INSTALL/config/snapper.sh"
 run_logged "$OMARCHY_INSTALL/config/locate.sh"
 run_logged "$OMARCHY_INSTALL/config/enable-services.sh"
 run_logged "$OMARCHY_INSTALL/config/firewall.sh"
-if omarchy-cmd-present omarchy-parent-dns; then
+if omarchy-cmd-present omarchy-kids-dns; then
   run_logged "$OMARCHY_INSTALL/config/parent-dns.sh"
 fi

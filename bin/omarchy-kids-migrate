@@ -1,0 +1,5 @@
+#!/bin/bash
+# omarchy:summary=Migrate installed kids integration names after a package update
+# omarchy:hidden=true
+
+exec python3 -c 'import os, sys; sys.path.insert(0, os.environ["OMARCHY_PATH"] + "/lib/parent"); from omarchy_kids.core.namespace import main; main()' "$@"

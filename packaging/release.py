@@ -28,7 +28,7 @@ def main():
             if entry in owners:
                 raise SystemExit(f'Package ownership conflict: {entry} ({owners[entry]}, {name})')
             owners[entry] = name
-    expected = {'omarchy-kids-base', 'omarchy-kids-settings'} | {'omarchy-parent-' + n for n in ('core', 'dns', 'browsing', 'time', 'school')}
+    expected = {'omarchy-kids-base', 'omarchy-kids-settings'} | {'omarchy-kids-' + n for n in ('core', 'dns', 'browsing', 'time', 'school')}
     if set(packages) != expected:
         raise SystemExit('The release must contain exactly the base pair and all five module packages.')
     commit = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()

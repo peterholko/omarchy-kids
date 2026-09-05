@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# `omarchy-parent browsing` keeps a child install's browsing history where the
+# `omarchy-kids browsing` keeps a child install's browsing history where the
 # kid cannot erase it, and answers which YouTube videos were watched. DNS can't:
 # HTTPS hides the URL. The extractors, the reports, and the policy writers run
 # extracted against a scratch tree; the real command runs as namespaced root.
@@ -11,23 +11,23 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
 require_command python3
 
-browsing="$ROOT/lib/parent/omarchy_parent/browsing/command.sh"
-parent="$ROOT/bin/omarchy-parent"
-service="$ROOT/default/parent/omarchy-parent-browsing.service"
-timer="$ROOT/default/parent/omarchy-parent-browsing.timer"
+browsing="$ROOT/lib/parent/omarchy_kids/browsing/command.sh"
+parent="$ROOT/bin/omarchy-kids"
+service="$ROOT/default/parent/omarchy-kids-browsing.service"
+timer="$ROOT/default/parent/omarchy-kids-browsing.timer"
 
-grep -q '^# omarchy:summary=Keep a child install' "$browsing" || fail "omarchy-parent-browsing announces itself as a feature"
+grep -q '^# omarchy:summary=Keep a child install' "$browsing" || fail "omarchy-kids-browsing announces itself as a feature"
 grep -q '^# omarchy:requires-sudo=true' "$browsing" || fail "browsing runs as root"
-[[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"browsing  Keep a child install"* ]] || fail "omarchy-parent lists browsing as a feature"
-grep -Fq 'source "$OMARCHY_PATH/lib/parent/omarchy_parent/core/parent.sh"' "$browsing" || fail "browsing reads parent.conf through the shared helper"
-grep -qx 'ExecStart=/usr/bin/omarchy-parent-browsing collect' "$service" || fail "the service runs the collector"
+[[ $(OMARCHY_PATH="$ROOT" bash "$parent" --help) == *"browsing  Keep a child install"* ]] || fail "omarchy-kids lists browsing as a feature"
+grep -Fq 'source "$OMARCHY_PATH/lib/parent/omarchy_kids/core/parent.sh"' "$browsing" || fail "browsing reads parent.conf through the shared helper"
+grep -qx 'ExecStart=/usr/bin/omarchy-kids-browsing collect' "$service" || fail "the service runs the collector"
 grep -q 'ConditionPathExistsGlob=/var/lib/omarchy/parent/\*/browsing/enabled' "$service" || fail "the service only runs when an account has it on"
 grep -qx 'OnUnitActiveSec=1min' "$timer" || fail "the timer runs every minute"
 pass "browsing ships as a feature command with its collection units"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-export OMARCHY_PATH="$ROOT" OMARCHY_PARENT_SYSROOT="$tmp/root" OMARCHY_PARENT_STATE_DIR="$tmp/state"
+export OMARCHY_PATH="$ROOT" OMARCHY_KIDS_SYSROOT="$tmp/root" OMARCHY_KIDS_STATE_DIR="$tmp/state"
 mkdir -p "$tmp/state" "$tmp/root"
 
 eval "$(sed -n '/^SYSROOT=/,/^# --- end browsing ---$/p' "$browsing")"
@@ -130,7 +130,7 @@ pass "videos answers which YouTube videos were watched; pages lists everything"
 mkdir -p "$SYSROOT/etc/chromium/policies/managed" "$SYSROOT/usr/lib/firefox/distribution"
 printf '{"policies":{"Preferences":{}}}\n' >"$SYSROOT/usr/lib/firefox/distribution/policies.json"
 install_browser_policies
-p="$SYSROOT/etc/chromium/policies/managed/omarchy-parent-browsing.json"
+p="$SYSROOT/etc/chromium/policies/managed/omarchy-kids-browsing.json"
 [[ -f $p ]] || fail "Chromium gets a managed policy"
 grep -q '"IncognitoModeAvailability": 1' "$p" && grep -q '"AllowDeletingBrowserHistory": false' "$p" || fail "the policy disables private windows and forbids clearing history" "$(cat "$p")"
 if command -v jq >/dev/null; then
@@ -225,12 +225,12 @@ rm -rf "$tmp/state" "$SYSROOT/etc/systemd" && mkdir -p "$tmp/state"
 run_browsing() { PATH="$tmp/rbin:$tmp/bin:$PATH" unshare --user --map-root-user bash "$browsing" "$@"; }
 run_browsing on --user kid >/dev/null || fail "browsing on succeeds"
 [[ -f $tmp/state/kid/browsing/enabled ]] || fail "on marks the account enabled"
-[[ -f $SYSROOT/etc/systemd/system/omarchy-parent-browsing.timer ]] || fail "on installs the timer"
-[[ -f $SYSROOT/etc/chromium/policies/managed/omarchy-parent-browsing.json ]] || fail "on writes the browser policy"
+[[ -f $SYSROOT/etc/systemd/system/omarchy-kids-browsing.timer ]] || fail "on installs the timer"
+[[ -f $SYSROOT/etc/chromium/policies/managed/omarchy-kids-browsing.json ]] || fail "on writes the browser policy"
 [[ $(run_browsing status) == *"kid:"* ]] || fail "status names the account"
 if STUB_PROFILE=default run_browsing status >/dev/null 2>&1; then fail "browsing refuses outside the child profile"; fi
 run_browsing off --user kid >/dev/null || fail "browsing off succeeds"
 [[ ! -e $tmp/state/kid/browsing/enabled ]] || fail "off clears the marker"
-[[ ! -e $SYSROOT/etc/systemd/system/omarchy-parent-browsing.timer ]] || fail "off removes the timer when idle"
-[[ ! -e $SYSROOT/etc/chromium/policies/managed/omarchy-parent-browsing.json ]] || fail "off removes the browser policy when idle"
-pass "omarchy-parent browsing switches on and off through the real command"
+[[ ! -e $SYSROOT/etc/systemd/system/omarchy-kids-browsing.timer ]] || fail "off removes the timer when idle"
+[[ ! -e $SYSROOT/etc/chromium/policies/managed/omarchy-kids-browsing.json ]] || fail "off removes the browser policy when idle"
+pass "omarchy-kids browsing switches on and off through the real command"

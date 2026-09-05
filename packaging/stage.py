@@ -31,7 +31,7 @@ def destinations(relative):
     values = [Path('usr/share/omarchy') / relative]
     if relative.parts[:3] == ('default', 'libalpm', 'hooks'):
         values.append(Path('usr/share/libalpm/hooks') / relative.name)
-    if str(relative) == 'default/parent/omarchy-parent-timed.service':
+    if str(relative) == 'default/parent/omarchy-kids-timed.service':
         values.append(Path('usr/lib/systemd/system') / relative.name)
     return values
 
@@ -49,7 +49,7 @@ def stage(source, dest, module):
                 path.symlink_to(original.readlink())
             else:
                 shutil.copy2(original, path)
-    license_path = dest / 'usr/share/licenses' / ('omarchy-parent-' + module) / 'LICENSE'
+    license_path = dest / 'usr/share/licenses' / ('omarchy-kids-' + module) / 'LICENSE'
     license_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source / 'LICENSE', license_path)
 

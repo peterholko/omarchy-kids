@@ -31,7 +31,7 @@ Panel {
     enabled: service.schoolEnabled, mode: service.mode, reason: service.modeReason,
     schoolUntil: service.schoolUntil, schoolLabel: service.schoolLabel }) : ""
   readonly property int schoolAppCount: service && service.allowedDesktopIds ? service.allowedDesktopIds.length : 0
-  readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-parent-school-client"
+  readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-school-client"
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color accent: Color.accent
   readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.58)

@@ -1,5 +1,0 @@
-#!/bin/bash
-# omarchy:summary=Talk to the parent time backend (JSON)
-# omarchy:hidden=true
-
-exec python3 -c 'import os, sys; sys.path.insert(0, os.environ["OMARCHY_PATH"] + "/lib/parent"); from omarchy_parent.core import cli; cli.SCOPE = "time"; raise SystemExit(cli.main())' "$@"

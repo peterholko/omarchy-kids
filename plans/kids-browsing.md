@@ -1,4 +1,4 @@
-# Kids mode, browsing history: `sudo omarchy-parent browsing`
+# Kids mode, browsing history: `sudo omarchy-kids browsing`
 
 Rev 1, 2026-09-01. Branch `kids/browsing`, cut from `kids/child-profile`; its own PR, and its own decision whether it goes upstream at all.
 
@@ -11,16 +11,16 @@ DNS cannot answer the question: HTTPS hides the URL, so the web filter's log onl
 ## What it does
 
 ```
-sudo omarchy-parent browsing on [--user NAME]   # keep NAME's browsing history where she cannot erase it
-sudo omarchy-parent browsing off                # stop keeping it; what was kept stays, root-only
-sudo omarchy-parent browsing                    # status: on for whom, last collection, how much is kept
-sudo omarchy-parent browsing videos [DAYS]      # YouTube videos watched, most recent first (default 7 days)
-sudo omarchy-parent browsing pages [DAYS] [N]   # every page visited, most recent first
+sudo omarchy-kids browsing on [--user NAME]   # keep NAME's browsing history where she cannot erase it
+sudo omarchy-kids browsing off                # stop keeping it; what was kept stays, root-only
+sudo omarchy-kids browsing                    # status: on for whom, last collection, how much is kept
+sudo omarchy-kids browsing videos [DAYS]      # YouTube videos watched, most recent first (default 7 days)
+sudo omarchy-kids browsing pages [DAYS] [N]   # every page visited, most recent first
 ```
 
 ## Decisions
 
-- **Off by default, per account, its own command**, like every `omarchy-parent` feature. `on` names the kid account (`--user`, or the account that invoked sudo).
+- **Off by default, per account, its own command**, like every `omarchy-kids` feature. `on` names the kid account (`--user`, or the account that invoked sudo).
 - **Two sources.** Every minute, a root timer copies each browser history database the kid has (Chromium and its relatives, Firefox) and takes the visits newer than the last one it saw into a root-only log; and it asks Hyprland, through the kid's own session socket, for the titles of the windows on screen, keeping any that end in "- YouTube" as one row per minute, which is how many minutes a video was on screen. History gives the URL, the video id, and the title; the titles give what was watched even if the profile is wiped between two collections.
 - **The browser is told.** While it is on, the Chromium family gets a managed policy that disables private windows and guest mode and forbids deleting history; Firefox's policies file gets private browsing disabled and history kept on shutdown. The browser shows it is managed; nothing here is hidden from the kid, and the manual tells the parent to say so.
 - **Root keeps the log** under `/var/lib/omarchy/parent/<kid>/browsing/`, mode 0700, so the kid can neither read nor clear it. `off` keeps what was kept.
@@ -31,13 +31,13 @@ sudo omarchy-parent browsing pages [DAYS] [N]   # every page visited, most recen
 
 | What | Name |
 | --- | --- |
-| Command | `bin/omarchy-parent-browsing`, reached as `sudo omarchy-parent browsing ...` |
+| Command | `bin/omarchy-kids-browsing`, reached as `sudo omarchy-kids browsing ...` |
 | State | `/var/lib/omarchy/parent/<kid>/browsing/` (`enabled`, `visits.tsv`, `titles.tsv`, `cursors`) |
-| Units | `default/parent/omarchy-parent-browsing.{service,timer}` → `/etc/systemd/system/`, every minute while any account is on |
-| Collector | `omarchy-parent-browsing collect` (root, run by the timer) |
-| Browser policy | `omarchy-parent-browsing.json` in each present Chromium-family managed policy directory; `DisablePrivateBrowsing` and `SanitizeOnShutdown` merged into each present Firefox `policies.json` |
+| Units | `default/parent/omarchy-kids-browsing.{service,timer}` → `/etc/systemd/system/`, every minute while any account is on |
+| Collector | `omarchy-kids-browsing collect` (root, run by the timer) |
+| Browser policy | `omarchy-kids-browsing.json` in each present Chromium-family managed policy directory; `DisablePrivateBrowsing` and `SanitizeOnShutdown` merged into each present Firefox `policies.json` |
 | History files read | `~/.config/chromium/*/History`, `~/.config/google-chrome/*/History`, `~/.config/BraveSoftware/Brave-Browser/*/History`, `~/.config/microsoft-edge/*/History`, `~/.mozilla/firefox/*/places.sqlite` |
-| Test overrides | `OMARCHY_PARENT_STATE_DIR`, `OMARCHY_PARENT_SYSROOT` (policy and unit paths, `/run/user`), `OMARCHY_PARENT_NOW` |
+| Test overrides | `OMARCHY_KIDS_STATE_DIR`, `OMARCHY_KIDS_SYSROOT` (policy and unit paths, `/run/user`), `OMARCHY_KIDS_NOW` |
 
 ## Design notes
 

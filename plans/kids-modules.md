@@ -12,13 +12,13 @@ The key outcome is that a parent can use school mode without enabling screen-tim
 
 ## Parent selection and reuse of existing plugins
 
-Parents choose which optional modules to install during Kids setup or later from a parent-authenticated module picker. The same actions are available through `omarchy parent plugin`. The picker and the first-party package catalog are proposed additions, not current functionality.
+Parents choose which optional modules to install during Kids setup or later from a parent-authenticated module picker. The same actions are available through `omarchy kids plugin`. The picker and the first-party package catalog are proposed additions, not current functionality.
 
 | Module | Installation choice | Existing implementation to reuse |
 | --- | --- | --- |
 | Kids / Parent Password | Required foundation for Kids setup and all four optional modules. | Parent CLI/profile helpers, operating-system authentication, and the existing polkit and lock integrations. |
-| DNS Filtering | Optional, independently installable. | `omarchy-parent-dns`, resolver service, firewall/list management, and browser-policy generation. |
-| Browsing Logging | Optional, independently installable. | `omarchy-parent-browsing`, its collection timer/service, history extraction, and reports. |
+| DNS Filtering | Optional, independently installable. | `omarchy-kids-dns`, resolver service, firewall/list management, and browser-policy generation. |
+| Browsing Logging | Optional, independently installable. | `omarchy-kids-browsing`, its collection timer/service, history extraction, and reports. |
 | Screen Time | Optional; includes Math as part of this module. | `omarchy.screen-time` and `omarchy.math` shell plugins, the time CLI, and accounting/quiz backend. |
 | School / Free Time | Optional, independently installable from Screen Time. | `omarchy.school-mode`, including the existing menu, schedule panel, shortcuts, window restoration, and notification integration. |
 
@@ -27,7 +27,7 @@ The parent-facing operations distinguish **Install**, **Enable/Disable**, and **
 Reuse both existing plugin mechanisms for their respective jobs:
 
 - **Shell plugins:** retain the existing manifest schema, plugin IDs, entry points, bar placement, and shell IPC. The module package supplies its UI plugins in the first-party discovery locations. A new DNS or browsing panel, if wanted later, can use that same shell contract; this modularization does not require inventing new feature UIs.
-- **Parent plugins:** extend `bin/omarchy-parent-plugin` as the module-management entry point. It already supports add/list/remove, a catalog hook, manifests, and optional enablement. Add first-party package-backed catalog entries so it can install the selected module and its backend/UI dependencies through the existing package helpers. Preserve the existing Git add-on path separately from these packaged first-party modules.
+- **Parent plugins:** extend `bin/omarchy-kids-plugin` as the module-management entry point. It already supports add/list/remove, a catalog hook, manifests, and optional enablement. Add first-party package-backed catalog entries so it can install the selected module and its backend/UI dependencies through the existing package helpers. Preserve the existing Git add-on path separately from these packaged first-party modules.
 
 Keep the five source modules together in `peterholko/omarchy`. Separate package outputs let parents install only selected features without requiring five Git repositories. Normal Omarchy package updates update installed modules; they do not install unselected optional features. The existing shell-plugin Git updater continues serving user-installed shell plugins and must not become an independent updater for a packaged parent's UI/backend pair.
 
@@ -45,23 +45,23 @@ Privileged services load root-owned installed modules. The ordinary shell plugin
 
 | Area | Current implementation | Boundary to establish |
 | --- | --- | --- |
-| Identity and parent authentication | `bin/omarchy-parent`, `bin/omarchy-profile-child`, `install/helpers/parent.sh`, provisioning, PAM, polkit, and `screen_time.daemon.parent_password_ok` / `check_parent` | Authentication and child identity must be available without a screen-time account or daemon. |
-| DNS filtering | `bin/omarchy-parent-dns`, resolver service, resolver lists, NetworkManager/resolved integration, firewall rules, and browser policies | Mostly separate already; isolate shared file writes and installation hooks. |
-| Browsing logging | `bin/omarchy-parent-browsing`, a systemd timer/service, browser-history collection, reports, and browser policies | Mostly separate already; preserve independent collection and private reports. |
-| Screen time | `lib/screen-time/screen_time/`, `bin/omarchy-parent-time*`, screen-time and Math shell plugins, and lock-screen integration | Remove ownership of school schedules, school apps, mode selection, and password verification. |
+| Identity and parent authentication | `bin/omarchy-kids`, `bin/omarchy-profile-child`, `install/helpers/parent.sh`, provisioning, PAM, polkit, and `screen_time.daemon.parent_password_ok` / `check_parent` | Authentication and child identity must be available without a screen-time account or daemon. |
+| DNS filtering | `bin/omarchy-kids-dns`, resolver service, resolver lists, NetworkManager/resolved integration, firewall rules, and browser policies | Mostly separate already; isolate shared file writes and installation hooks. |
+| Browsing logging | `bin/omarchy-kids-browsing`, a systemd timer/service, browser-history collection, reports, and browser policies | Mostly separate already; preserve independent collection and private reports. |
+| Screen time | `lib/screen-time/screen_time/`, `bin/omarchy-kids-time*`, screen-time and Math shell plugins, and lock-screen integration | Remove ownership of school schedules, school apps, mode selection, and password verification. |
 | School / free time | `shell/plugins/school-mode/` plus code embedded in the time daemon, time CLI, and time configuration | Give it its own backend, enrollment, configuration, status, and commands. |
 
 Specific coupling to remove:
 
 - School mode currently reads `/var/lib/omarchy/parent/<user>/time/status.json` and requires `timeEnabled` before applying its desktop restrictions.
 - The time daemon owns `mode.get`, `mode.set`, school app lists, and both school and bedtime periods in `blocked_periods`.
-- The school settings window uses the time client's configuration API. `omarchy-parent time on` and `install/user/screen-time.sh` add both UI features.
+- The school settings window uses the time client's configuration API. `omarchy-kids time on` and `install/user/screen-time.sh` add both UI features.
 - Parent-password retry counters belong to time accounts, although password verification is needed by other features.
 - The PAM parent-unlock helper directly grants screen time. Successful parent authentication already survives the time service being off or broken; that separation must remain.
 - DNS and browsing each edit Firefox's single `policies.json`; the browser installation helper also writes that file. Chromium uses separate policy files, but browser locations and policy-directory handling are duplicated.
 - Screen-time settings import grade descriptions from the Math presentation plugin. Those descriptions belong to the screen-time domain and should be shared with both views.
 
-There are two existing plugin systems: Quickshell plugins and privileged `omarchy-parent plugin` add-ons. The reuse plan above builds on them, but neither currently provides the complete lifecycle needed for these five modules. In particular, the parent add-on installer validates a manifest and links commands, but has no dependency/schema negotiation or coordinated upgrade, and removal continues even when its `off` command fails. Those gaps are implementation work, not features we can assume already exist.
+There are two existing plugin systems: Quickshell plugins and privileged `omarchy-kids plugin` add-ons. The reuse plan above builds on them, but neither currently provides the complete lifecycle needed for these five modules. In particular, the parent add-on installer validates a manifest and links commands, but has no dependency/schema negotiation or coordinated upgrade, and removal continues even when its `off` command fails. Those gaps are implementation work, not features we can assume already exist.
 
 ## Module ownership
 
@@ -91,13 +91,13 @@ Core is required while any child-control module is enabled. Disabling a feature 
 
 Own resolver selection, domain allow/deny lists, URL/path restrictions already enforced through browser policy, dnsmasq configuration/service, NetworkManager and systemd-resolved integration, firewall restrictions, and DNS diagnostics/history.
 
-Keep `omarchy parent dns ...` as the public interface. Filtering remains machine-wide, and the same policy applies in school and free time. DNS query history stays here; it is not a source of full browsing URLs or video titles.
+Keep `omarchy kids dns ...` as the public interface. Filtering remains machine-wide, and the same policy applies in school and free time. DNS query history stays here; it is not a source of full browsing URLs or video titles.
 
 Its lifecycle installs/applies/removes only DNS-owned resolver, firewall, and browser-policy contributions. Turning DNS off preserves its lists and leaves browsing collection and its policies active.
 
 ### 3. Browsing Logging (`browsing`)
 
-Own browser-history discovery and collection, collection cursors, page/video reports, the collection timer, and the browser policies needed to retain history. Keep the existing root-owned per-user journal and `omarchy parent browsing ...` interface.
+Own browser-history discovery and collection, collection cursors, page/video reports, the collection timer, and the browser policies needed to retain history. Keep the existing root-owned per-user journal and `omarchy kids browsing ...` interface.
 
 Collection stays opt-in. Turning it off stops collection and preserves existing reports; deleting stored history is a separate explicit operation. Keep raw URLs, titles, and reports out of child-readable status files.
 
@@ -105,7 +105,7 @@ This module does not depend on DNS, school mode, or screen time. It continues co
 
 ### 4. Screen Time (`screen-time`)
 
-Own daily allowances, usage accounting, grants, pause/resume, bedtime and other blocking periods, warnings, locks, the ledger, earned time, and Math questions. Keep `omarchy parent time ...`, the time pill/settings, and the Math plugin as this module's interfaces.
+Own daily allowances, usage accounting, grants, pause/resume, bedtime and other blocking periods, warnings, locks, the ledger, earned time, and Math questions. Keep `omarchy kids time ...`, the time pill/settings, and the Math plugin as this module's interfaces.
 
 Move the current arithmetic behavior intact: grades 1–4 retain their current fact mix, and grades 5–6 remain multiplication/division tables only. Preserve reward settings, weak-fact history, zero-budget behavior, and the parent's five-minute unlock grant.
 
@@ -117,7 +117,7 @@ Make the post-parent-unlock grant a narrow optional integration. A missing time 
 
 Own school schedules, current mode, override origin/expiry, school app lists, and reversible desktop changes: menu contents, shortcuts, window parking/restoration, and notification state. Keep the existing `omarchy.school-mode` shell plugin ID.
 
-Add a dedicated `omarchy parent school ...` command with operations for status, enable/disable, schedule, mode, and apps. Keep `omarchy parent time school`, `time mode`, and `time school-apps` as compatibility routes to the new owner during migration.
+Add a dedicated `omarchy kids school ...` command with operations for status, enable/disable, schedule, mode, and apps. Keep `omarchy kids time school`, `time mode`, and `time school-apps` as compatibility routes to the new owner during migration.
 
 Publish its own status and allow it to run with screen time disabled. Keep one browser profile, as currently configured. Mode changes do not alter DNS filtering or browsing collection. School app visibility must continue respecting the separate application restrictions; permanent child app restrictions remain owned by the existing apps feature, outside this refactor's five modules.
 
@@ -134,7 +134,7 @@ Backend authorization owns the mode transition; the shell applies the resulting 
     School policy ── optional trusted input ──> Screen-time accounting
     Parent unlock ── optional grant ─────────> Screen time
 
-Keep time and school as separate modules in one small privileged host for the first implementation. This provides a consistent clock and an ordered policy/accounting update without adding a second daemon, polling races, or a message bus. Extract the host from the existing daemon; retain the existing service/launcher names as compatibility entry points initially. A neutral `omarchy-parentd` name can follow after extraction.
+Keep time and school as separate modules in one small privileged host for the first implementation. This provides a consistent clock and an ordered policy/accounting update without adding a second daemon, polling races, or a message bus. Extract the host from the existing daemon; retain the existing service/launcher names as compatibility entry points initially. A neutral `omarchy-kidsd` name can follow after extraction.
 
 The host manages the union of users enrolled in time or school. Disabling time stops its accounting/enforcement and UI without stopping the school backend. Stop the shared host only when no hosted feature requires it. DNS and browsing keep their existing processes.
 
@@ -160,7 +160,7 @@ Retain an ordered backend update: evaluate school policy, apply the time decisio
 
 Suggested destination for implementation code:
 
-    lib/parent/omarchy_parent/
+    lib/parent/omarchy_kids/
       core/          authentication, identity, host, shared file utilities
       dns/           filtering implementation and policy generation
       browsing/      collection, storage, and reports

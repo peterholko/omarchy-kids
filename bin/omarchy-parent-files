@@ -1,5 +1,0 @@
-#!/bin/bash
-# omarchy:summary=Update shared parent configuration and browser policy atomically
-# omarchy:hidden=true
-
-exec python3 -c 'import os, sys; sys.path.insert(0, os.environ["OMARCHY_PATH"] + "/lib/parent"); from omarchy_parent.core.files import main; main()' "$@"

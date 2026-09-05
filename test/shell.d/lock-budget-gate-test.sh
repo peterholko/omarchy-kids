@@ -43,7 +43,7 @@ chmod +x "$stub_bin"/*
 
 state="$test_tmp/state"
 mkdir -p "$state/kid/time"
-export OMARCHY_PARENT_STATE_DIR="$state"
+export OMARCHY_KIDS_STATE_DIR="$state"
 
 run_apply_lock() {
   OMARCHY_INSTALL_USER=kid OMARCHY_PAM_DIR="$pam_dir" PATH="$stub_bin:$PATH" bash "$apply_lock" >/dev/null
@@ -54,8 +54,8 @@ before=$(<"$pam_dir/omarchy-lock-password")
 touch "$state/kid/time/enabled"
 STUB_PROFILE=child STUB_FINGERPRINT=yes run_apply_lock
 [[ $(<"$pam_dir/omarchy-lock-password") == "$before" ]] || fail "screen time on leaves the password stack as it was" "$(cat "$pam_dir/omarchy-lock-password")"
-! grep -q 'omarchy-parent-quiz' "$pam_dir/omarchy-lock-password" || fail "no budget gate in the password stack"
-! grep -q 'omarchy-parent-quiz' "$pam_dir/omarchy-lock-fingerprint" || fail "no budget gate in the fingerprint stack"
+! grep -q 'omarchy-kids-quiz' "$pam_dir/omarchy-lock-password" || fail "no budget gate in the password stack"
+! grep -q 'omarchy-kids-quiz' "$pam_dir/omarchy-lock-fingerprint" || fail "no budget gate in the fingerprint stack"
 [[ $(sed -n '2p' "$pam_dir/omarchy-lock-fingerprint") == 'auth       required                    pam_fprintd.so' ]] || fail "the fingerprint stack starts with the print" "$(cat "$pam_dir/omarchy-lock-fingerprint")"
-! grep -q 'budget_gate\|omarchy-parent-quiz gate' "$apply_lock" || fail "omarchy-apply-lock no longer knows a budget gate"
+! grep -q 'budget_gate\|omarchy-kids-quiz gate' "$apply_lock" || fail "omarchy-apply-lock no longer knows a budget gate"
 pass "the lock screen's PAM stacks carry no screen-time gate; the math plugin holds the session instead"

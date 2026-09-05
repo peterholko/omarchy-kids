@@ -606,7 +606,7 @@ Item {
           Text {
             id: pinHint
             textFormat: Text.PlainText
-            text: "from a terminal: sudo omarchy-parent time"
+            text: "from a terminal: sudo omarchy-kids time"
             color: root.fadeText(0.6)
             font.family: Style.font.family
             font.pixelSize: Style.font.caption

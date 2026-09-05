@@ -105,7 +105,7 @@ Panel {
     return fmt(remaining)
   }
 
-  readonly property string clientPath: service ? service.clientPath : Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-parent-time-client"
+  readonly property string clientPath: service ? service.clientPath : Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-time-client"
 
   // --- earning ----------------------------------------------------------
 

@@ -149,7 +149,7 @@ def test_config():
           periods[1]["days"] == config.DAYS and periods[1]["mode"] == "block")
     check("a window with no width is dropped", len(periods) == 2)
 
-    from omarchy_parent.school_mode import defaults as school_defaults
+    from omarchy_kids.school_mode import defaults as school_defaults
     apps = school_defaults.sanitize_school_apps(["obsidian", "obsidian", " Khan Academy.desktop ", 7, "x" * 90, ""])
     check("the school app list keeps ids once, trimmed, without .desktop", apps == ["obsidian", "Khan Academy"], str(apps))
     check("no list means the default school apps", school_defaults.sanitize_school_apps(None) == school_defaults.DEFAULT_SCHOOL_APPS)
@@ -313,7 +313,7 @@ def test_periods():
         _period = daemon.Account._period
         blocking_period = daemon.Account.blocking_period
         def free_period(self, now):
-            from omarchy_parent.core.periods import active_period
+            from omarchy_kids.core.periods import active_period
             return active_period(self.profile["blocked_periods"], now, "free")
         next_period = daemon.Account.next_period
 
@@ -349,8 +349,8 @@ def test_school_mode():
 
     section("school mode")
 
-    from omarchy_parent.school_mode.policy import Policy
-    from omarchy_parent.school_mode import config as school_config
+    from omarchy_kids.school_mode.policy import Policy
+    from omarchy_kids.school_mode import config as school_config
     from screen_time.daemon import Account
     raw = {"blocked_periods": [
         {"label": "School", "enabled": True, "start": "08:00", "end": "15:30", "days": ["mon", "tue", "wed", "thu", "fri"], "mode": "free"},

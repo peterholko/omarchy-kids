@@ -1,0 +1,5 @@
+#!/bin/bash
+# omarchy:summary=Inspect the parent host and use compatible time requests (JSON)
+# omarchy:hidden=true
+
+exec python3 -c 'import os, sys; sys.path.insert(0, os.environ["OMARCHY_PATH"] + "/lib/parent"); from omarchy_kids.core import cli; cli.SCOPE = "time"; raise SystemExit(cli.main())' "$@"

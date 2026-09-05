@@ -2,7 +2,7 @@
 Version=1.0
 Name=Math Time
 Comment=Arithmetic for grades 1 to 6: practise, or earn screen time
-TryExec=omarchy-parent-time-client
+TryExec=omarchy-kids-time-client
 Exec=omarchy-shell shell summon omarchy.math
 Terminal=false
 Type=Application

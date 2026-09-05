@@ -45,7 +45,7 @@ groups=$(STUB_PACKAGES=ydotool user_groups)
 [[ ",$groups," == *",input,"* ]] || fail "user_groups keeps input for installed ydotool support"
 pass "first-boot user_groups keeps deliberate input-group opt-ins"
 
-# A child install's kid account never enters wheel: omarchy-parent apply gives
+# A child install's kid account never enters wheel: omarchy-kids apply gives
 # it an explicit sudo grant instead. With no recorded group left, the list is
 # empty rather than a stray comma useradd would choke on.
 groups=$(STUB_PROFILE=child user_groups)

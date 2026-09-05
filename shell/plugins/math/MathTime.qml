@@ -9,7 +9,7 @@ import "MathModel.js" as Quiz
 // install. Two ways to use it. Practice: any grade from 1 to 6, ten
 // questions, checked here from the answer the daemon hands over with the
 // question, recorded by nobody. Earn time: the parent's grade and set,
-// questions from and answers to omarchy-parent-timed over its socket, so
+// questions from and answers to omarchy-kids-timed over its socket, so
 // root keeps the answers and the credits. Full screen and holding the
 // keyboard, like the lock screen; with no time left it opens straight into
 // an earning set. After the lock-screen handoff Escape offers a parent-only
@@ -30,7 +30,7 @@ Item {
 
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
   readonly property string homeDir: Quickshell.env("HOME")
-  readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-parent-time-client"
+  readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-time-client"
   readonly property string statusPath: "/var/lib/omarchy/parent/" + userName + "/time/status.json"
   readonly property string gradePath: homeDir + "/.local/state/omarchy/math-grade"
   property string statusRaw: ""

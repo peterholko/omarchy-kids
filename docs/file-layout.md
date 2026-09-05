@@ -300,7 +300,7 @@ the legacy finalization marker from `~/.local/state/omarchy/` into `done/`.
 finalization. It sources:
 
 - `install/config/all.sh` — theme links, lockout limits, lockscreen PAM,
-  the child install's parental posture (`omarchy-parent apply`),
+  the child install's parental posture (`omarchy-kids apply`),
   powerprofilesctl shebang fix, SSH command path and keepalive, docker setup,
   Snapper retention, locate index tuning, service enablement, firewall.
 - `install/hardware/all.sh` via `omarchy-apply-hardware` — vendor- and
@@ -312,7 +312,7 @@ finalization. It sources:
 Logging goes to `/var/log/omarchy-install.log` via
 `install/helpers/logging.sh`.
 
-`--profile <default|child>` records the install profile as one word in `/etc/omarchy/profile` and exports it as `OMARCHY_INSTALL_PROFILE` for the leaves. `child` is kids mode, picked by the installer's "Who is this computer for?" question. At runtime `omarchy-profile-child` reads the marker for menu guards, scripts, and first-boot provisioning; a machine installed before profiles existed has no marker and counts as `default`. The marker lives in `/etc`, so a factory reset's `@factory` clone keeps a child machine a child machine. Parent features keep per-kid state under `/var/lib/omarchy/parent/<kid>/<feature>/`. Optional parent plugins are cloned from git by `omarchy-parent plugin add <url>` into `/var/lib/omarchy/plugins/<id>/`, with commands symlinked into `/usr/local/bin`.
+`--profile <default|child>` records the install profile as one word in `/etc/omarchy/profile` and exports it as `OMARCHY_INSTALL_PROFILE` for the leaves. `child` is kids mode, picked by the installer's "Who is this computer for?" question. At runtime `omarchy-profile-child` reads the marker for menu guards, scripts, and first-boot provisioning; a machine installed before profiles existed has no marker and counts as `default`. The marker lives in `/etc`, so a factory reset's `@factory` clone keeps a child machine a child machine. Parent features keep per-kid state under `/var/lib/omarchy/parent/<kid>/<feature>/`. Optional parent plugins are cloned from git by `omarchy-kids plugin add <url>` into `/var/lib/omarchy/plugins/<id>/`, with commands symlinked into `/usr/local/bin`.
 
 The package lists the ISO pacstraps live at `install/omarchy-base.packages`
 and `install/omarchy-other.packages`, plus `install/omarchy-child.packages`
@@ -353,7 +353,7 @@ return to the packaged default.
 | One-time root-side setup step | `install/config/*.sh` or `install/hardware/*.sh`, wire into `install/config/all.sh` or `install/hardware/all.sh` |
 | Gate something on the install profile (kids mode) | `omarchy-profile-child`; the marker is `/etc/omarchy/profile`, written by `omarchy-apply-system --profile` |
 | Parent feature state (kids mode) | `/var/lib/omarchy/parent/<kid>/<feature>/` |
-| Optional parent plugin | `omarchy-parent plugin add <git-url>` clones into `/var/lib/omarchy/plugins/<id>/` and symlinks commands into `/usr/local/bin` |
+| Optional parent plugin | `omarchy-kids plugin add <git-url>` clones into `/var/lib/omarchy/plugins/<id>/` and symlinks commands into `/usr/local/bin` |
 | One-time fix for existing installs | `migrations/<unix-timestamp>.sh` |
 | Package-owned path something else may already write | Prefer a path nothing else writes, such as a vendor drop-in under `/usr/lib`. Otherwise the `--overwrite` entry in `bin/omarchy-update-system-pkgs` has to ship a release before the file |
 | User-facing `omarchy-*` command | `bin/omarchy-<group>-<verb>` — see `GROUP_DESCRIPTIONS` in `bin/omarchy` |

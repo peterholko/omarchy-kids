@@ -15,14 +15,14 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'lib/parent'))
-from omarchy_parent.core import paths
-from omarchy_parent.core.auth import ParentAuth
-from omarchy_parent.core.daemon import Daemon
-from omarchy_parent.core.files import browser_change, config_change, adopt_browser_policy
-from omarchy_parent.core.migrate import migrate, split_config
-from omarchy_parent.core.storage import write_json, read_json
-from omarchy_parent.school_mode.policy import Policy
-from omarchy_parent.school_mode.config import sanitize_profile
+from omarchy_kids.core import paths
+from omarchy_kids.core.auth import ParentAuth
+from omarchy_kids.core.daemon import Daemon
+from omarchy_kids.core.files import browser_change, config_change, adopt_browser_policy
+from omarchy_kids.core.migrate import migrate, split_config
+from omarchy_kids.core.storage import write_json, read_json
+from omarchy_kids.school_mode.policy import Policy
+from omarchy_kids.school_mode.config import sanitize_profile
 
 
 class ModulesTest(unittest.TestCase):
@@ -157,7 +157,7 @@ class ModulesTest(unittest.TestCase):
 
     def test_practice_works_with_enforcement_off(self):
         self.assertFalse(self.layout.socket_path.exists())
-        output = subprocess.check_output(['bash', str(ROOT / 'bin/omarchy-parent-time-client'), 'practice', 'grade5'], text=True)
+        output = subprocess.check_output(['bash', str(ROOT / 'bin/omarchy-kids-time-client'), 'practice', 'grade5'], text=True)
         response = json.loads(output)
         self.assertTrue(response['ok'])
         self.assertTrue('×' in response['text'] or '÷' in response['text'])

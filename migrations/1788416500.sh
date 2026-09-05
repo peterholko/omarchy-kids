@@ -6,7 +6,7 @@ echo "Drop the retired in-tree LLM prompt log; reinstall it from git if it was o
 
 omarchy-profile-child || exit 0
 
-conf="${OMARCHY_PARENT_CONF:-/etc/omarchy/parent.conf}"
+conf="${OMARCHY_KIDS_CONF:-/etc/omarchy/parent.conf}"
 socket=/etc/systemd/system/omarchy-parent-llm.socket
 if [[ -f $conf ]] && grep -q '^[[:space:]]*llm[[:space:]]*=[[:space:]]*on' "$conf"; then
   :
@@ -25,4 +25,4 @@ as_root() {
 }
 
 kid="${SUDO_USER:-$USER}"
-as_root omarchy-parent plugin add https://github.com/peterholko/omarchy-parent-llm.git --enable --yes --user "$kid"
+as_root omarchy-kids plugin add https://github.com/peterholko/omarchy-parent-llm.git --enable --yes --user "$kid"

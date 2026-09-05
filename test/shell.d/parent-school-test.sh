@@ -5,8 +5,8 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/base-test.sh"
 export OMARCHY_PATH="$ROOT"
 test_tmp=$(mktemp -d)
 trap 'rm -rf "$test_tmp"' EXIT
-export OMARCHY_PARENT_SCHOOL_CONFIG="$test_tmp/school-mode.json"
-eval "$(sed -n '/^CONFIG=/,/^user=""/p' "$ROOT/bin/omarchy-parent-school")"
+export OMARCHY_KIDS_SCHOOL_CONFIG="$test_tmp/school-mode.json"
+eval "$(sed -n '/^CONFIG=/,/^user=""/p' "$ROOT/bin/omarchy-kids-school")"
 USER_NAME=kid
 client() {
   if [[ $* == "config get" ]]; then

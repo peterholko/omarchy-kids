@@ -1,0 +1,18 @@
+# Omarchy kids mode: put the parent's app list back after a package
+# transaction restores the packaged modes on programs and desktop entries.
+# Installed to /etc/pacman.d/hooks by `omarchy-kids apps`.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Path
+Target = usr/share/applications/*
+Target = usr/local/share/applications/*
+Target = usr/bin/*
+Target = usr/local/bin/*
+Target = opt/*
+
+[Action]
+Description = Applying the parent's app list...
+When = PostTransaction
+Exec = /usr/bin/omarchy-kids-apps apply --quiet

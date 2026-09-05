@@ -6,5 +6,5 @@
 # the list after updates. A parent's later off is kept: apply reads the
 # settings file first.
 if [[ ${OMARCHY_INSTALL_PROFILE:-default} == "child" ]]; then
-  omarchy-parent-apps apply --quiet
+  omarchy-kids-apps apply --quiet
 fi

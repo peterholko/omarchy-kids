@@ -22,7 +22,7 @@
 
   // Root Menu
   "apps": {"icon":"󰀻","label":"Apps","aliases":["app","applications"],"provider":"apps"},
-  "math": {"icon":"󰃬","label":"Math time","when":"omarchy-profile-child && omarchy-cmd-present omarchy-parent-time","action":"omarchy-shell shell summon omarchy.math '{}'"},
+  "math": {"icon":"󰃬","label":"Math time","when":"omarchy-profile-child && omarchy-cmd-present omarchy-kids-time","action":"omarchy-shell shell summon omarchy.math '{}'"},
   "learn": {"icon":"󰧑","label":"Learn"},
   "trigger": {"icon":"󱓞","label":"Trigger"},
   "style": {"icon":"","label":"Style"},
@@ -369,6 +369,6 @@
   "update.hardware.trackpad": {"icon":"󰟸","label":"Trackpad","action":"omarchy-launch-floating-terminal-with-presentation omarchy-restart-trackpad"},
   "update.password.drive": {"icon":"","label":"Drive Encryption","action":"omarchy-launch-floating-terminal-with-presentation omarchy-drive-password"},
   "update.password.user": {"icon":"","label":"User","action":"omarchy-launch-floating-terminal-with-presentation passwd"},
-  "setup.parent-modules": {"icon":"󰒓","label":"Kids modules","when":"omarchy-profile-child && omarchy-cmd-present omarchy-parent-modules","action":"omarchy-launch-floating-terminal-with-presentation 'omarchy-parent plugin pick'"},
-  "update.password.parent": {"icon":"","label":"Parent","when":"omarchy-profile-child","action":"omarchy-launch-floating-terminal-with-presentation 'omarchy-parent password'"},
+  "setup.parent-modules": {"icon":"󰒓","label":"Kids modules","when":"omarchy-profile-child && omarchy-cmd-present omarchy-kids-modules","action":"omarchy-launch-floating-terminal-with-presentation 'omarchy-kids plugin pick'"},
+  "update.password.parent": {"icon":"","label":"Parent","when":"omarchy-profile-child","action":"omarchy-launch-floating-terminal-with-presentation 'omarchy-kids password'"},
 }

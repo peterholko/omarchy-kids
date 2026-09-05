@@ -1,6 +1,6 @@
 // Math time (plans/kids-screen-time.md), the arithmetic app of a child
 // install: pure logic shared by the QML view and the tests. Root's
-// omarchy-parent-quiz owns the budget and checks the answers that earn time;
+// omarchy-kids-quiz owns the budget and checks the answers that earn time;
 // a practice answer is checked here, against the answer the generator handed
 // the app beside the question. Loadable by Node for the tests and by QML.
 
@@ -19,7 +19,7 @@ var PALETTE = {
   bad: "#c62828"
 }
 
-// omarchy-parent-quiz prints status.json: {"enabled":true,"school":false,
+// omarchy-kids-quiz prints status.json: {"enabled":true,"school":false,
 // "budget":540,"level":"grade5",...}. Gated means the kid has to earn time
 // before the desktop is hers; school hours lift the gate whatever the budget.
 function gateFromStatus(raw, childInstall) {
@@ -90,7 +90,7 @@ function gradeBlurb(grade) {
   }
 }
 
-// The daemon's answers, as JSON lines from omarchy-parent-time-client.
+// The daemon's answers, as JSON lines from omarchy-kids-time-client.
 // `quiz` prints {ok, question: {id, text, reward_seconds}} or {ok: false,
 // error}; `practice` prints {ok, text, answer}.
 function parseQuestionJson(raw) {

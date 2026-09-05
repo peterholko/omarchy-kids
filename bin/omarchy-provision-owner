@@ -12,7 +12,7 @@
 # password, and hands off to SDDM. On a child install (kids mode, recorded by
 # the profile marker) it asks for a kid password and a parent password, keys
 # the disk to both, keeps root for the parent, and applies the parental posture
-# through omarchy-parent.
+# through omarchy-kids.
 
 set -euo pipefail
 
@@ -730,7 +730,7 @@ Timezone,${timezone:-UTC}" |
 # (/var/lib/omarchy/provisioning/groups), filtered to groups that exist on this system.
 user_groups() {
   # A parent's account sits in wheel. A child install's kid account does not:
-  # it gets an explicit sudo grant from omarchy-parent apply instead, so
+  # it gets an explicit sudo grant from omarchy-kids apply instead, so
   # nothing keyed on wheel membership reaches it.
   local groups="" group
   omarchy-profile-child || groups="wheel"
@@ -830,7 +830,7 @@ create_user() {
   # sudo and polkit ask for the parent password, and the kid account holds an
   # explicit grant instead of wheel. Idempotent, so a retry is safe.
   if $CHILD_INSTALL; then
-    omarchy-parent apply --user "$username"
+    omarchy-kids apply --user "$username"
   fi
 }
 
@@ -1177,10 +1177,10 @@ run_setup() {
     return "$status"
   fi
 
-  if $CHILD_INSTALL && omarchy-cmd-present omarchy-parent-modules; then
+  if $CHILD_INSTALL && omarchy-cmd-present omarchy-kids-modules; then
     printf '%s' "$SHOW_CURSOR"
     clear_logo
-    omarchy-parent-modules pick --user "$username"
+    omarchy-kids-modules pick --user "$username"
     render_setup_static
   fi
 

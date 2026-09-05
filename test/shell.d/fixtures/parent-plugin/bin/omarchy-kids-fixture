@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# omarchy:summary=Fixture parent plugin
+# omarchy:hidden=true
+
+case "${1:-}" in
+  on)
+    echo "fixture on"
+    ;;
+  off)
+    echo "fixture off"
+    ;;
+  *)
+    echo "Usage: omarchy-kids fixture <on|off>"
+    ;;
+esac

@@ -76,7 +76,7 @@ Loader {
     function refreshIcons() { if (root.sourceAppLibrary) root.sourceAppLibrary.refreshIcons() }
 
     function remove(desktopId, name) {
-      Quickshell.execDetached(["omarchy-notification-send", "School mode only filters the menu; a parent changes the list with omarchy-parent time school-apps."])
+      Quickshell.execDetached(["omarchy-notification-send", "School mode only filters the menu; a parent changes the list with omarchy-kids time school-apps."])
     }
   }
 

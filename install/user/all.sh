@@ -1,8 +1,8 @@
 run_logged "$OMARCHY_INSTALL/user/theme.sh"
-if omarchy-cmd-present omarchy-parent-time; then
+if omarchy-cmd-present omarchy-kids-time; then
   run_logged "$OMARCHY_INSTALL/user/screen-time.sh"
 fi
-if omarchy-cmd-present omarchy-parent-school; then
+if omarchy-cmd-present omarchy-kids-school; then
   run_logged "$OMARCHY_INSTALL/user/school-mode.sh"
 fi
 run_logged "$OMARCHY_INSTALL/user/chromium.sh"

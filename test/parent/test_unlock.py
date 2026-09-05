@@ -19,10 +19,10 @@ class ParentUnlockTest(unittest.TestCase):
             base = Path(directory)
             address = str(base / 'sock')
             helper = base / 'unlock'
-            source = (ROOT / 'bin/omarchy-parent-unlock').read_text()
+            source = (ROOT / 'bin/omarchy-kids-unlock').read_text()
             helper.write_text(source.replace('(( EUID == 0 ))', 'true')
                               .replace('/usr/bin/python3', sys.executable)
-                              .replace('/run/omarchy-parent/screen-time/sock', address))
+                              .replace('/run/omarchy-kids/screen-time/sock', address))
             # A hostile import path must not affect this privileged pre-session
             # helper, even if a caller somehow retains PYTHONPATH through sudo.
             (base / 'socket.py').write_text('raise RuntimeError("user import executed")\n')
