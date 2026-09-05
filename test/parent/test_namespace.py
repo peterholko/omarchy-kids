@@ -75,6 +75,16 @@ class NamespaceTest(unittest.TestCase):
         self.assertEqual(new.read_text(), different)
         self.assertEqual(pam.read_text(), '/usr/bin/omarchy-parent-unlock')
 
+    def test_account_names_are_data_even_when_they_contain_the_old_prefix(self):
+        user = 'omarchy-parent'
+        sudoers = user + ' ALL=(ALL:ALL) ALL\n'
+        rule = 'if (subject.user != "' + user + '") return;\n'
+        self.put('etc/sudoers.d/omarchy-parent-' + user, sudoers, 0o440)
+        self.put('etc/polkit-1/rules.d/45-omarchy-parent-wifi.rules', rule)
+        Migration(self.root).apply(systemd=False)
+        self.assertEqual((self.root / ('etc/sudoers.d/omarchy-kids-' + user)).read_text(), sudoers)
+        self.assertEqual((self.root / 'etc/polkit-1/rules.d/45-omarchy-kids-wifi.rules').read_text(), rule)
+
     def test_restart_failure_can_resume_after_old_unit_has_moved(self):
         old = 'omarchy-parent-timed.service'
         new = 'omarchy-kids-timed.service'

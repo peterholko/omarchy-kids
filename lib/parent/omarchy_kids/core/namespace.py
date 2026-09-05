@@ -18,7 +18,21 @@ COMMAND = re.compile(r'(?<![A-Za-z0-9_-])omarchy-parent(?:d|-(?:apps|browsing|cl
 
 
 def rename(value):
-    return value.replace(LEGACY, CURRENT).replace('omarchy_parent', 'omarchy_kids').replace('OMARCHY_PARENT', 'OMARCHY_KIDS')
+    # The suffix of an account's sudoers filename is its identity, even when
+    # the username itself happens to contain the previous namespace.
+    return value.replace(LEGACY, CURRENT, 1)
+
+
+def references(value):
+    # Rename executable paths and known service/runtime/import references.
+    # Account names, URLs and arbitrary values inside admin rules are data.
+    value = COMMAND.sub(lambda match: rename(match[0]) if value[:match.start()].endswith(('/usr/bin/', '/bin/')) else match[0], value)
+    for unit in UNITS:
+        value = value.replace(unit, rename(unit))
+    value = value.replace('/run/' + LEGACY + '/', '/run/' + CURRENT + '/')
+    value = value.replace('RuntimeDirectory=' + LEGACY + '/', 'RuntimeDirectory=' + CURRENT + '/')
+    value = value.replace('omarchy_parent.', 'omarchy_kids.').replace('/lib/parent/omarchy_parent/', '/lib/parent/omarchy_kids/')
+    return value.replace('OMARCHY_PARENT_', 'OMARCHY_KIDS_')
 
 
 @dataclass
@@ -86,8 +100,7 @@ class Migration:
                 elif kind == 'resolver':
                     text = text.replace('/run/' + LEGACY + '/', '/run/' + CURRENT + '/')
                 else:
-                    text = COMMAND.sub(lambda match: match[0].replace(LEGACY, CURRENT), text)
-                    text = text.replace('omarchy_parent', 'omarchy_kids').replace('OMARCHY_PARENT', 'OMARCHY_KIDS')
+                    text = references(text)
                 after = text if symlink else text.encode()
             if source == target and after == before:
                 continue

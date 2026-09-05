@@ -30,6 +30,12 @@ assert expected <= installed, expected - installed
 assert not any(name.startswith('omarchy-parent-') for name in installed)
 assert not Path('/usr/bin/omarchy-parent').exists()
 assert Path('/usr/bin/omarchy-kids').is_file()
+protected = list(Path('/usr/bin').glob('omarchy-kids*'))
+protected += list(Path('/usr/share/omarchy/lib/parent/omarchy_kids').rglob('*'))
+protected.append(Path('/usr/lib/systemd/system/omarchy-kids-timed.service'))
+for path in protected:
+    info = path.stat()
+    assert info.st_uid == 0 and info.st_gid == 0 and not info.st_mode & 0o022, f'unsafe package ownership or permissions: {path}'
 assert 'omarchy-kids-unlock' in Path('/etc/pam.d/omarchy-lock-password').read_text()
 assert Path('/etc/sudoers.d/omarchy-kids-kid').stat().st_mode & 0o777 == 0o440
 assert not Path('/etc/systemd/system/omarchy-parent-timed.service').exists()
