@@ -13,6 +13,10 @@ if [[ $(uname -s) != "Linux" ]] || ! command -v makepkg >/dev/null; then
   exit 1
 fi
 mkdir -p "$output"
+if [[ $(git -C "$source_root" rev-parse --is-shallow-repository) == "true" ]]; then
+  echo "Fetch the full history before building: git fetch --unshallow" >&2
+  exit 1
+fi
 build_root=$(mktemp -d)
 trap 'rm -rf "$build_root"' EXIT
 python "$source_root/packaging/stage.py" snapshot "$source_root" "$build_root/source"

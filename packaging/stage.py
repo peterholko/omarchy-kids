@@ -73,7 +73,7 @@ def main():
     parser.add_argument('module', nargs='?')
     args = parser.parse_args()
     if args.action == 'snapshot':
-        shutil.copytree(args.source, args.dest, symlinks=True, ignore=shutil.ignore_patterns('.git', '__pycache__', '*.pyc', 'build-output'), dirs_exist_ok=True)
+        shutil.copytree(args.source, args.dest, symlinks=True, ignore=shutil.ignore_patterns('.git', '.DS_Store', '__pycache__', '*.pyc', 'build-output'), dirs_exist_ok=True)
     elif args.action == 'prune':
         prune(args.source, args.dest)
     else:
