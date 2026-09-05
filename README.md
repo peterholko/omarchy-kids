@@ -16,7 +16,9 @@ The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` she
 
 ## Demo highlights
 
-Short excerpts from a recorded desktop demo, cropped to keep the controls readable. The math clip skips ahead between questions.
+A full desktop view followed by short clips from the recorded demo. The GIFs are cropped to keep the controls readable; the math clip skips ahead between questions.
+
+![Full Omarchy Kids desktop with cherry-blossom landscape wallpaper and the screen-time indicator in the top bar](docs/images/demo/desktop.jpg)
 
 **Earn screen time with math.** Practice multiplication and division facts, then collect the reward for a completed set. This demo earns 30 minutes.
 
