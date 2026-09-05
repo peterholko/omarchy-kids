@@ -14,6 +14,22 @@ The four optional modules can be installed and removed individually. School mode
 
 The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` shell plugins are reused. There is one browser profile. Grades 5 and 6 use multiplication and division tables exclusively; younger grades practice small arithmetic facts. Selecting free time always requires the parent password, and the password field shows “Checking password…” while authentication runs.
 
+## Demo highlights
+
+Short excerpts from a recorded desktop demo, cropped to keep the controls readable. The math clip skips ahead between questions.
+
+**Earn screen time with math.** Practice multiplication and division facts, then collect the reward for a completed set. This demo earns 30 minutes.
+
+![Answering multiplication and division questions and receiving 30 minutes of screen time](docs/images/demo/earn-time-with-math.gif)
+
+**Switch to free time.** Returning from school mode requires the parent password.
+
+![Leaving school mode by entering the parent password and switching to free time](docs/images/demo/school-to-free-time.gif)
+
+**Set daily limits and school hours.** Choose a budget for each day and configure bedtime and school schedules.
+
+![Screen-time settings showing daily budgets, bedtime, and school hours](docs/images/demo/screen-time-settings.gif)
+
 ## Install on an existing Omarchy laptop
 
 A parent can convert a clean **Omarchy 4** installation without reinstalling the OS. Use the laptop’s existing regular account as the kid account. The installer keeps its login password, home and desktop configuration, asks for a separate parent password, and installs all five modules. The parent password authorizes administration and also unlocks the login and lock screens. On an encrypted laptop it is added as another disk-unlock key; existing keys are kept. An unencrypted disk stays unencrypted.
