@@ -251,7 +251,7 @@ const periods = [{label: 'Class', days: ['mon'], start: '09:00', end: '15:00', e
 const settings = {
   service: {userName: 'kid', allowedDesktopIds: ['stale'], blockedPeriods: periods},
   password: '', localApps: [], localPeriods: [], pendingPatch: null, activePatch: null,
-  pawPostInstalled: true, clientPath: '/omarchy/bin/omarchy-kids-school-client',
+  installedAppIds: ['omarchy-paw-post', 'omarchy-number-grove'], clientPath: '/omarchy/bin/omarchy-kids-school-client',
   okColor: 'green', errColor: 'red', fadeText() { return 'gray' }
 }
 const patchProc = {running: false, launched: false, command: [], pendingPassword: ''}
@@ -261,7 +261,7 @@ const context = vm.createContext({root: settings, patchProc, win, Allowlist, Sch
 Object.defineProperty(settings, 'savingApps', {get() {
   return [settings.activePatch, settings.pendingPatch].some(patch => patch && patch.school_apps !== undefined)
 }})
-for (const name of ['show', 'setPawPostAllowed', 'patch', 'sendPendingPatch', 'handlePatchReply', 'writePeriods']) {
+for (const name of ['show', 'setAppAllowed', 'patch', 'sendPendingPatch', 'handlePatchReply', 'writePeriods']) {
   const match = source.match(new RegExp('  function ' + name + '\\([^)]*\\) \\{[\\s\\S]*?\\n  \\}'))
   assert(match, name)
   vm.runInContext(match[0], context)
@@ -280,29 +280,29 @@ function reply(payload) {
 }
 settings.show('parent secret', config)
 assertDeepEqual(apps(), ['chromium', 'obsidian'], 'opening uses the authenticated shared profile, not a stale public status')
-settings.setPawPostAllowed(true)
+settings.setAppAllowed('omarchy-paw-post', true)
 assert(settings.savingApps && settings.note === 'Saving…', 'app changes expose saving state')
 assertDeepEqual(request(), {school_apps: ['chromium', 'obsidian', 'omarchy-paw-post']}, 'allowing typing preserves other apps and sends no schedule change')
 assertEqual(patchProc.pendingPassword, 'parent secret', 'the parent credential is ready for stdin')
 assert(!patchProc.command.join(' ').includes('parent secret'), 'the credential never goes in command arguments')
 assert(!Allowlist.contains(apps(), 'omarchy-paw-post'), 'access is not presented as saved before acknowledgement')
-settings.setPawPostAllowed(true)
+settings.setAppAllowed('omarchy-paw-post', true)
 reply({ok: false, error: 'bad_password'})
 assert(!settings.savingApps && !Allowlist.contains(apps(), 'omarchy-paw-post') && settings.noteColor === 'red', 'a refusal leaves access off and allows retry')
 assertEqual(patchProc.pendingPassword, '', 'the request clears its credential after failure')
-settings.setPawPostAllowed(true)
+settings.setAppAllowed('omarchy-paw-post', true)
 reply({ok: true})
 assert(Allowlist.contains(apps(), 'omarchy-paw-post.desktop'), 'a successful choice opens the existing school menu and game allowlist gate')
 assertDeepEqual(Allowlist.filterRows([{entry: {id: 'omarchy-paw-post.desktop'}}, {entry: {id: 'steam'}}], apps()).map(row => row.entry.id), ['omarchy-paw-post.desktop'], 'only allowed installed apps reach the school launcher')
-settings.setPawPostAllowed(false)
+settings.setAppAllowed('omarchy-paw-post', false)
 reply({ok: true})
 assertDeepEqual(apps(), ['chromium', 'obsidian'], 'revocation removes only Paw Post')
-settings.pawPostInstalled = false
-settings.setPawPostAllowed(true)
+settings.installedAppIds = ['omarchy-number-grove']
+settings.setAppAllowed('omarchy-paw-post', true)
 assert(!patchProc.running, 'an absent typing package cannot be newly allowed by this toggle')
-settings.pawPostInstalled = true
+settings.installedAppIds = ['omarchy-paw-post', 'omarchy-number-grove']
 settings.writePeriods(periods)
-settings.setPawPostAllowed(true)
+settings.setAppAllowed('omarchy-paw-post', true)
 const newerPeriods = [{...periods[0], start: '09:30'}]
 settings.writePeriods(newerPeriods)
 assert(settings.pendingPatch.school_apps && settings.pendingPatch.blocked_periods, 'hours and app changes waiting behind a save are both retained')
@@ -310,12 +310,30 @@ reply({ok: true})
 require('node:assert/strict').deepEqual(request(), {school_apps: ['chromium', 'obsidian', 'omarchy-paw-post'], blocked_periods: newerPeriods}, 'the next request carries both queued choices')
 reply({ok: true})
 assert(settings.pendingPatch === null && settings.activePatch === null && settings.note === 'Saved.', 'the queue drains after confirmed saves')
-settings.pawPostInstalled = false
-settings.setPawPostAllowed(false)
+settings.installedAppIds = ['omarchy-number-grove']
+settings.setAppAllowed('omarchy-paw-post', false)
 reply({ok: true})
 assert(!Allowlist.contains(apps(), 'omarchy-paw-post'), 'a parent can revoke a previously allowed game after uninstalling it')
+settings.installedAppIds = ['omarchy-paw-post', 'omarchy-number-grove']
+settings.setAppAllowed('omarchy-paw-post', true)
+reply({ok: true})
+settings.setAppAllowed('omarchy-number-grove', true)
+assertDeepEqual(request(), {school_apps: ['chromium', 'obsidian', 'omarchy-number-grove', 'omarchy-paw-post']}, 'allowing Number Grove preserves Paw Post and the existing apps')
+reply({ok: false, error: 'bad_password'})
+assert(!Allowlist.contains(apps(), 'omarchy-number-grove') && Allowlist.contains(apps(), 'omarchy-paw-post'), 'a rejected Grove save leaves its access off and Paw Post on')
+settings.setAppAllowed('omarchy-number-grove', true)
+reply({ok: true})
+settings.setAppAllowed('omarchy-paw-post', false)
+reply({ok: true})
+assertDeepEqual(apps(), ['chromium', 'obsidian', 'omarchy-number-grove'], 'turning Paw Post off leaves Number Grove allowed')
+settings.installedAppIds = []
+settings.setAppAllowed('omarchy-number-grove', false)
+reply({ok: true})
+assertDeepEqual(apps(), ['chromium', 'obsidian'], 'removing Grove school access preserves the original app list')
+settings.setAppAllowed('omarchy-number-grove', true)
+assert(!patchProc.running, 'an uninstalled Grove package cannot be newly allowed')
 JS
-pass "Paw Post school access is optional, authenticated, and saved without losing other settings"
+pass "Optional games have independent, authenticated school access without losing other settings"
 
 # The shortcut layer against a mocked hyprctl: what it unbinds and rebinds,
 # and that exit reloads the real configuration. The helpers lock with flock,

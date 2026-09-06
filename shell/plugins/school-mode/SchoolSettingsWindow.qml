@@ -23,9 +23,13 @@ Item {
   property var activePatch: null
   readonly property bool savingApps: (activePatch !== null && activePatch.school_apps !== undefined)
     || (pendingPatch !== null && pendingPatch.school_apps !== undefined)
-  readonly property bool pawPostInstalled: (DesktopEntries.applications.values || []).some(function(entry) {
-    return entry && Allowlist.normalizeDesktopId(entry.id) === "omarchy-paw-post"
-  })
+  readonly property var schoolAppChoices: [
+    { desktopId: "omarchy-paw-post", name: "Paw Post", practice: "typing practice", controlName: "pawPostSchoolToggle" },
+    { desktopId: "omarchy-number-grove", name: "Number Grove", practice: "arithmetic practice", controlName: "numberGroveSchoolToggle" }
+  ]
+  readonly property var installedAppIds: Allowlist.normalizeIds((DesktopEntries.applications.values || []).map(function(entry) {
+    return entry ? entry.id : ""
+  }))
   readonly property int totalPeriodLimit: 8
   readonly property var dayKeys: Schedule.DAYS
   readonly property var dayLabels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -110,10 +114,10 @@ Item {
     root.writePeriods(Schedule.toggleDay(root.localPeriods, index, day))
   }
 
-  function setPawPostAllowed(allowed) {
-    if (root.password === "" || root.savingApps || (allowed && !root.pawPostInstalled)) return
-    var apps = Allowlist.normalizeIds(root.localApps).filter(function(id) { return id !== "omarchy-paw-post" })
-    if (allowed) apps.push("omarchy-paw-post")
+  function setAppAllowed(desktopId, allowed) {
+    if (root.password === "" || root.savingApps || (allowed && !Allowlist.contains(root.installedAppIds, desktopId))) return
+    var apps = Allowlist.normalizeIds(root.localApps).filter(function(id) { return id !== desktopId })
+    if (allowed) apps.push(desktopId)
     root.patch({ "school_apps": Allowlist.normalizeIds(apps) })
   }
 
@@ -222,17 +226,22 @@ Item {
             foreground: Color.foreground
           }
 
-          Toggle {
-            objectName: "pawPostSchoolToggle"
-            width: parent.width
-            label: "Paw Post"
-            description: root.savingApps ? "Saving…" : (root.pawPostInstalled
-              ? "Allow typing practice during School Mode."
-              : "Install Paw Post to make typing practice available.")
-            checked: Allowlist.contains(root.localApps, "omarchy-paw-post")
-            enabled: root.password !== "" && !root.savingApps && (root.pawPostInstalled || checked)
-            opacity: enabled || root.savingApps ? 1 : 0.6
-            onClicked: root.setPawPostAllowed(!checked)
+          Repeater {
+            model: root.schoolAppChoices
+            delegate: Toggle {
+              required property var modelData
+              readonly property bool installed: Allowlist.contains(root.installedAppIds, modelData.desktopId)
+              objectName: modelData.controlName
+              width: content.width
+              label: modelData.name
+              description: root.savingApps ? "Saving…" : (installed
+                ? "Allow " + modelData.practice + " during School Mode."
+                : "Install " + modelData.name + " to make " + modelData.practice + " available.")
+              checked: Allowlist.contains(root.localApps, modelData.desktopId)
+              enabled: root.password !== "" && !root.savingApps && (installed || checked)
+              opacity: enabled || root.savingApps ? 1 : 0.6
+              onClicked: root.setAppAllowed(modelData.desktopId, !checked)
+            }
           }
 
           PanelSeparator { width: parent.width }

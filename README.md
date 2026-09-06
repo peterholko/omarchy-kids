@@ -34,6 +34,8 @@ omarchy kids grove
 
 With a current package cache, you can also use `omarchy kids plugin add grove`. Launch **Number Grove** from the application menu or with `omarchy kids grove`; remove it with `omarchy kids plugin remove grove`. It is ready after installation and has no separate enable step. Arrow keys or WASD move, Space/Enter collects, and P/Escape pauses. Switching away pauses the game until you resume.
 
+To make it available during school, open the School Mode pill → **School settings** gear, enter the parent password, and turn on **Number Grove** under **School apps**. Number Grove and Paw Post have separate choices; each starts off unless already allowed. Turning it off keeps Number Grove available in Free Time.
+
 See the [game architecture and local checks](docs/number-grove.md). The screenshot is a local Qt component render; a new Linux package release and ISO have not been built for this addition.
 
 ## Paw Post typing game
