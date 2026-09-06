@@ -25,7 +25,7 @@ packages = sorted(map(str, Path('build-output').glob('*.pkg.tar.zst')))
 # Answer only this disposable container's package conflict/removal prompts.
 subprocess.run(['pacman', '-Udd', '--noscriptlet', *packages], input='y\n' * 20, text=True, check=True)
 installed = set(subprocess.check_output(['pacman', '-Qq'], text=True).splitlines())
-expected = {'omarchy-kids-' + name for name in ('base', 'settings', 'core', 'dns', 'browsing', 'time', 'school', 'grove')}
+expected = {'omarchy-kids-' + name for name in ('base', 'settings', 'core', 'dns', 'browsing', 'time', 'school', 'grove', 'typing')}
 assert expected <= installed, expected - installed
 assert not any(name.startswith('omarchy-parent-') for name in installed)
 assert not Path('/usr/bin/omarchy-parent').exists()

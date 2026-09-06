@@ -1,5 +1,5 @@
 pkgbase=omarchy-kids-modules
-pkgname=(omarchy-kids-core omarchy-kids-dns omarchy-kids-browsing omarchy-kids-time omarchy-kids-school omarchy-kids-grove)
+pkgname=(omarchy-kids-core omarchy-kids-dns omarchy-kids-browsing omarchy-kids-time omarchy-kids-school omarchy-kids-grove omarchy-kids-typing)
 pkgver=0.1.0
 pkgrel=${KIDS_PKGREL:-1}
 arch=(any)
@@ -54,4 +54,11 @@ package_omarchy-kids-grove() {
   depends=("omarchy-kids-core=$pkgver-$pkgrel")
   optdepends=('omarchy-kids-time: parent-controlled screen-time rewards')
   _stage_module grove
+}
+
+package_omarchy-kids-typing() {
+  pkgdesc='Paw Post: a cozy typing adventure with animal friends'
+  optdepends=()
+  depends=("omarchy-kids-core=$pkgver-$pkgrel")
+  _stage_module typing
 }

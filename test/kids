@@ -8,3 +8,4 @@ for suite in parent parent-unlock parent-plugin parent-time parent-school parent
   bash "test/shell.d/$suite-test.sh"
 done
 node --test test/number-grove/engine.test.cjs
+node --test test/paw-post/engine.test.cjs

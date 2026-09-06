@@ -6,7 +6,7 @@ omarchy-profile-child || fail "the Kids ISO creates a child profile"
 [[ -n ${OMARCHY_ACCEPTANCE_SUDO_PASSWORD:-} ]] || fail "the deployment test requires the parent fixture password"
 printf '%s\n' "$OMARCHY_ACCEPTANCE_SUDO_PASSWORD" | sudo -S -k -v 2>/dev/null || fail "the parent can inspect module setup"
 trap 'sudo -K' EXIT
-for package in base settings core dns browsing time school grove; do
+for package in base settings core dns browsing time school grove typing; do
   pacman -Q "omarchy-kids-$package" || fail "Kids package is installed: $package"
 done
 [[ $OMARCHY_PATH == "/usr/share/omarchy" ]] || fail "the session uses the installed Kids runtime"
@@ -19,7 +19,7 @@ import hashlib, json
 from pathlib import Path
 cache = Path('/var/cache/omarchy-kids/packages')
 release = json.loads((cache / 'release.json').read_text())
-assert len(release['packages']) == 8
+assert len(release['packages']) == 9
 for info in release['packages'].values():
     assert hashlib.sha256((cache / info['file']).read_bytes()).hexdigest() == info['sha256']
 for file in ('screen-time.json', 'school-mode.json'):
@@ -31,7 +31,7 @@ PY
 pass "all modules and the matching package cache are installed; optional collection and limits await setup"
 
 plugins=$(omarchy-shell shell listPlugins)
-for plugin in omarchy.screen-time omarchy.school-mode omarchy.math omarchy.number-grove; do
+for plugin in omarchy.screen-time omarchy.school-mode omarchy.math omarchy.number-grove omarchy.paw-post; do
   [[ $plugins == *"$plugin"* ]] || fail "the installed shell sees $plugin"
 done
 screenshot "success-kids-desktop"

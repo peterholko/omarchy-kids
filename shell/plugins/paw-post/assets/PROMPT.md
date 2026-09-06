@@ -1,0 +1,7 @@
+# Paw Post illustration
+
+Generated with the built-in image-generation tool. Final bundled image: `cloud-post.png` (1536 × 1024). No external images were supplied as references.
+
+## Prompt
+
+Use case: illustration-story. Create one original polished game background illustration for Paw Post, a cozy offline typing game for an 11-year-old. Landscape 1536x1024. A whimsical floating-island animal post office in a powder-blue sky with soft cream clouds and little peach and lavender flowers. A small friendly orange fox with a teal mail satchel stands on the left grassy island beside a tiny coral mailbox; a cute cream rabbit on a center island with a little blue-roof mail cottage; a sleepy lavender kitten on the right island receives a cream envelope. Original appealing characters with expressive ink eyes, soft textured gouache shapes, crisp silhouettes, gentle storybook detail, sophisticated pastel palette suitable for a tween, not preschool clip art. Place the three animal destinations across the lower-middle half, with open sky above and floating island bottoms visible. Wide balanced scene, all characters inside generous safe margins, not cut off. The scene should read clearly when displayed in a game at 960x300 with aspect fit. No lettering, no words, no numbers, no UI, no borders, no logos, no watermark. This is final game artwork, not a screenshot or mockup. Include tiny clouds and a few whimsical postal details; keep uncluttered. Entire image opaque, light blue sky background.

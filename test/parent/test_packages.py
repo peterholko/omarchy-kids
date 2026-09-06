@@ -28,8 +28,8 @@ class PackageTest(unittest.TestCase):
         plugins = [plugin for item in catalog.values() for plugin in item['shellPlugins']]
         self.assertEqual(len(plugins), len(set(plugins)))
 
-    def test_all_thirty_two_optional_package_combinations(self):
-        optional = ['dns', 'browsing', 'time', 'school', 'grove']
+    def test_all_optional_package_combinations(self):
+        optional = [name for name in Manager(ROOT).catalog if name != 'core']
         script = '''
 import sys, os, json, importlib.util
 sys.path.insert(0, sys.argv[1])
@@ -51,6 +51,8 @@ print(json.dumps(sorted(host.services)))
                     self.assertEqual(json.loads(output), sorted(set(selected) & {'school', 'time'}))
                     for module in optional:
                         self.assertEqual((dest / 'usr/bin' / ('omarchy-kids-' + module)).exists(), module in selected)
+                    self.assertEqual((dest / 'usr/share/applications/omarchy-paw-post.desktop').exists(), 'typing' in selected)
+                    self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/paw-post/TypingView.qml').exists(), 'typing' in selected)
                     self.assertEqual((dest / 'usr/share/applications/omarchy-number-grove.desktop').exists(), 'grove' in selected)
                     self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/number-grove/GameView.qml').exists(), 'grove' in selected)
                     self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/math').exists(), 'time' in selected)
@@ -59,7 +61,7 @@ print(json.dumps(sorted(host.services)))
     def test_base_relinquishes_every_module_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp)
-            for module in ['core', 'dns', 'browsing', 'time', 'school', 'grove']:
+            for module in Manager(ROOT).catalog:
                 stage.stage(ROOT, dest, module)
             stage.prune(ROOT, dest)
             for relative in stage.entries(ROOT):
@@ -102,3 +104,13 @@ print(json.dumps(sorted(host.services)))
             item = next(item for item in manager.listing() if item['id'] == 'grove')
             self.assertTrue(item['enabled'])
             self.assertTrue(item['healthy'])
+
+    def test_typing_is_independent_and_removal_only_drops_its_package(self):
+        manager = Manager(ROOT)
+        self.assertEqual(manager.resolve(['typing']), ['core', 'typing'])
+        with patch.object(manager, 'installed', return_value=True), patch.object(manager, 'refresh_desktops'), patch('subprocess.run') as run:
+            with self.assertRaisesRegex(ValueError, 'ready when installed'):
+                manager.change('typing', True)
+            run.assert_not_called()
+            manager.remove('typing')
+            self.assertEqual(run.call_args_list[0].args[0], ['omarchy-pkg-drop', 'omarchy-kids-typing'])

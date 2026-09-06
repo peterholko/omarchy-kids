@@ -1,0 +1,13 @@
+#!/bin/bash
+# omarchy:summary=Play Paw Post, a cozy typing adventure with animal friends
+
+set -euo pipefail
+if [[ ${1:-} == "--help" || ${1:-} == "-h" ]]; then
+  echo "Usage: omarchy kids typing"
+  echo "Type the message; Backspace corrects mistakes; Escape pauses."
+elif (( $# )); then
+  echo "Usage: omarchy kids typing" >&2
+  exit 2
+else
+  omarchy-shell shell summon omarchy.paw-post
+fi

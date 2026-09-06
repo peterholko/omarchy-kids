@@ -34,7 +34,7 @@ Once the matching archives are cached, `omarchy kids plugin add grove` and `omar
 
 ## Local verification
 
-Run `./test/kids` on Omarchy for game rules, reward contract and module-staging tests alongside the existing Kids regressions. `node --test test/number-grove/engine.test.cjs` runs the standalone rules tests. Package tests exercise all 32 combinations of optional modules and ensure Grove alone does not load the time or school backend.
+Run `./test/kids` on Omarchy for game rules, reward contract and module-staging tests alongside the existing Kids regressions. `node --test test/number-grove/engine.test.cjs` runs the standalone rules tests. Package tests exercise all 64 combinations of optional modules and ensure Grove alone does not load the time or school backend.
 
 The actual reusable interface can also be checked locally with PySide6 Essentials:
 

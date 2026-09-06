@@ -59,5 +59,10 @@
     "lib/parent/omarchy_kids/number_grove",
     "shell/plugins/number-grove",
     "default/number-grove/omarchy-number-grove.desktop"
+  ],
+  "typing": [
+    "bin/omarchy-kids-typing",
+    "shell/plugins/paw-post",
+    "default/paw-post/omarchy-paw-post.desktop"
   ]
 }

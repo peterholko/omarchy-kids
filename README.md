@@ -10,8 +10,9 @@ Selectable parental-control and learning modules for Omarchy.
 | Screen Time and Math | `omarchy-kids-time` | Daily budgets, bedtime, time grants and arithmetic practice. |
 | School / Free Time | `omarchy-kids-school` | School schedule, app list, desktop restrictions and password-protected free time. |
 | Number Grove | `omarchy-kids-grove` | Original arithmetic garden game with grades 1–6, calm/adventure play and optional screen-time rewards. |
+| Paw Post Typing | `omarchy-kids-typing` | Cute animal mail-delivery game: home row, everyday words, short messages, accuracy and typing speed. |
 
-The five optional modules can be installed and removed individually. School mode works without screen time. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
+The six optional modules can be installed and removed individually. School mode works without screen time. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
 
 The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` shell plugins are reused. There is one browser profile. Grades 5 and 6 use multiplication and division tables exclusively; younger grades practice small arithmetic facts. Selecting free time always requires the parent password, and the password field shows “Checking password…” while authentication runs.
 
@@ -34,6 +35,26 @@ omarchy kids grove
 With a current package cache, you can also use `omarchy kids plugin add grove`. Launch **Number Grove** from the application menu or with `omarchy kids grove`; remove it with `omarchy kids plugin remove grove`. It is ready after installation and has no separate enable step. Arrow keys or WASD move, Space/Enter collects, and P/Escape pauses. Switching away pauses the game until you resume.
 
 See the [game architecture and local checks](docs/number-grove.md). The screenshot is a local Qt component render; a new Linux package release and ISO have not been built for this addition.
+
+## Paw Post typing game
+
+A cozy typing adventure with Clover the fox, Pip the rabbit and Mochi the kitten. Type words and short messages to fly their mail across the clouds. Start with **Home row**, practise **Word trails**, or try **Story mail** for capitals, spaces and punctuation.
+
+![Paw Post typing game with illustrated animal friends and choices of practice and pace](docs/images/paw-post.png)
+
+**Cozy route** has ten deliveries and no countdown. **90-second dash** offers a short challenge. Mistakes stay pink until corrected with Backspace, the next-key guide helps with tricky letters, and each round shows accuracy, words per minute and a delivery badge. Escape pauses; switching away pauses automatically. Reduced motion is available.
+
+Install and launch from the updated `omarchy-kids` checkout on the laptop:
+
+```bash
+./packaging/build
+./packaging/install ./build-output --user CHILD_USERNAME typing
+omarchy kids typing
+```
+
+With a matching package cache, `omarchy kids plugin add typing` also installs it. The application is ready as soon as it is installed and can be removed with `omarchy kids plugin remove typing`. It depends only on Kids core, works offline, and follows School Mode's app list when that module is installed. Round statistics stay in memory; it does not record typing outside the game or award screen time.
+
+The preview comes from the real Qt Quick component running locally. See [Paw Post architecture, artwork and local checks](docs/paw-post.md). Linux desktop integration and a new package/ISO build remain for manual validation.
 
 ## Demo highlights
 
@@ -59,7 +80,7 @@ A full desktop view followed by short clips from the recorded demo. The GIFs are
 
 ## Install on an existing Omarchy laptop
 
-A parent can convert a clean **Omarchy 4** installation without reinstalling the OS. Use the laptop’s existing regular account as the kid account. The installer keeps its login password, home and desktop configuration, asks for a separate parent password, and installs all six modules. The parent password authorizes administration and also unlocks the login and lock screens. On an encrypted laptop it is added as another disk-unlock key; existing keys are kept. An unencrypted disk stays unencrypted.
+A parent can convert a clean **Omarchy 4** installation without reinstalling the OS. Use the laptop’s existing regular account as the kid account. The installer keeps its login password, home and desktop configuration, asks for a separate parent password, and installs all seven modules. The parent password authorizes administration and also unlocks the login and lock screens. On an encrypted laptop it is added as another disk-unlock key; existing keys are kept. An unencrypted disk stays unencrypted.
 
 In your `omarchy-kids` checkout on the Omarchy laptop, run these commands one at a time as the regular signed-in user:
 
@@ -81,11 +102,11 @@ On an already configured kids laptop, install every module with:
 
 For a smaller installation, list the optional modules instead of `--all`, for example `dns school`. Add `--convert` as well when converting a normal installation. Core is always installed, and existing module selections and enrollments are preserved. Installing code alone does not start logging or impose an optional restriction; the parent enables and configures restriction modules through **Setup → Kids Modules**.
 
-Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All eight package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. ARM runtime validation remains outstanding.
+Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All nine package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. ARM runtime validation remains outstanding.
 
 ## Install a fresh laptop with the Kids ISO
 
-The dedicated Kids ISO carries the same eight packages, including all six modules, in its offline mirror. Its setup creates a kid account and asks for separate kid and parent passwords. An encrypted installation accepts either password at disk unlock. Account setup uses the same command as conversion, and the target retains the complete package cache for future module changes.
+The dedicated Kids ISO carries the same nine packages, including all seven modules, in its offline mirror. Its setup creates a kid account and asks for separate kid and parent passwords. An encrypted installation accepts either password at disk unlock. Account setup uses the same command as conversion, and the target retains the complete package cache for future module changes.
 
 The ISO build is independent of upstream accepting the child-profile PR. Build and validation instructions are in [the deployment guide](docs/kids-deployment.md).
 
@@ -139,7 +160,7 @@ git pull --ff-only
 
 A successful build replaces the previous package output. The installer verifies the complete release’s checksums and updates the compatible base pair, core and currently installed optional modules together. Standard `omarchy update` continues to update system packages; it does not fetch a new kids release from this repository. Switching to the upstream stable/edge packages is a separate migration and must not be mixed with these module packages.
 
-The command family is `omarchy kids`, and the six module packages use the `omarchy-kids-` prefix. Upgrading a previous installation replaces its packages together and migrates the login rules, services and browser-policy filenames. Existing settings and history are preserved. Conflicting destination files or commands stop the upgrade for review; originals are backed up under `/var/lib/omarchy/kids-namespace-backup`.
+The command family is `omarchy kids`, and the seven module packages use the `omarchy-kids-` prefix. Upgrading a previous installation replaces its packages together and migrates the login rules, services and browser-policy filenames. Existing settings and history are preserved. Conflicting destination files or commands stop the upgrade for review; originals are backed up under `/var/lib/omarchy/kids-namespace-backup`.
 
 The [namespace inventory](docs/kids-namespace-rename.md) lists every renamed source file and the compatibility references retained for upgrades and external plugins.
 
@@ -150,6 +171,6 @@ The [namespace inventory](docs/kids-namespace-rename.md) lists every renamed sou
 ./test/cli
 ```
 
-The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 32 combinations of optional package contents. Builds and tests are run manually on local machines. Package-upgrade and conversion integration checks use a disposable Linux container; full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
+The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 64 combinations of optional package contents. Builds and tests are run manually on local machines. Package-upgrade and conversion integration checks use a disposable Linux container; full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
 
 See [module architecture and migration](docs/kids-modules.md), [the original design](plans/kids-modules.md), and [upstream Omarchy](https://github.com/basecamp/omarchy). Existing source history and vendored MIT licenses are retained.

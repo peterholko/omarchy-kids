@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build one compatible base/settings pair and six independently installable modules.
+# Build one compatible base/settings pair and seven independently installable modules.
 set -euo pipefail
 
 source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)

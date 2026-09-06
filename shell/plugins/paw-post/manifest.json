@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "omarchy.paw-post",
+  "name": "Paw Post",
+  "version": "1.0.0",
+  "author": "Omarchy Kids",
+  "description": "A cozy typing adventure delivering mail to animal friends",
+  "kinds": ["panel"],
+  "entryPoints": {"panel": "PawPost.qml"}
+}

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Paw Post
+Comment=A cozy typing adventure delivering mail to animal friends
+TryExec=omarchy-kids-typing
+Exec=omarchy-kids-typing
+Terminal=false
+Type=Application
+Icon=applications-education
+Categories=Education;Game;
+StartupNotify=false
