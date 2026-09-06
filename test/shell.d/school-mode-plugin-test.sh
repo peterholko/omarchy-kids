@@ -123,7 +123,7 @@ NODE
 pass "the mode, the allowlist, the bar swap, and the school browser behave"
 
 [[ -f $plugin/SchoolSettingsWindow.qml ]] || fail "the focused school-hours settings window is installed"
-grep -q 'tooltipText: "School hours"' "$plugin/Panel.qml" \
+grep -q 'tooltipText: "School settings"' "$plugin/Panel.qml" \
   && grep -q '\[root.clientPath, "--password-stdin", "config", "get"\]' "$plugin/Panel.qml" \
   || fail "the School Mode gear checks the parent password before opening settings"
 grep -q 'Schedule.merge(root.service ? root.service.blockedPeriods : \[\], root.localPeriods)' "$plugin/SchoolSettingsWindow.qml" \
@@ -240,6 +240,82 @@ panel.handleSettingsReply(JSON.stringify({ok: true}))
 assert(!panel.checkingParent && !panel.askingParent && settingsPassword === 'letmein', 'successful school-hours authentication opens the editor and ends checking')
 assertEqual(passwordField.text + settingsAuthProc.pendingPassword, '', 'the prompt clears the school-hours password after authentication')
 JS
+
+run_node_test <<'JS'
+const fs = require('node:fs')
+const vm = require('node:vm')
+const source = fs.readFileSync(path.join(root, 'shell/plugins/school-mode/SchoolSettingsWindow.qml'), 'utf8')
+const Allowlist = require(path.join(root, 'shell/plugins/school-mode/Allowlist.js'))
+const Schedule = require(path.join(root, 'shell/plugins/school-mode/SchoolSchedule.js'))
+const periods = [{label: 'Class', days: ['mon'], start: '09:00', end: '15:00', enabled: true, mode: 'free'}]
+const settings = {
+  service: {userName: 'kid', allowedDesktopIds: ['stale'], blockedPeriods: periods},
+  password: '', localApps: [], localPeriods: [], pendingPatch: null, activePatch: null,
+  pawPostInstalled: true, clientPath: '/omarchy/bin/omarchy-kids-school-client',
+  okColor: 'green', errColor: 'red', fadeText() { return 'gray' }
+}
+const patchProc = {running: false, launched: false, command: [], pendingPassword: ''}
+const later = []
+const win = {visible: false}
+const context = vm.createContext({root: settings, patchProc, win, Allowlist, Schedule, Qt: {callLater(fn) { later.push(fn) }}})
+Object.defineProperty(settings, 'savingApps', {get() {
+  return [settings.activePatch, settings.pendingPatch].some(patch => patch && patch.school_apps !== undefined)
+}})
+for (const name of ['show', 'setPawPostAllowed', 'patch', 'sendPendingPatch', 'handlePatchReply', 'writePeriods']) {
+  const match = source.match(new RegExp('  function ' + name + '\\([^)]*\\) \\{[\\s\\S]*?\\n  \\}'))
+  assert(match, name)
+  vm.runInContext(match[0], context)
+  settings[name] = context[name]
+}
+const config = {active_profile: 'default', users: {kid: {profile: 'shared'}}, profiles: {
+  default: {school_apps: ['wrong-profile'], blocked_periods: []},
+  shared: {school_apps: ['chromium', 'obsidian'], blocked_periods: periods}
+}}
+const apps = () => Array.from(settings.localApps)
+const request = () => JSON.parse(patchProc.command[4])
+function reply(payload) {
+  patchProc.running = false
+  settings.handlePatchReply(JSON.stringify(payload))
+  while (later.length) later.shift()()
+}
+settings.show('parent secret', config)
+assertDeepEqual(apps(), ['chromium', 'obsidian'], 'opening uses the authenticated shared profile, not a stale public status')
+settings.setPawPostAllowed(true)
+assert(settings.savingApps && settings.note === 'Saving…', 'app changes expose saving state')
+assertDeepEqual(request(), {school_apps: ['chromium', 'obsidian', 'omarchy-paw-post']}, 'allowing typing preserves other apps and sends no schedule change')
+assertEqual(patchProc.pendingPassword, 'parent secret', 'the parent credential is ready for stdin')
+assert(!patchProc.command.join(' ').includes('parent secret'), 'the credential never goes in command arguments')
+assert(!Allowlist.contains(apps(), 'omarchy-paw-post'), 'access is not presented as saved before acknowledgement')
+settings.setPawPostAllowed(true)
+reply({ok: false, error: 'bad_password'})
+assert(!settings.savingApps && !Allowlist.contains(apps(), 'omarchy-paw-post') && settings.noteColor === 'red', 'a refusal leaves access off and allows retry')
+assertEqual(patchProc.pendingPassword, '', 'the request clears its credential after failure')
+settings.setPawPostAllowed(true)
+reply({ok: true})
+assert(Allowlist.contains(apps(), 'omarchy-paw-post.desktop'), 'a successful choice opens the existing school menu and game allowlist gate')
+assertDeepEqual(Allowlist.filterRows([{entry: {id: 'omarchy-paw-post.desktop'}}, {entry: {id: 'steam'}}], apps()).map(row => row.entry.id), ['omarchy-paw-post.desktop'], 'only allowed installed apps reach the school launcher')
+settings.setPawPostAllowed(false)
+reply({ok: true})
+assertDeepEqual(apps(), ['chromium', 'obsidian'], 'revocation removes only Paw Post')
+settings.pawPostInstalled = false
+settings.setPawPostAllowed(true)
+assert(!patchProc.running, 'an absent typing package cannot be newly allowed by this toggle')
+settings.pawPostInstalled = true
+settings.writePeriods(periods)
+settings.setPawPostAllowed(true)
+const newerPeriods = [{...periods[0], start: '09:30'}]
+settings.writePeriods(newerPeriods)
+assert(settings.pendingPatch.school_apps && settings.pendingPatch.blocked_periods, 'hours and app changes waiting behind a save are both retained')
+reply({ok: true})
+require('node:assert/strict').deepEqual(request(), {school_apps: ['chromium', 'obsidian', 'omarchy-paw-post'], blocked_periods: newerPeriods}, 'the next request carries both queued choices')
+reply({ok: true})
+assert(settings.pendingPatch === null && settings.activePatch === null && settings.note === 'Saved.', 'the queue drains after confirmed saves')
+settings.pawPostInstalled = false
+settings.setPawPostAllowed(false)
+reply({ok: true})
+assert(!Allowlist.contains(apps(), 'omarchy-paw-post'), 'a parent can revoke a previously allowed game after uninstalling it')
+JS
+pass "Paw Post school access is optional, authenticated, and saved without losing other settings"
 
 # The shortcut layer against a mocked hyprctl: what it unbinds and rebinds,
 # and that exit reloads the real configuration. The helpers lock with flock,

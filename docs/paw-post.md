@@ -21,7 +21,7 @@ The timer starts with the first printable key. Escape, loss of window focus, and
 | `assets/cloud-post.png` | Bundled illustration of the animal destinations. |
 | `PawPost.qml` | Small Quickshell window adapter and optional School Mode allowlist integration. |
 
-The command is `omarchy kids typing`, the plugin ID is `omarchy.paw-post`, and the desktop ID is `omarchy-paw-post.desktop`. The package exclusively owns its global desktop entry; no child-directory copy is created. Parents can add `omarchy-paw-post` to School Mode's app list to allow the game during school. The normal application window remains subject to the existing lock and screen-time controls.
+The command is `omarchy kids typing`, the plugin ID is `omarchy.paw-post`, and the desktop ID is `omarchy-paw-post.desktop`. The package exclusively owns its global desktop entry; no child-directory copy is created. To allow the game during school, open the School Mode pill, choose the **School settings** gear, enter the parent password, and turn on **Paw Post** under **School apps**. It is optional and starts off unless already allowed. The switch is available after installing Paw Post, and turning it off removes only this game's school access. Other allowed apps and school hours are retained. The command-line equivalent is `omarchy kids school apps add omarchy-paw-post --user CHILD_USERNAME` (use `remove` to revoke access). The normal application window remains subject to the existing lock and screen-time controls.
 
 The game accepts keyboard events only inside its focused window. It does not inspect the clipboard, monitor global typing, create accounts, use network services or award time. Paste and held-key autorepeat do not complete prompts. Statistics exist only for the current round; closing the app discards them. Starting another route deliberately starts fresh.
 
@@ -38,6 +38,8 @@ Run `node --test test/paw-post/engine.test.cjs` for the deterministic typing rul
 The September 2026 local check passed 46 Python tests, nine typing-rule groups, the runnable Kids shell checks, command metadata validation, and the real Qt interaction harness. Linux-specific namespace and shortcut checks were skipped by the suite. The package tests covered all 64 optional combinations.
 
 Component checks on macOS do not prove Quickshell IPC, Hyprland behavior, actual package installation or ISO boot. Those integration checks remain for an Omarchy laptop. No hosted workflow or ISO test is needed for the local typing-game checks.
+
+The School Mode option was checked with the focused school shell suites and a local Qt render of the actual settings window. The local render used substitutes for Quickshell's desktop-entry and process APIs; mouse and keyboard selection, saving feedback, rejected passwords, the uninstalled-app state and compact layout were checked. Regression coverage includes preserving other apps, shared profiles, and school-hour edits queued alongside an app choice.
 
 ## Artwork
 

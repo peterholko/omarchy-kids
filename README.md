@@ -54,6 +54,8 @@ omarchy kids typing
 
 With a matching package cache, `omarchy kids plugin add typing` also installs it. The application is ready as soon as it is installed and can be removed with `omarchy kids plugin remove typing`. It depends only on Kids core, works offline, and follows School Mode's app list when that module is installed. Round statistics stay in memory; it does not record typing outside the game or award screen time.
 
+To make it available during school, open the School Mode pill → **School settings** gear, enter the parent password, and turn on **Paw Post** under **School apps**. This optional choice starts off unless you have already allowed the game. Turning it off keeps Paw Post available in Free Time.
+
 The preview comes from the real Qt Quick component running locally. See [Paw Post architecture, artwork and local checks](docs/paw-post.md). Linux desktop integration and a new package/ISO build remain for manual validation.
 
 ## Demo highlights

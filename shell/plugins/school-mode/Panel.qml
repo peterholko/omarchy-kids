@@ -9,7 +9,7 @@ import "ModeState.js" as ModeState
 // School mode is the kid's to start any time; choosing Free Time is always the
 // parent's, so the panel asks for the parent password before sending the
 // switch to the daemon over stdin. The gear uses the same check before
-// opening the focused school-hours editor.
+// opening school settings for hours and optional apps.
 Panel {
   id: root
   moduleName: "omarchy.school-mode.mode"
@@ -92,7 +92,7 @@ Panel {
     root.pendingAction = "settings"
     root.pendingMode = ""
     root.askingParent = true
-    root.note = "Enter the parent password to edit school hours."
+    root.note = "Enter the parent password to edit school hours and apps."
     root.noteIsError = false
     passwordField.text = ""
     Qt.callLater(function() { passwordField.forceActiveFocus() })
@@ -155,7 +155,7 @@ Panel {
     if (payload && payload.ok === true) {
       root.askingParent = false
       root.pendingAction = ""
-      schoolSettings.show(password)
+      schoolSettings.show(password, payload.config)
       root.close()
       return
     }
@@ -271,7 +271,7 @@ Panel {
           PanelActionButton {
             id: settingsButton
             iconText: root.iconGear
-            tooltipText: "School hours"
+            tooltipText: "School settings"
             foreground: root.foreground
             size: Style.spacing.controlHeight
             focusable: true

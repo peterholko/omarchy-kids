@@ -5,9 +5,10 @@ import Quickshell.Io
 import qs.Ui
 import qs.Commons
 import "SchoolSchedule.js" as Schedule
+import "Allowlist.js" as Allowlist
 
-// The School Mode schedule editor. It opens only after the parent password
-// has been checked in the panel, and saves only the school module's periods.
+// Parent-authenticated school hours and optional apps. Settings stay in the
+// school module; installing an app does not grant school access by itself.
 Item {
   id: root
 
@@ -17,7 +18,14 @@ Item {
   property string note: ""
   property color noteColor: Color.foreground
   property var localPeriods: []
+  property var localApps: []
   property var pendingPatch: null
+  property var activePatch: null
+  readonly property bool savingApps: (activePatch !== null && activePatch.school_apps !== undefined)
+    || (pendingPatch !== null && pendingPatch.school_apps !== undefined)
+  readonly property bool pawPostInstalled: (DesktopEntries.applications.values || []).some(function(entry) {
+    return entry && Allowlist.normalizeDesktopId(entry.id) === "omarchy-paw-post"
+  })
   readonly property int totalPeriodLimit: 8
   readonly property var dayKeys: Schedule.DAYS
   readonly property var dayLabels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -38,10 +46,14 @@ Item {
                    foreground.b + (background.b - foreground.b) * amount, 1)
   }
 
-  function show(passwordValue) {
+  function show(passwordValue, config) {
     root.password = String(passwordValue || "")
     root.note = ""
-    root.localPeriods = Schedule.schoolPeriods(root.service ? root.service.blockedPeriods : [])
+    var user = root.service ? root.service.userName : ""
+    var key = config && config.users && config.users[user] ? config.users[user].profile : ""
+    var profile = config && config.profiles ? config.profiles[key || config.active_profile] : null
+    root.localPeriods = Schedule.schoolPeriods(profile ? profile.blocked_periods : (root.service ? root.service.blockedPeriods : []))
+    root.localApps = Allowlist.normalizeIds(profile ? profile.school_apps : (root.service ? root.service.allowedDesktopIds : []))
     win.visible = true
   }
 
@@ -98,6 +110,13 @@ Item {
     root.writePeriods(Schedule.toggleDay(root.localPeriods, index, day))
   }
 
+  function setPawPostAllowed(allowed) {
+    if (root.password === "" || root.savingApps || (allowed && !root.pawPostInstalled)) return
+    var apps = Allowlist.normalizeIds(root.localApps).filter(function(id) { return id !== "omarchy-paw-post" })
+    if (allowed) apps.push("omarchy-paw-post")
+    root.patch({ "school_apps": Allowlist.normalizeIds(apps) })
+  }
+
   function saveTime(index, key, value, field) {
     var text = String(value || "").trim()
     if (Schedule.validTime(text)) {
@@ -111,8 +130,11 @@ Item {
 
   function patch(obj) {
     // Day buttons are easy to click faster than a process can finish. Keep
-    // the newest complete array queued so no visible edit is silently lost.
-    root.pendingPatch = obj
+    // the newest array for each setting, so an hours edit cannot discard an
+    // app choice waiting for the same process.
+    root.pendingPatch = Object.assign({}, root.pendingPatch || {}, obj)
+    root.note = "Saving…"
+    root.noteColor = root.fadeText(0.5)
     root.sendPendingPatch()
   }
 
@@ -120,49 +142,51 @@ Item {
     if (patchProc.running || root.pendingPatch === null) return
     var next = root.pendingPatch
     root.pendingPatch = null
+    root.activePatch = next
     patchProc.launched = false
+    patchProc.pendingPassword = root.password
     patchProc.command = [root.clientPath, "--password-stdin", "config", "patch", JSON.stringify(next)]
     patchProc.running = true
+  }
+
+  function handlePatchReply(rawText) {
+    var payload
+    try { payload = JSON.parse(rawText) } catch (error) { payload = null }
+    patchProc.pendingPassword = ""
+    if (payload && payload.ok === true) {
+      if (root.activePatch && root.activePatch.school_apps !== undefined)
+        root.localApps = Allowlist.normalizeIds(root.activePatch.school_apps)
+      root.note = root.pendingPatch !== null ? "Saving…" : "Saved."
+      root.noteColor = root.okColor
+    } else {
+      root.pendingPatch = null
+      root.noteColor = root.errColor
+      if (payload && payload.error === "password_locked_out")
+        root.note = "Too many tries. Close this window and unlock it again later."
+      else if (payload && payload.error === "bad_password")
+        root.note = "The parent password is no longer accepted. Close this window and unlock it again."
+      else
+        root.note = "Could not save school settings. Try again."
+    }
+    root.activePatch = null
+    Qt.callLater(root.sendPendingPatch)
   }
 
   Process {
     id: patchProc
     property bool launched: false
+    property string pendingPassword: ""
     stdinEnabled: true
-    onStarted: { launched = true; write(root.password + "\n") }
-    stdout: StdioCollector {
-      onStreamFinished: {
-        var payload
-        try { payload = JSON.parse(text) } catch (error) { payload = null }
-        if (payload && payload.ok === true) {
-          root.note = "Saved."
-          root.noteColor = root.okColor
-        } else if (payload && payload.error === "password_locked_out") {
-          root.note = "Too many tries. Close this window and unlock it again later."
-          root.noteColor = root.errColor
-        } else if (payload && payload.error === "bad_password") {
-          root.note = "The parent password is no longer accepted. Close this window and unlock it again."
-          root.noteColor = root.errColor
-        } else {
-          root.note = "Could not save the school hours."
-          root.noteColor = root.errColor
-        }
-      }
-    }
-    onRunningChanged: if (!running) {
-      if (!launched) {
-        root.note = "Could not save the school hours."
-        root.noteColor = root.errColor
-      }
-      launched = false
-      Qt.callLater(root.sendPendingPatch)
-    }
+    onStarted: { launched = true; write(pendingPassword + "\n") }
+    stdout: StdioCollector { id: patchOut; waitForEnd: true }
+    onExited: root.handlePatchReply(patchOut.text)
+    onRunningChanged: if (!running && !launched) root.handlePatchReply("")
   }
 
   FloatingWindow {
     id: win
     visible: false
-    title: "School hours"
+    title: "School settings"
     color: Color.background
     implicitWidth: 520
     implicitHeight: 660
@@ -192,6 +216,26 @@ Item {
           id: content
           width: scrollArea.availableWidth
           spacing: Style.space(14)
+
+          PanelSectionHeader {
+            text: "SCHOOL APPS"
+            foreground: Color.foreground
+          }
+
+          Toggle {
+            objectName: "pawPostSchoolToggle"
+            width: parent.width
+            label: "Paw Post"
+            description: root.savingApps ? "Saving…" : (root.pawPostInstalled
+              ? "Allow typing practice during School Mode."
+              : "Install Paw Post to make typing practice available.")
+            checked: Allowlist.contains(root.localApps, "omarchy-paw-post")
+            enabled: root.password !== "" && !root.savingApps && (root.pawPostInstalled || checked)
+            opacity: enabled || root.savingApps ? 1 : 0.6
+            onClicked: root.setPawPostAllowed(!checked)
+          }
+
+          PanelSeparator { width: parent.width }
 
           PanelSectionHeader {
             text: "SCHOOL HOURS"
