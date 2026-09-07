@@ -19,9 +19,9 @@ The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` she
 
 ## Pawberry Pet Hotel math game
 
-Make rooms cozy for Peaches the kitten, Biscuit the puppy, and Bluebell the bunny. Each checked step adds comfort to their stay. Choose two- or three-digit **addition**, **subtraction**, **multiplication**, or a mixed visit covering all three.
+Reveal a surprise pet by finishing a math problem! Checked steps prepare a bed, treat, and toy while the guest waits behind a mystery door. The correct final answer reveals and welcomes Peaches the kitten, Biscuit the puppy, or Bluebell the bunny with a little celebration. Finish three problems to see all three guests together. Choose two- or three-digit **addition**, **subtraction**, **multiplication**, or a mixed visit covering all three.
 
-![Pawberry Pet Hotel showing borrowing across zero beside Peaches the kitten and a log of checked intermediate steps](docs/images/pawberry.png)
+![Pawberry Pet Hotel revealing Peaches the kitten after every step of 300 minus 156 is checked](docs/images/pawberry.png)
 
 The final answer stays locked behind the working: column totals and carries for addition, regrouping (including across zeros) for subtraction, and aligned partial products plus their column sums for multiplication. Wrong values keep the current step open. Hints, the growing worksheet, and a scrollable work log help without a countdown or lost hearts.
 
@@ -29,11 +29,11 @@ From the updated checkout on the Omarchy laptop:
 
 ```bash
 ./packaging/build
-./packaging/install ./build-output --user CHILD_USERNAME pawberry
+./packaging/install ./build-output pawberry --user CHILD_USERNAME
 omarchy kids pawberry
 ```
 
-With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School settings** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. The game awards room decorations, with no screen-time credits.
+With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School settings** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. Rewards are the revealed pets and their cozy rooms for this visit, with no screen-time credits. **Motion: off** shows the same rewards immediately without animation.
 
 The preview is the actual Qt component rendered locally. See [how the steps, artwork and checks work](docs/pawberry.md); installed Omarchy integration remains for a laptop check.
 

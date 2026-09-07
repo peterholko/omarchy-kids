@@ -12,7 +12,6 @@ FocusScope {
   property var session: null
   property string answerInput: ""
   property bool showHint: false
-  property int celebration: 0
   readonly property var problem: session ? Session.current(session) : null
   readonly property var step: session ? Session.activeStep(session) : null
   readonly property bool working: session !== null && session.phase === "work"
@@ -23,7 +22,10 @@ FocusScope {
   signal quitRequested()
   focus: true
 
-  function reset() { session = null; answerInput = ""; showHint = false }
+  // A focus scope otherwise restores the last button, even after it is hidden.
+  Item { id: answerInputTarget; objectName: "answerInputTarget"; focus: true }
+  function focusAnswer() { answerInputTarget.forceActiveFocus() }
+  function reset() { session = null; answerInput = ""; showHint = false; focusAnswer() }
   function start() {
     var problems = []
     var kinds = operation === "mixed" ? ["add", "subtract", "multiply"] : [operation, operation, operation]
@@ -34,17 +36,17 @@ FocusScope {
       problems.push(candidate)
     }
     session = Session.create(problems); answerInput = ""; showHint = false
-    forceActiveFocus()
+    focusAnswer()
   }
   function check() {
     if (!working || paused) return
     var next = Session.submit(session, answerInput)
-    if (next.stepIndex > session.stepIndex) { answerInput = ""; showHint = false; celebration++ }
+    if (next.stepIndex > session.stepIndex) { answerInput = ""; showHint = false }
     session = next
-    forceActiveFocus()
+    focusAnswer()
   }
-  function nextRoom() { session = Session.advance(session); answerInput = ""; showHint = false; forceActiveFocus() }
-  function setPaused(value) { if (session) session = Session.pause(session, value); if (!value) forceActiveFocus() }
+  function nextRoom() { session = Session.advance(session); answerInput = ""; showHint = false; focusAnswer() }
+  function setPaused(value) { if (session) session = Session.pause(session, value); if (!value) focusAnswer() }
   onWindowActiveChanged: if (!windowActive && session && session.phase !== "results") setPaused(true)
   Keys.onPressed: function(event) {
     if (event.isAutoRepeat) { event.accepted = true; return }
@@ -69,7 +71,7 @@ FocusScope {
     Text { x: 37; y: 25; text: "♥"; color: "#AD6581"; font.pixelSize: 38 }
     Text { x: 87; y: 26; text: "Pawberry Pet Hotel"; color: "#554252"; font.pixelSize: 25; font.bold: true }
     Text { x: 89; y: 58; text: "A LITTLE CARE. A LITTLE MATH. A LOT OF PAWS."; color: "#927888"; font.pixelSize: 10; font.letterSpacing: 1.4 }
-    HotelButton { x: 790; y: 28; width: 158; height: 40; text: root.reducedMotion ? "Motion: off" : "Motion: on"; onClicked: root.reducedMotion = !root.reducedMotion }
+    HotelButton { objectName: "motionButton"; x: 790; y: 28; width: 158; height: 40; text: root.reducedMotion ? "Motion: off" : "Motion: on"; onClicked: { root.reducedMotion = !root.reducedMotion; root.focusAnswer() } }
     HotelButton { objectName: "pauseButton"; x: 958; y: 28; width: 80; height: 40; visible: root.session !== null && root.session.phase !== "results"; text: "Pause"; onClicked: root.setPaused(true) }
     HotelButton { x: 1048; y: 28; width: 38; height: 40; text: "×"; onClicked: root.quitRequested() }
     Rectangle { x: 36; y: 91; width: 1048; height: 1; color: "#E5DADF" }
@@ -77,7 +79,7 @@ FocusScope {
     Item {
       anchors.fill: parent; visible: root.session === null
       Text { x: 40; y: 140; text: "Tiny paws.\nBig brainwaves."; color: "#594355"; font.pixelSize: 48; font.bold: true; lineHeight: 1.08 }
-      Text { x: 43; y: 268; width: 500; text: "Welcome three little guests. Show your math work to make their rooms cozy, one checked step at a time."; color: "#806C7C"; font.pixelSize: 18; wrapMode: Text.WordWrap; lineHeight: 1.3 }
+      Text { x: 43; y: 268; width: 500; text: "Three surprise pets are waiting! Show your math work to prepare a cozy room, then finish the answer to reveal your guest."; color: "#806C7C"; font.pixelSize: 18; wrapMode: Text.WordWrap; lineHeight: 1.3 }
       Text { x: 43; y: 372; text: "1   PICK YOUR PRACTICE"; color: "#977288"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.6 }
       Row {
         x: 40; y: 401; spacing: 8
@@ -87,7 +89,7 @@ FocusScope {
             required property string modelData
             objectName: "operation-" + modelData
             width: 126; height: 46; text: root.operationNames[modelData]; selected: root.operation === modelData
-            font.pixelSize: 14; onClicked: root.operation = modelData
+            font.pixelSize: 14; onClicked: { root.operation = modelData; root.focusAnswer() }
           }
         }
       }
@@ -102,7 +104,7 @@ FocusScope {
             width: 260; height: 48
             text: modelData === 2 ? "Two digits   ·   " + (root.operation === "subtract" ? "68 − 24" : root.operation === "multiply" ? "24 × 38" : "24 + 38")
               : "Three digits   ·   " + (root.operation === "subtract" ? "247 − 185" : root.operation === "multiply" ? "247 × 185" : "247 + 185")
-            selected: root.digitCount === modelData; onClicked: root.digitCount = modelData
+            selected: root.digitCount === modelData; onClicked: { root.digitCount = modelData; root.focusAnswer() }
           }
         }
       }
@@ -110,20 +112,9 @@ FocusScope {
       Text { x: 43; y: 691; width: 520; text: "No countdown. No lost hearts.\nWe check your working before the final answer."; color: "#94798A"; font.pixelSize: 14; lineHeight: 1.4 }
       Rectangle {
         x: 611; y: 143; width: 470; height: 582; radius: 25; color: "#F1E4E9"
-        Text { x: 25; y: 27; text: "YOUR VERY IMPORTANT GUESTS"; color: "#916D83"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.4 }
-        Image { objectName: "menuPets"; x: 14; y: 89; width: 442; height: 337; source: "assets/pets.png"; fillMode: Image.PreserveAspectFit; mipmap: true }
-        Row {
-          x: 21; y: 437; spacing: 9
-          Repeater {
-            model: root.petNames
-            delegate: Rectangle {
-              required property string modelData
-              width: 136; height: 51; radius: 15; color: "#FFF8F4"
-              Text { anchors.centerIn: parent; text: modelData; color: "#715169"; font.pixelSize: 16; font.bold: true }
-            }
-          }
-        }
-        Text { x: 32; y: 520; width: 406; text: "Cozy beds. Little treats.\nThree happy check-ins."; horizontalAlignment: Text.AlignHCenter; color: "#8D7083"; font.pixelSize: 16; lineHeight: 1.3 }
+        Text { x: 25; y: 27; text: "WHO WILL YOU WELCOME TODAY?"; color: "#916D83"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.4 }
+        PetRoom { objectName: "previewRoom"; x: 27; y: 82; width: 416; height: 365; reducedMotion: true }
+        Text { x: 32; y: 489; width: 406; text: "A bed, a treat, a toy…\nOne finished problem. One pet revealed!"; horizontalAlignment: Text.AlignHCenter; color: "#8D7083"; font.pixelSize: 16; lineHeight: 1.3 }
       }
     }
 
@@ -131,26 +122,26 @@ FocusScope {
       anchors.fill: parent; visible: root.working || root.roomComplete; enabled: !root.paused
       Rectangle {
         x: 36; y: 119; width: 656; height: 642; radius: 23; color: "#FFFDF9"; border.color: "#E9DDE0"
-        Text { x: 26; y: 20; text: root.problem ? "GUEST " + (root.session.problemIndex + 1) + " / 3  ·  " + root.operationNames[root.problem.operation].toUpperCase() : ""; color: "#967487"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.3 }
+        Text { x: 26; y: 20; text: root.session && root.problem ? "GUEST " + (root.session.problemIndex + 1) + " / 3  ·  " + root.operationNames[root.problem.operation].toUpperCase() : ""; color: "#967487"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.3 }
         Text { x: 26; y: 46; text: root.problem ? root.problem.a + " " + root.problem.symbol + " " + root.problem.b : ""; color: "#594355"; font.pixelSize: 32; font.bold: true }
         Text { x: 336; y: 54; width: 292; text: "Your checked column work"; horizontalAlignment: Text.AlignRight; color: "#9B8691"; font.pixelSize: 13 }
         WorkBoard { objectName: "workBoard"; x: 22; y: 99; width: 605; height: 294; problem: root.problem; board: root.session ? root.session.board : null; step: root.step }
         Rectangle {
           x: 16; y: 413; width: 624; height: 212; radius: 17; color: root.roomComplete ? "#EDF3E8" : "#FAF0F2"
-          Text { x: 18; y: 13; text: root.roomComplete ? "ONE COZY ROOM, ALL WORK CHECKED" : root.step ? "STEP " + (root.session.stepIndex + 1) + " / " + root.problem.steps.length : ""; color: "#967487"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 1 }
-          Text { objectName: "stepTitle"; x: 18; y: 35; width: 588; text: root.step ? root.step.title : "A lovely stay for " + (root.session ? root.petNames[root.session.problemIndex] : "") + "."; color: "#644858"; font.pixelSize: 21; font.bold: true; elide: Text.ElideRight }
-          Text { objectName: "stepExpression"; x: 18; y: 66; width: 588; text: root.step ? root.step.expression : "You can review every checked step in your work log."; color: "#735668"; font.pixelSize: 19; elide: Text.ElideRight }
+          Text { x: 18; y: 13; text: root.roomComplete ? "PET REVEALED! EVERY STEP CHECKED." : root.session && root.step && root.problem ? "STEP " + (root.session.stepIndex + 1) + " / " + root.problem.steps.length : ""; color: "#967487"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 1 }
+          Text { objectName: "stepTitle"; x: 18; y: 35; width: 588; text: root.step ? root.step.title : "You welcomed " + (root.session ? root.petNames[root.session.problemIndex] : "") + "!"; color: "#644858"; font.pixelSize: 21; font.bold: true; elide: Text.ElideRight }
+          Text { objectName: "stepExpression"; x: 18; y: 66; width: 588; text: root.step ? root.step.expression : "Your careful maths opened the door. Meet your guest!"; color: "#735668"; font.pixelSize: 19; elide: Text.ElideRight }
           Rectangle {
             objectName: "answerEntry"; x: 18; y: 103; width: 175; height: 49; radius: 11; visible: root.working
             color: "#FFFDFC"; border.width: 2; border.color: root.session && root.session.error ? "#BA6266" : "#A77B8E"
             Text { anchors.centerIn: parent; text: root.answerInput || "?"; color: root.answerInput ? "#594355" : "#BEA2B0"; font.pixelSize: 29; font.family: Qt.platform.os === "osx" ? "Menlo" : "monospace" }
-            MouseArea { anchors.fill: parent; onClicked: root.forceActiveFocus() }
+            MouseArea { anchors.fill: parent; onClicked: root.focusAnswer() }
             Accessible.role: Accessible.EditableText
             Accessible.name: "Answer for this step"
           }
-          HotelButton { objectName: "checkButton"; x: 204; y: 103; width: 215; height: 49; visible: root.working; primary: true; text: root.step && root.step.kind === "final" ? "Finish the room  ♥" : "Check step  ↵"; onClicked: root.check() }
-          HotelButton { objectName: "hintButton"; x: 430; y: 103; width: 175; height: 49; visible: root.working; text: root.showHint ? "Hide hint" : "A little hint"; onClicked: { root.showHint = !root.showHint; root.forceActiveFocus() } }
-          HotelButton { objectName: "nextButton"; x: 18; y: 104; width: 586; height: 49; visible: root.roomComplete; primary: true; text: root.session && root.session.rooms === 3 ? "See our happy guests  →" : "Welcome the next guest  →"; onClicked: root.nextRoom() }
+          HotelButton { objectName: "checkButton"; x: 204; y: 103; width: 215; height: 49; visible: root.working; primary: true; text: root.step && root.step.kind === "final" ? "Reveal my pet  ♥" : "Check step  ↵"; onClicked: root.check() }
+          HotelButton { objectName: "hintButton"; x: 430; y: 103; width: 175; height: 49; visible: root.working; text: root.showHint ? "Hide hint" : "A little hint"; onClicked: { root.showHint = !root.showHint; root.focusAnswer() } }
+          HotelButton { objectName: "nextButton"; x: 18; y: 104; width: 586; height: 49; visible: root.roomComplete; primary: true; text: root.session && root.session.rooms === 3 ? "See our happy guests  →" : "Prepare the next room  →"; onClicked: root.nextRoom() }
           Text {
             objectName: "stepFeedback"; x: 20; y: 163; width: 582; height: 45
             text: root.showHint && root.step ? root.step.hint : root.session && root.session.note ? root.session.note : "Type a number, then press Enter. H opens a hint."
@@ -162,11 +153,12 @@ FocusScope {
       PetRoom {
         objectName: "guestRoom"; x: 713; y: 119; width: 371; height: 337
         petIndex: root.session ? root.session.problemIndex : 0
-        progress: root.problem ? root.session.stepIndex / root.problem.steps.length : 0
-        celebration: root.celebration; reducedMotion: root.reducedMotion
+        progress: root.session && root.problem ? Math.min(1, root.session.stepIndex / (root.problem.steps.length - 1)) : 0
+        welcomed: root.roomComplete
+        reducedMotion: root.reducedMotion
       }
-      Rectangle { x: 728; y: 472; width: 340; height: 7; radius: 4; color: "#E8DDE1"; Rectangle { width: root.problem ? parent.width * root.session.stepIndex / root.problem.steps.length : 0; height: parent.height; radius: 4; color: "#AD788E" } }
-      Text { x: 728; y: 490; text: root.session ? root.session.ledger.length + (root.session.ledger.length === 1 ? " step checked for " : " steps checked for ") + root.petNames[root.session.problemIndex] : ""; color: "#8E7484"; font.pixelSize: 12 }
+      Rectangle { x: 728; y: 472; width: 340; height: 7; radius: 4; color: "#E8DDE1"; Rectangle { width: root.session && root.problem ? parent.width * root.session.stepIndex / root.problem.steps.length : 0; height: parent.height; radius: 4; color: "#AD788E" } }
+      Text { x: 728; y: 490; text: root.session ? root.session.ledger.length + " steps checked  ·  " + root.session.rooms + " / 3 pets welcomed" : ""; color: "#8E7484"; font.pixelSize: 12 }
       Rectangle {
         x: 713; y: 522; width: 371; height: 239; radius: 19; color: "#F2E9ED"
         Text { x: 18; y: 16; text: "YOUR WORK LOG"; color: "#907386"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.3 }
@@ -189,11 +181,11 @@ FocusScope {
 
     Item {
       anchors.fill: parent; visible: root.session !== null && root.session.phase === "results"
-      Text { x: 40; y: 135; width: 1040; text: "Three guests. Three cozy stays."; color: "#624658"; font.pixelSize: 37; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-      Text { x: 40; y: 194; width: 1040; text: "You showed every step. That’s thoughtful maths."; color: "#9A7B8E"; font.pixelSize: 18; horizontalAlignment: Text.AlignHCenter }
+      Text { x: 40; y: 135; width: 1040; text: "You welcomed all three pets!"; color: "#624658"; font.pixelSize: 37; font.bold: true; horizontalAlignment: Text.AlignHCenter }
+      Text { x: 40; y: 194; width: 1040; text: "Every finished problem brought a new friend to your hotel."; color: "#9A7B8E"; font.pixelSize: 18; horizontalAlignment: Text.AlignHCenter }
       Row {
         x: 55; y: 247; spacing: 22
-        Repeater { model: 3; delegate: PetRoom { required property int index; width: 322; height: 320; petIndex: index; progress: 1; reducedMotion: root.reducedMotion } }
+        Repeater { model: 3; delegate: PetRoom { required property int index; objectName: "welcomedPet-" + index; width: 322; height: 320; petIndex: index; progress: 1; welcomed: true; reducedMotion: root.reducedMotion } }
       }
       Text { x: 80; y: 603; width: 960; text: root.session ? root.session.checked + " steps checked  ·  " + root.session.mistakes + (root.session.mistakes === 1 ? " retry" : " retries") + "  ·  all three rooms ready" : ""; color: "#806379"; font.pixelSize: 19; horizontalAlignment: Text.AlignHCenter }
       HotelButton { objectName: "againButton"; x: 356; y: 665; width: 410; height: 54; primary: true; text: "Another lovely day at the hotel  →"; onClicked: root.reset() }
