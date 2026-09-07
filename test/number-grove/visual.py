@@ -26,6 +26,8 @@ def message(kind, context, text):
     print(text, file=sys.stderr)
 qInstallMessageHandler(message)
 app = QGuiApplication(sys.argv)
+# Exercise keyboard-focusable buttons on macOS too, matching the Linux desktop.
+app.styleHints().setTabFocusBehavior(Qt.TabFocusAllControls)
 view = QQuickView()
 view.setResizeMode(QQuickView.SizeRootObjectToView)
 view.setSource(QUrl.fromLocalFile(str(ROOT / 'shell/plugins/number-grove/GameView.qml')))
@@ -48,7 +50,7 @@ def capture(name):
     QTest.qWait(180)
     assert view.grabWindow().save(str(output / (name + '.png')))
 
-def click(name):
+def control(name):
     pending = [game]
     item = None
     while pending:
@@ -58,6 +60,12 @@ def click(name):
             break
         pending.extend(candidate.childItems())
     assert item is not None, name
+    return item
+
+def click(name, focused=False):
+    item = control(name)
+    if focused:
+        item.forceActiveFocus(Qt.TabFocusReason)
     point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2)).toPoint()
     QTest.mouseClick(view, Qt.LeftButton, Qt.NoModifier, point)
     QTest.qWait(30)
@@ -65,6 +73,13 @@ def click(name):
 def key(code):
     QTest.keyClick(view, code)
     QTest.qWait(15)
+
+def tab_to(name):
+    for _ in range(30):
+        if view.activeFocusItem() == control(name):
+            return
+        key(Qt.Key_Tab)
+    raise AssertionError('could not reach button with Tab: ' + name)
 
 def walk_to(value):
     s = state()
@@ -86,13 +101,50 @@ def walk_to(value):
                 seen.add(nxt); queue.append((nxt, path + [k]))
     raise AssertionError('seed unreachable')
 
+# A hidden Play/Next button must not consume collection keys after activation.
+# Exercise actual Tab/Space activation and clicks with a focused button.
+game.setProperty('calm', True)
+for collect_key in (Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter):
+    js('game.reset()')
+    tab_to('practiceButton')
+    key(Qt.Key_Space)
+    assert game.property('screen') == 'game'
+    assert state()['phase'] == 'play'
+    for count in range(1, 4):
+        question = state()['question']
+        walk_to(question['answer'])
+        key(collect_key)
+        assert game.property('screen') == 'game', 'collection returned to the menu'
+        assert state()['question'] == question, 'collection started a different question'
+        assert state()['correct'] == count, 'focused button swallowed collection'
+        assert state()['phase'] == 'feedback'
+        if count == 1:
+            click('continueButton', focused=True)
+        elif count == 2:
+            tab_to('continueButton')
+            key(Qt.Key_Space)
+            click('pauseButton', focused=True)
+            assert game.property('paused')
+            click('continueButton', focused=True)
+            assert not game.property('paused')
+    capture('keyboard-' + str(int(collect_key)))
+    click('newRoundButton', focused=True)
+    assert game.property('screen') == 'start'
+    click('practiceButton', focused=True)
+    walk_to(state()['question']['answer'])
+    key(collect_key)
+    assert state()['correct'] == 1, 'New round kept focus after starting again'
+    assert state()['phase'] == 'feedback'
+js('game.reset()')
+game.setProperty('calm', False)
+
 capture('start')
 click('grade1')
 assert game.property('grade') == 1
 capture('grade1')
 click('grade6')
 click('calmMode')
-click('practiceButton')
+click('practiceButton', focused=True)
 assert state()['phase'] == 'play'
 assert '×' in state()['question']['text'] or '÷' in state()['question']['text']
 capture('play')
@@ -159,7 +211,11 @@ game.setProperty('rewardGrade', 6)
 game.setProperty('rewardQuestions', 2)
 requests = []
 game.rewardRequest.connect(lambda token, kind, qid, value: requests.append((token, kind, qid, value)))
-click('earnButton')
+click('earnButton', focused=True)
+assert state()['phase'] == 'waiting'
+key(Qt.Key_Space)
+key(Qt.Key_Return)
+assert len(requests) == 1, 'focused Earn button restarted the reward request'
 assert state()['phase'] == 'waiting'
 token = requests[-1][0]
 reply = {'ok': True, 'level': 'grade6', 'questions_per_set': 2,
@@ -172,6 +228,9 @@ key(Qt.Key_Space)
 assert requests[-1][1:] == ('answer', 'test-question', 56)
 assert state()['phase'] == 'checking'
 snapshot = state()
+key(Qt.Key_Space)
+key(Qt.Key_Return)
+assert len(requests) == 2, 'collection was submitted more than once'
 QTest.qWait(1800)
 assert state() == snapshot
 capture('checking')
@@ -191,4 +250,4 @@ js(f'game.acceptReward({token}, {{ok: false, error: "daily_cap_reached"}})')
 assert state()['phase'] == 'error'
 capture('cap')
 assert not errors, '\n'.join(errors)
-print('PASS: real Qt Quick menu, grades, 10 correct facts, 3 misses, movement, pause/focus, resize, delayed rewards, stale replies and cap feedback')
+print('PASS: real Qt Quick button focus, Tab navigation, Space/Return/Enter collection, menu, grades, 10 correct facts, 3 misses, movement, pause/focus, resize, delayed rewards, stale replies and cap feedback')

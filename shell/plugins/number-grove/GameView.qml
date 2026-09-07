@@ -28,13 +28,21 @@ FocusScope {
   signal cancelRewards()
   signal quitRequested()
 
+  // Focusing a scope preserves its last button. Give gameplay its own target.
+  Item {
+    id: gameInput
+    objectName: "gameInput"
+    focus: true
+  }
+  function focusGame() { gameInput.forceActiveFocus() }
+
   function reset() {
     pendingRequest = -1
     requestSerial++
     cancelRewards()
     screen = "start"
     paused = false
-    forceActiveFocus()
+    focusGame()
   }
   function start(mode) {
     if (mode === "earn" && !rewardAvailable) return
@@ -44,7 +52,7 @@ FocusScope {
                             mode, mode === "earn" ? rewardQuestions : 10, Date.now())
     screen = "game"
     paused = false
-    forceActiveFocus()
+    focusGame()
     nextQuestion()
   }
   function request(kind, id, value) {
@@ -57,7 +65,7 @@ FocusScope {
     session = Engine.waiting(session)
     if (session.mode === "practice") session = Engine.board(session, Facts.question(session.grade))
     else request("next", "", 0)
-    forceActiveFocus()
+    focusGame()
   }
   function acceptReward(token, result) {
     if (token !== pendingRequest || screen !== "game") return
@@ -96,7 +104,7 @@ FocusScope {
   function togglePause() {
     if (screen !== "game") return
     paused = !paused
-    forceActiveFocus()
+    focusGame()
   }
   onWindowActiveChanged: if (!windowActive && screen === "game") paused = true
   onRewardAvailableChanged: {
@@ -145,6 +153,7 @@ FocusScope {
     Text { x: 88; y: 28; text: "Number Grove"; color: "#244B36"; font.pixelSize: 23; font.weight: Font.Bold }
     Text { x: 88; y: 56; text: "A LITTLE PRACTICE. A LOT OF GROWTH."; color: "#6E7D68"; font.pixelSize: 10; font.letterSpacing: 1.6 }
     GroveButton {
+      objectName: "pauseButton"
       x: 844; y: 28; width: 156; height: 42
       text: page.playing ? (root.paused ? "Resume" : "Pause  ·  P") : "Close"
       onClicked: page.playing ? root.togglePause() : root.quitRequested()
@@ -167,7 +176,7 @@ FocusScope {
               required property int index
               objectName: "grade" + (index + 1)
               width: 45; height: 44; text: String(index + 1); selected: root.grade === index + 1
-              onClicked: { root.grade = index + 1; root.forceActiveFocus() }
+              onClicked: { root.grade = index + 1; root.focusGame() }
             }
           }
         }
@@ -177,7 +186,7 @@ FocusScope {
         objectName: "calmMode"; width: 306; height: 38
         text: root.calm ? "Calm garden  ·  bugs rest" : "Adventure  ·  bugs wander"
         font.pixelSize: 14
-        onClicked: { root.calm = !root.calm; root.forceActiveFocus() }
+        onClicked: { root.calm = !root.calm; root.focusGame() }
       }
       GroveButton { objectName: "practiceButton"; width: 306; primary: true; text: "Play practice  →"; onClicked: root.start("practice") }
       GroveButton {
@@ -213,7 +222,7 @@ FocusScope {
         font.pixelSize: 16; lineHeight: 1.3; wrapMode: Text.WordWrap; color: "#61715D"
       }
       Text { width: 292; text: "ARROWS / WASD  ·  move\nSPACE / ENTER  ·  collect\nP / ESC  ·  pause"; font.pixelSize: 13; lineHeight: 1.6; color: "#698063"; font.weight: Font.Medium }
-      GroveButton { width: 176; height: 42; text: "New round"; onClicked: root.reset() }
+      GroveButton { objectName: "newRoundButton"; width: 176; height: 42; text: "New round"; onClicked: root.reset() }
     }
 
     Rectangle {
