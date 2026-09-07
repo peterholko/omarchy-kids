@@ -52,6 +52,8 @@ print(json.dumps(sorted(host.services)))
                     for module in optional:
                         self.assertEqual((dest / 'usr/bin' / ('omarchy-kids-' + module)).exists(), module in selected)
                     self.assertEqual((dest / 'usr/share/applications/omarchy-paw-post.desktop').exists(), 'typing' in selected)
+                    self.assertEqual((dest / 'usr/share/applications/omarchy-pawberry.desktop').exists(), 'pawberry' in selected)
+                    self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/pawberry/HotelView.qml').exists(), 'pawberry' in selected)
                     self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/paw-post/TypingView.qml').exists(), 'typing' in selected)
                     self.assertEqual((dest / 'usr/share/applications/omarchy-number-grove.desktop').exists(), 'grove' in selected)
                     self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/number-grove/GameView.qml').exists(), 'grove' in selected)
@@ -114,3 +116,13 @@ print(json.dumps(sorted(host.services)))
             run.assert_not_called()
             manager.remove('typing')
             self.assertEqual(run.call_args_list[0].args[0], ['omarchy-pkg-drop', 'omarchy-kids-typing'])
+
+    def test_pawberry_requires_only_core_and_removes_independently(self):
+        manager = Manager(ROOT)
+        self.assertEqual(manager.resolve(['pawberry']), ['core', 'pawberry'])
+        with patch.object(manager, 'installed', return_value=True), patch.object(manager, 'refresh_desktops'), patch('subprocess.run') as run:
+            with self.assertRaisesRegex(ValueError, 'ready when installed'):
+                manager.change('pawberry', True)
+            run.assert_not_called()
+            manager.remove('pawberry')
+            self.assertEqual(run.call_args_list[0].args[0], ['omarchy-pkg-drop', 'omarchy-kids-pawberry'])

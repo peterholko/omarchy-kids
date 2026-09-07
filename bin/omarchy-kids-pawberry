@@ -1,0 +1,13 @@
+#!/bin/bash
+# omarchy:summary=Play Pawberry Pet Hotel and show every step of long arithmetic
+
+set -euo pipefail
+if [[ ${1:-} == "--help" || ${1:-} == "-h" ]]; then
+  echo "Usage: omarchy kids pawberry"
+  echo "Type each intermediate value; Enter checks it, H offers a hint, and Escape pauses."
+elif (( $# )); then
+  echo "Usage: omarchy kids pawberry" >&2
+  exit 2
+else
+  omarchy-shell shell summon omarchy.pawberry
+fi

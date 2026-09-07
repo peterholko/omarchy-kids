@@ -64,5 +64,10 @@
     "bin/omarchy-kids-typing",
     "shell/plugins/paw-post",
     "default/paw-post/omarchy-paw-post.desktop"
+  ],
+  "pawberry": [
+    "bin/omarchy-kids-pawberry",
+    "shell/plugins/pawberry",
+    "default/pawberry/omarchy-pawberry.desktop"
   ]
 }

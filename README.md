@@ -11,10 +11,31 @@ Selectable parental-control and learning modules for Omarchy.
 | School / Free Time | `omarchy-kids-school` | School schedule, app list, desktop restrictions and password-protected free time. |
 | Number Grove | `omarchy-kids-grove` | Original arithmetic garden game with grades 1–6, calm/adventure play and optional screen-time rewards. |
 | Paw Post Typing | `omarchy-kids-typing` | Cute animal mail-delivery game: home row, everyday words, short messages, accuracy and typing speed. |
+| Pawberry Pet Hotel | `omarchy-kids-pawberry` | Care for cute pets by entering every intermediate step of two- and three-digit arithmetic. |
 
-The six optional modules can be installed and removed individually. School mode works without screen time. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
+The seven optional modules can be installed and removed individually. School mode works without screen time. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
 
 The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` shell plugins are reused. There is one browser profile. Grades 5 and 6 use multiplication and division tables exclusively; younger grades practice small arithmetic facts. Selecting free time always requires the parent password, and the password field shows “Checking password…” while authentication runs.
+
+## Pawberry Pet Hotel math game
+
+Make rooms cozy for Peaches the kitten, Biscuit the puppy, and Bluebell the bunny. Each checked step adds comfort to their stay. Choose two- or three-digit **addition**, **subtraction**, **multiplication**, or a mixed visit covering all three.
+
+![Pawberry Pet Hotel showing borrowing across zero beside Peaches the kitten and a log of checked intermediate steps](docs/images/pawberry.png)
+
+The final answer stays locked behind the working: column totals and carries for addition, regrouping (including across zeros) for subtraction, and aligned partial products plus their column sums for multiplication. Wrong values keep the current step open. Hints, the growing worksheet, and a scrollable work log help without a countdown or lost hearts.
+
+From the updated checkout on the Omarchy laptop:
+
+```bash
+./packaging/build
+./packaging/install ./build-output --user CHILD_USERNAME pawberry
+omarchy kids pawberry
+```
+
+With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School settings** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. The game awards room decorations, with no screen-time credits.
+
+The preview is the actual Qt component rendered locally. See [how the steps, artwork and checks work](docs/pawberry.md); installed Omarchy integration remains for a laptop check.
 
 ## Number Grove
 
@@ -84,7 +105,7 @@ A full desktop view followed by short clips from the recorded demo. The GIFs are
 
 ## Install on an existing Omarchy laptop
 
-A parent can convert a clean **Omarchy 4** installation without reinstalling the OS. Use the laptop’s existing regular account as the kid account. The installer keeps its login password, home and desktop configuration, asks for a separate parent password, and installs all seven modules. The parent password authorizes administration and also unlocks the login and lock screens. On an encrypted laptop it is added as another disk-unlock key; existing keys are kept. An unencrypted disk stays unencrypted.
+A parent can convert a clean **Omarchy 4** installation without reinstalling the OS. Use the laptop’s existing regular account as the kid account. The installer keeps its login password, home and desktop configuration, asks for a separate parent password, and installs all eight modules. The parent password authorizes administration and also unlocks the login and lock screens. On an encrypted laptop it is added as another disk-unlock key; existing keys are kept. An unencrypted disk stays unencrypted.
 
 In your `omarchy-kids` checkout on the Omarchy laptop, run these commands one at a time as the regular signed-in user:
 
@@ -106,11 +127,11 @@ On an already configured kids laptop, install every module with:
 
 For a smaller installation, list the optional modules instead of `--all`, for example `dns school`. Add `--convert` as well when converting a normal installation. Core is always installed, and existing module selections and enrollments are preserved. Installing code alone does not start logging or impose an optional restriction; the parent enables and configures restriction modules through **Setup → Kids Modules**.
 
-Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All nine package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. ARM runtime validation remains outstanding.
+Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All ten package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. ARM runtime validation remains outstanding.
 
 ## Install a fresh laptop with the Kids ISO
 
-The dedicated Kids ISO carries the same nine packages, including all seven modules, in its offline mirror. Its setup creates a kid account and asks for separate kid and parent passwords. An encrypted installation accepts either password at disk unlock. Account setup uses the same command as conversion, and the target retains the complete package cache for future module changes.
+The dedicated Kids ISO carries the same ten packages, including all eight modules, in its offline mirror. Its setup creates a kid account and asks for separate kid and parent passwords. An encrypted installation accepts either password at disk unlock. Account setup uses the same command as conversion, and the target retains the complete package cache for future module changes.
 
 The ISO build is independent of upstream accepting the child-profile PR. Build and validation instructions are in [the deployment guide](docs/kids-deployment.md).
 
@@ -164,7 +185,7 @@ git pull --ff-only
 
 A successful build replaces the previous package output. The installer verifies the complete release’s checksums and updates the compatible base pair, core and currently installed optional modules together. Standard `omarchy update` continues to update system packages; it does not fetch a new kids release from this repository. Switching to the upstream stable/edge packages is a separate migration and must not be mixed with these module packages.
 
-The command family is `omarchy kids`, and the seven module packages use the `omarchy-kids-` prefix. Upgrading a previous installation replaces its packages together and migrates the login rules, services and browser-policy filenames. Existing settings and history are preserved. Conflicting destination files or commands stop the upgrade for review; originals are backed up under `/var/lib/omarchy/kids-namespace-backup`.
+The command family is `omarchy kids`, and the eight module packages use the `omarchy-kids-` prefix. Upgrading a previous installation replaces its packages together and migrates the login rules, services and browser-policy filenames. Existing settings and history are preserved. Conflicting destination files or commands stop the upgrade for review; originals are backed up under `/var/lib/omarchy/kids-namespace-backup`.
 
 The [namespace inventory](docs/kids-namespace-rename.md) lists every renamed source file and the compatibility references retained for upgrades and external plugins.
 
@@ -175,6 +196,6 @@ The [namespace inventory](docs/kids-namespace-rename.md) lists every renamed sou
 ./test/cli
 ```
 
-The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 64 combinations of optional package contents. Builds and tests are run manually on local machines. Package-upgrade and conversion integration checks use a disposable Linux container; full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
+The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 128 combinations of optional package contents. Builds and tests are run manually on local machines. Package-upgrade and conversion integration checks use a disposable Linux container; full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
 
 See [module architecture and migration](docs/kids-modules.md), [the original design](plans/kids-modules.md), and [upstream Omarchy](https://github.com/basecamp/omarchy). Existing source history and vendored MIT licenses are retained.

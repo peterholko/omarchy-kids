@@ -1,5 +1,5 @@
 pkgbase=omarchy-kids-modules
-pkgname=(omarchy-kids-core omarchy-kids-dns omarchy-kids-browsing omarchy-kids-time omarchy-kids-school omarchy-kids-grove omarchy-kids-typing)
+pkgname=(omarchy-kids-core omarchy-kids-dns omarchy-kids-browsing omarchy-kids-time omarchy-kids-school omarchy-kids-grove omarchy-kids-typing omarchy-kids-pawberry)
 pkgver=0.1.0
 pkgrel=${KIDS_PKGREL:-1}
 arch=(any)
@@ -61,4 +61,11 @@ package_omarchy-kids-typing() {
   optdepends=()
   depends=("omarchy-kids-core=$pkgver-$pkgrel")
   _stage_module typing
+}
+
+package_omarchy-kids-pawberry() {
+  pkgdesc='Pawberry Pet Hotel: show every step of long arithmetic with cute pets'
+  optdepends=()
+  depends=("omarchy-kids-core=$pkgver-$pkgrel")
+  _stage_module pawberry
 }

@@ -332,6 +332,13 @@ reply({ok: true})
 assertDeepEqual(apps(), ['chromium', 'obsidian'], 'removing Grove school access preserves the original app list')
 settings.setAppAllowed('omarchy-number-grove', true)
 assert(!patchProc.running, 'an uninstalled Grove package cannot be newly allowed')
+settings.installedAppIds = ['omarchy-pawberry']
+settings.setAppAllowed('omarchy-pawberry', true)
+assertDeepEqual(request(), {school_apps: ['chromium', 'obsidian', 'omarchy-pawberry']}, 'Pawberry school access preserves existing apps')
+reply({ok: true})
+settings.setAppAllowed('omarchy-pawberry', false)
+reply({ok: true})
+assertDeepEqual(apps(), ['chromium', 'obsidian'], 'Pawberry can be removed from school independently')
 JS
 pass "Optional games have independent, authenticated school access without losing other settings"
 

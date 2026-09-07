@@ -1,6 +1,6 @@
 # Kids module architecture
 
-One source snapshot builds a compatible base/settings pair plus seven module packages. `packaging/modules.json` defines exclusive ownership; `stage.py` stages those files and removes them from both base packages. Exact package revisions tie the UI, commands and backend together. The build revision comes from the source commit count, and `release.json` records the source, dirty state and archive hashes.
+One source snapshot builds a compatible base/settings pair plus eight module packages. `packaging/modules.json` defines exclusive ownership; `stage.py` stages those files and removes them from both base packages. Exact package revisions tie the UI, commands and backend together. The build revision comes from the source commit count, and `release.json` records the source, dirty state and archive hashes.
 
 ## Runtime boundaries
 
@@ -38,7 +38,7 @@ Shared parent.conf updates are locked and atomic. Firefox’s single policies.js
 
 `omarchy kids plugin` delegates the first-party IDs to a package manager while retaining the existing Git-plugin path for external add-ons. Dependencies are resolved before installation. Core is required and cannot be removed from a child install. The module picker distinguishes install, enable, disable and remove; diagnostics report installation, enablement and service health where available.
 
-Application modules such as `grove` and `typing` are available when installed. The picker offers installation/removal and omits enable/disable for them. Grove adds no daemon and owns its global desktop entry, so removal leaves no duplicate launcher. Screen Time is an optional integration, not a package dependency.
+Application modules such as `grove`, `typing` and `pawberry` are available when installed. The picker offers installation/removal and omits enable/disable for them. Each owns its global desktop entry, so removal leaves no duplicate launcher. Grove's Screen Time rewards are an optional integration, not a package dependency; Pawberry checks long-arithmetic working locally with no rewards backend.
 
 Before removing school mode, the manager disables it and waits for the live shell to restore notifications, shortcuts and hidden windows. Failure leaves the package installed for repair/retry. Removing screen time leaves school enrollment intact, and vice versa. Shared services remain running while either has managed users. Package transactions reload the backend, and the manager restarts active shells to discover the new package contents.
 
@@ -50,6 +50,6 @@ Disabling or removing a module keeps its configuration, lists and collected hist
 
 ## Validation limits
 
-`test/kids` runs the module-boundary tests and focused Bash, Node and Python regressions. Package subset tests start the real core using only the staged files for each of the 64 optional combinations. Package builds and password-field rendering run manually on Linux. The complete login/lock/network/desktop path and fresh-ISO provisioning require the disposable Omarchy VM acceptance suite; a component render is not a replacement for that acceptance run.
+`test/kids` runs the module-boundary tests and focused Bash, Node and Python regressions. Package subset tests start the real core using only the staged files for each of the 128 optional combinations. Package builds and password-field rendering run manually on Linux. The complete login/lock/network/desktop path and fresh-ISO provisioning require the disposable Omarchy VM acceptance suite; a component render is not a replacement for that acceptance run.
 
 The installer can convert a clean Omarchy 4 account or update an existing child-profile laptop. The dedicated Kids ISO uses the same package release, caches all modules on the installed laptop, and calls the shared account setup. See [deployment and validation](kids-deployment.md) for both entry points and local build instructions.

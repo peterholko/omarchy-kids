@@ -1,0 +1,7 @@
+# Pawberry Pet Hotel artwork
+
+Generated with the built-in image-generation tool. The original PNG is bundled as `pets.png` without modification; the interface displays one third for each pet.
+
+## Prompt
+
+Use case: illustration-story. Asset type: original character artwork for Pawberry Pet Hotel, a cute cozy math game for an 11-year-old girl. Create one landscape 1536x1024 transparent PNG character sheet containing exactly three separate full-body pet portraits side by side in equal-width thirds. Left third: a fluffy cream kitten with peach ear tips and a small pink bow, sitting with its curved tail. Middle third: a golden floppy-eared puppy with a small dusty-blue bandana and a happy gentle expression. Right third: a plump pale lavender bunny with long upright ears, a mint bow, and tiny paws. Cohesive polished storybook gouache illustration, delicate fur texture, expressive dark ink eyes, soft blush cheeks, warm tender personality, appealing to a tween. Each pet centered within its own third, full body including ears and tail visible, generous clear margins, comparable overall height, no elements crossing between thirds. Character sheet will be cropped into three portrait slots by the game, so keep every animal completely inside its own third. Transparent background, isolated characters only, no rooms, no beds, no ground, no shadows connecting the pets, no panel borders. No lettering, words, numbers, logos, watermarks, UI, or existing franchise characters.

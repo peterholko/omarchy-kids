@@ -33,7 +33,7 @@ From an updated Omarchy Kids checkout, build with `./packaging/build`, then run 
 
 ## Verification
 
-Run `node --test test/paw-post/engine.test.cjs` for the deterministic typing rules, or `./test/kids` for the focused Kids checks including all 64 module combinations. On a machine with PySide6 Essentials, `python test/paw-post/visual.py /tmp/paw-post-captures` drives the actual Qt component with mouse and keyboard events. It checks lessons, correction, paste rejection, ten deliveries, case and punctuation, pause/focus behavior, resizing, reduced motion and completion of the dash. Screenshots and a short sequence of movement frames are saved for visual review.
+Run `node --test test/paw-post/engine.test.cjs` for the deterministic typing rules, or `./test/kids` for the focused Kids checks including all 128 module combinations. On a machine with PySide6 Essentials, `python test/paw-post/visual.py /tmp/paw-post-captures` drives the actual Qt component with mouse and keyboard events. It checks lessons, correction, paste rejection, ten deliveries, case and punctuation, pause/focus behavior, resizing, reduced motion and completion of the dash. Screenshots and a short sequence of movement frames are saved for visual review.
 
 The September 2026 local check passed 46 Python tests, nine typing-rule groups, the runnable Kids shell checks, command metadata validation, and the real Qt interaction harness. Linux-specific namespace and shortcut checks were skipped by the suite. The package tests covered all 64 optional combinations.
 

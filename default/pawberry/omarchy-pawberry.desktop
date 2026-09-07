@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Pawberry Pet Hotel
+Comment=Care for cute pets by showing every step of long arithmetic
+TryExec=omarchy-kids-pawberry
+Exec=omarchy-kids-pawberry
+Terminal=false
+Type=Application
+Icon=applications-education
+Categories=Education;Game;
+StartupNotify=false

@@ -25,7 +25,8 @@ Item {
     || (pendingPatch !== null && pendingPatch.school_apps !== undefined)
   readonly property var schoolAppChoices: [
     { desktopId: "omarchy-paw-post", name: "Paw Post", practice: "typing practice", controlName: "pawPostSchoolToggle" },
-    { desktopId: "omarchy-number-grove", name: "Number Grove", practice: "arithmetic practice", controlName: "numberGroveSchoolToggle" }
+    { desktopId: "omarchy-number-grove", name: "Number Grove", practice: "arithmetic practice", controlName: "numberGroveSchoolToggle" },
+    { desktopId: "omarchy-pawberry", name: "Pawberry Pet Hotel", practice: "step-by-step math", controlName: "pawberrySchoolToggle" }
   ]
   readonly property var installedAppIds: Allowlist.normalizeIds((DesktopEntries.applications.values || []).map(function(entry) {
     return entry ? entry.id : ""

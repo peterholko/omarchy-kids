@@ -37,6 +37,8 @@ def destinations(relative):
         values.append(Path('usr/share/applications/omarchy-number-grove.desktop'))
     if str(relative) == 'default/paw-post/omarchy-paw-post.desktop':
         values.append(Path('usr/share/applications/omarchy-paw-post.desktop'))
+    if str(relative) == 'default/pawberry/omarchy-pawberry.desktop':
+        values.append(Path('usr/share/applications/omarchy-pawberry.desktop'))
     return values
 
 
