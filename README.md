@@ -17,6 +17,23 @@ The seven optional modules can be installed and removed individually. School mod
 
 The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` shell plugins are reused. There is one browser profile. Grades 5 and 6 use multiplication and division tables exclusively; younger grades practice small arithmetic facts. Selecting free time always requires the parent password, and the password field shows “Checking password…” while authentication runs.
 
+## Community plugins for regular Omarchy
+
+Six independent repositories package the shell features for Omarchy Quattro's plugin system:
+
+| Plugin | Repository |
+| --- | --- |
+| Screen Time | [omarchy-screen-time](https://github.com/peterholko/omarchy-screen-time) |
+| Math Time | [omarchy-math-time](https://github.com/peterholko/omarchy-math-time) |
+| School / Free Time | [omarchy-school-mode](https://github.com/peterholko/omarchy-school-mode) |
+| Number Grove | [omarchy-number-grove](https://github.com/peterholko/omarchy-number-grove) |
+| Paw Post Typing | [omarchy-paw-post](https://github.com/peterholko/omarchy-paw-post) |
+| Pawberry Pet Hotel | [omarchy-pawberry](https://github.com/peterholko/omarchy-pawberry) |
+
+These use unique `io.github.peterholko.*` IDs. The three games and Math Time practice are standalone. Screen Time and School Mode include explicit setup for a shared controls service and separate parent password on regular Omarchy; they do not require this repository's packages or change OS login/administrator credentials. Follow each plugin README for setup, dependencies and removal. The service refuses to enroll an account already managed by the original Kids backend, avoiding duplicate enforcement.
+
+The community export and focused tests live under [packaging/community](packaging/community/README.md). Linux installation and enforcement remain subject to a manual laptop check; no ISO build or GitHub Actions is used for these exports. Catalog listing requires marketplace maintainer approval.
+
 ## Pawberry Pet Hotel math game
 
 Reveal a surprise pet by finishing a math problem! Checked steps prepare a bed, treat, and toy while the guest waits behind a mystery door. The correct final answer reveals and welcomes Peaches the kitten, Biscuit the puppy, or Bluebell the bunny with a little celebration. Finish three problems to see all three guests together. Choose two- or three-digit **addition**, **subtraction**, **multiplication**, or a mixed visit covering all three.
