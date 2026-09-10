@@ -10,7 +10,7 @@ set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
 run_node_test <<'JS'
-const quiz = requireFromRoot('shell/plugins/math/MathModel.js')
+const quiz = requireFromRoot('shell/plugins/screen-time/math/MathModel.js')
 const status = quiz.gateFromStatus('{"enabled":true,"school":false,"budget":0,"earnedToday":12,"usedToday":300,"cap":120,"rate":6,"questions":5,"sessionMinutes":30,"level":"grade5"}', true)
 assert(status.gated, 'an empty budget on a child install is gated')
 assertEqual(status.questions, 5, 'the session length comes from status.json')
@@ -26,34 +26,42 @@ assert(!quiz.gateFromStatus('{"enabled":true,"budget":0}', false).gated, 'a defa
 assert(!quiz.gateFromStatus('not json', true).gated, 'unreadable status fails open')
 assert(quiz.isForcedOpen('{"forced":true}'), 'the lock handoff is recognized as forced')
 assert(!quiz.isForcedOpen('{}') && !quiz.isForcedOpen('not json'), 'manual and malformed summons are not forced')
-assertDeepEqual(quiz.GRADES, [1, 2, 3, 4, 5, 6], 'six grades')
+assertDeepEqual(quiz.GRADES, [1, 2, 3, 4, 5, 6, 7], 'seven grades')
 assertEqual(quiz.PRACTICE_COUNT, 10, 'a practice set is ten questions')
 assertEqual(quiz.levelNumber('grade3'), 3, 'a level name becomes its number')
 assertEqual(quiz.levelNumber('nonsense'), 5, 'an unknown level is grade 5')
 assertEqual(quiz.levelName(2), 'grade2', 'a number becomes its level name')
 assertEqual(quiz.levelName(0), 'grade5', 'an out-of-range number is grade 5')
 assertEqual(quiz.gradeLabel(4), 'Grade 4', 'the picker labels a grade')
-assert(quiz.gradeBlurb(1).includes('20') && quiz.gradeBlurb(1).includes('subtraction')
-  && quiz.gradeBlurb(2).includes('2 to 5')
-  && quiz.gradeBlurb(3).includes('division tables to 10')
-  && quiz.gradeBlurb(4).includes('division tables to 12')
-  && quiz.gradeBlurb(5) === 'Multiplication and division tables to 12 only'
-  && quiz.gradeBlurb(6) === 'Multiplication and division tables to 12 only',
-  'each grade describes small arithmetic facts and table recall')
+assert(quiz.gradeBlurb(1).includes('within 10') && quiz.gradeBlurb(2).includes('within 20')
+  && quiz.gradeBlurb(3).includes('0, 1, 2, 5 and 10') && quiz.gradeBlurb(4).includes('10 × 10')
+  && quiz.gradeBlurb(5).includes('fractions') && quiz.gradeBlurb(6).includes('percentages')
+  && quiz.gradeBlurb(7).includes('signed'), 'grade descriptions follow the recall progression')
+for (const mode of ['chosen', 'parent', 'schedule'])
+  assert(!quiz.gateFromStatus(JSON.stringify({enabled:true, school:false, mode:'school', modeReason:mode, budget:0}), true).gated, 'effective school mode overrides an old school flag')
+for (const phase of ['paused', 'bedtime', 'school'])
+  assert(!quiz.gateFromStatus(JSON.stringify({enabled:true,phase,budget:0}), true).gated, 'no forced math in '+phase)
+assert(!quiz.gateFromStatus('{"ok":true,"remaining_seconds":0,"mode":"school","phase":"school"}',true).gated, 'live school reply suppresses stale file')
+assert(quiz.gateFromStatus('{"ok":true,"remaining_seconds":0,"mode":"free","phase":"empty","earn":{"enabled":true,"level":"grade7"}}',true).gated, 'live free-time status supports an eligible handoff')
+for (const [a,b] of [['.5','1/2'],['50%','1/2'],['12.5%','1/8'],['33 1/3%','1/3'],['−8','-8'],['-.125','-1/8'],['0','0.0'],['YES','yes']])
+  assert(quiz.sameAnswer(a,b), a+' equals '+b)
+assert(!quiz.sameAnswer('.333','1/3') && !quiz.sameAnswer('33.33%','1/3'), 'rounded thirds are not exact')
+for (const bad of ['1/0','0/0','1e3','1x2','1,2','NaN','Infinity','','-', '9'.repeat(100)])
+  assertEqual(quiz.parseNumber(bad),null,'malformed answer stays invalid: '+bad)
 assertDeepEqual(quiz.parseQuestion('17 What is 342 + 519?'), { id: '17', text: 'What is 342 + 519?' }, 'an earning question splits into id and text')
 assertDeepEqual(quiz.parsePractice('What is 7 × 8?\t56\n'), { text: 'What is 7 × 8?', answer: '56' }, 'a practice line splits into text and answer')
 assertEqual(quiz.parsePractice('What is 7 × 8?'), null, 'a practice line without an answer is refused')
 assertEqual(quiz.parsePractice('What is 7 × 8?\tfifty-six'), null, 'a practice answer must be a number')
-assertEqual(quiz.normalizeAnswer(' 1,234 '), '1234', 'answers drop commas and spaces')
+assertEqual(quiz.normalizeAnswer(' −1/2 '), '-1/2', 'answers preserve signs and fractions')
 assertDeepEqual(quiz.judgePractice('56', '56', 0), { kind: 'correct', credited: 0, budget: 0 }, 'a right practice answer is correct and earns nothing')
 assertDeepEqual(quiz.judgePractice('55', '56', 0), { kind: 'wrong', expected: '' }, 'a first practice miss keeps the question')
 assertDeepEqual(quiz.judgePractice('55', '56', 1), { kind: 'wrong', expected: '56' }, 'a second practice miss reveals the answer')
-assertDeepEqual(quiz.judgePractice('', '56', 0), { kind: 'wrong', expected: '' }, 'an empty answer is a miss')
+assertDeepEqual(quiz.judgePractice('', '56', 0), { kind: 'invalid' }, 'an empty answer keeps the question')
 assert(quiz.isCalculatorAppId('omacalc'), 'the Omacalc Wayland app id is recognized')
 assert(!quiz.isCalculatorAppId('libreoffice-calc'), 'a spreadsheet is not mistaken for Omacalc')
 assertDeepEqual(quiz.parseAnswer('correct 360 360'), { kind: 'correct', credited: 360, budget: 360 }, 'a correct earning answer carries its credit in seconds and the budget')
-assertDeepEqual(quiz.parseQuestionJson('{"ok": true, "question": {"id": "ab12", "text": "342 + 519", "reward_seconds": 180}}'), { id: 'ab12', text: '342 + 519', answer: '' }, 'an earning question comes from the daemon as JSON')
-assertDeepEqual(quiz.parseQuestionJson('{"ok": true, "text": "7 × 8", "answer": 56, "kind": "table"}'), { id: '', text: '7 × 8', answer: '56' }, 'a practice question carries its answer')
+assertDeepEqual(quiz.parseQuestionJson('{"ok": true, "question": {"id": "ab12", "text": "342 + 519", "reward_seconds": 180}}'), { id: 'ab12', text: '342 + 519', answer: '', hint: '' }, 'an earning question comes from the daemon as JSON')
+assertDeepEqual(quiz.parseQuestionJson('{"ok": true, "text": "7 × 8", "answer": 56, "kind": "table"}'), { id: '', text: '7 × 8', answer: '56', hint: '' }, 'a practice question carries its answer')
 assertEqual(quiz.parseQuestionJson('{"ok": false, "error": "daily_cap_reached"}').error, 'daily_cap_reached', 'a refusal carries its reason')
 assert(/limit/.test(quiz.questionErrorText({ error: 'daily_cap_reached' })), 'the cap is explained')
 assert(/Could not get a question/.test(quiz.questionErrorText({ error: 'no_daemon' })), 'no daemon is the plain failure')
@@ -102,12 +110,12 @@ pass "the math model judges practice locally and shapes the earning conversation
 # question drew into a zero-width column. Keep the shell clear of such names.
 shadowing=$(find "$ROOT/shell" -name '*.qml' | sed 's|.*/||; s|\.qml$||' | grep -xE 'Math|Date|JSON|Number|String|Object|Array|Boolean|RegExp|Error|Promise|Map|Set|Symbol|Function|Reflect|Proxy|Intl|Qt' || true)
 [[ -z $shadowing ]] || fail "a QML file is named after a JavaScript global and would shadow it: $shadowing"
-qml="$ROOT/shell/plugins/math/MathTime.qml"
+qml="$ROOT/shell/plugins/screen-time/math/MathTime.qml"
 grep -q 'WlrLayershell.namespace: "omarchy-math"' "$qml" || fail "the app keeps a stable layer namespace"
 grep -q 'WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive' "$qml" && grep -q 'WlrLayershell.layer: WlrLayer.Overlay' "$qml" || fail "the app holds the keyboard on the overlay layer"
 grep -q 'IdleInhibitor {' "$qml" && grep -q 'enabled: root.opened' "$qml" || fail "the screen stays on while the app is open"
 grep -q 'questionProc.command = \[clientPath, "quiz"\]' "$qml" || fail "an earning question comes from the daemon"
-grep -q 'answerProc.command = \[clientPath, "answer", questionId, answer\]' "$qml" || fail "an earning answer goes to the daemon, which keeps the answers"
+grep -q 'answerProc.command = \[clientPath, "answer", "--", questionId, answer\]' "$qml" || fail "an earning answer goes to the daemon, which keeps the answers"
 grep -q 'questionProc.command = \[clientPath, "practice", Quiz.levelName(grade)\]' "$qml" || fail "a practice question comes from the daemon's generator with its answer"
 grep -q 'bin/omarchy-kids-time-client' "$qml" || fail "the app talks through the daemon's client"
 ! grep -q 'sudo' "$qml" || fail "the app needs no sudo grant any more"
@@ -125,7 +133,7 @@ grep -q 'onRunningChanged: if (!running && !launched) root.takeQuestion("", "fai
 grep -q 'id: questionWatchdog' "$qml" && grep -q 'id: answerWatchdog' "$qml" && grep -q 'questionProc.launched = false' "$qml" && grep -q 'answerProc.launched = false' "$qml" || fail "a client that hangs is given up on, and the launch flag is reset before every start"
 grep -q '"Getting a question…"' "$qml" || fail "a slow question says so instead of a blank"
 lock="$ROOT/shell/plugins/lock/Service.qml"
-grep -Fq '"{\"forced\":true}"' "$lock" || fail "the automatic zero-budget handoff identifies itself to Math time"
+grep -Fq '"{\"math\":true,\"forced\":true}"' "$lock" || fail "the automatic zero-budget handoff identifies itself to Math time"
 grep -q 'id: timeStatusProc' "$lock" && grep -q 'command: \["cat", root.timeStatusPath\]' "$lock" || fail "the lock screen gets every status value from a serialized process"
 grep -q 'if (postUnlock) postUnlockReadQueued = true' "$lock" && grep -q 'timeStatusProc.postUnlockRead = postUnlockReadQueued' "$lock" || fail "the status read requested after authentication is tagged for the Math time handoff"
 grep -q 'if (!(postUnlockStatusPending && !postUnlockRead))' "$lock" && grep -q 'if (postUnlockRead) postUnlockStatusPending = false' "$lock" || fail "a read started before the parent grant is ignored until the post-authentication read finishes"
@@ -142,6 +150,6 @@ grep -q 'color: root.paper' "$qml" && grep -q 'readonly property color paper: Qu
 ! grep -q 'Color\.\|Border\.surfaceSpec' "$qml" || fail "the sheet keeps its own ink on every theme"
 ! grep -q 'elapsedSeconds\|formatDuration' "$qml" || fail "no clock on the question screen or the results"
 grep -q 'Quiz.isCalculatorAppId(toplevel.appId)) toplevel.close()' "$qml" || fail "Omacalc is closed while the app is up"
-grep -q '"when":"omarchy-profile-child && omarchy-cmd-present omarchy-kids-time","action":"omarchy-shell shell summon omarchy.math' "$ROOT/default/omarchy/omarchy-menu.jsonc" || fail "the menu offers Math time when its module is installed, screen time on or off"
-grep -q '^Exec=omarchy-shell shell summon omarchy.math$' "$ROOT/applications/child/Math Time.desktop" || fail "the child launcher has a Math Time entry"
+grep -q '"when":"omarchy-profile-child && omarchy-cmd-present omarchy-kids-time","action":"omarchy-shell shell summon omarchy.screen-time' "$ROOT/default/omarchy/omarchy-menu.jsonc" || fail "the menu offers Math time when its module is installed, screen time on or off"
+grep -q '^Exec=omarchy-shell shell summon omarchy.screen-time math$' "$ROOT/applications/child/Math Time.desktop" || fail "the child launcher has a Math Time entry"
 pass "Math time is wired as the child install's math app"

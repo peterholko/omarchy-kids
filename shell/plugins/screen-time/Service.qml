@@ -1,6 +1,8 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "school" as School
+import "math" as MathActivity
 
 // The single connection to omarchy-kids-timed (lib/screen-time), the
 // screen-time daemon of a child install, vendored from Jankees van Woezik's
@@ -12,6 +14,28 @@ Item {
   id: root
 
   property var shell: null
+  property var manifest: null
+  readonly property alias schoolService: schoolController
+  readonly property bool schoolMode: schoolController.schoolMode
+  function removalReady() { return schoolController.removalReady() }
+  readonly property bool controlsOpen: controls.opened
+  function showControls() { if (!mathActivity.opened) controls.show() }
+  function showMath(payload) { closeControls(); mathActivity.open(payload || "{}") }
+  function mathOpen() { return mathActivity.opened }
+  function closeMath() { mathActivity.close() }
+  MathActivity.MathTime { id: mathActivity; shell: root.shell; manifest: root.manifest }
+  function closeControls() { if (controls.opened) controls.close() }
+
+  School.Service {
+    id: schoolController
+    shell: root.shell
+    manifest: root.manifest
+    pluginRegistry: root.shell ? root.shell.pluginRegistry : null
+  }
+  SettingsWindow {
+    id: controls
+    service: root
+  }
 
   property bool connected: false
   property string phase: ""          // running | idle | paused | empty | bedtime
@@ -62,6 +86,8 @@ Item {
   }
 
   readonly property string clientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-time-client"
+
+  readonly property string schoolClientPath: Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-school-client"
 
   function applyEvent(event) {
     if (!event || event.ok !== true) {

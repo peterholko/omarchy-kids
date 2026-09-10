@@ -24,7 +24,7 @@ Usage: omarchy-kids time <status|on|off|report [YYYY-MM-DD]|history> [--user NAM
        omarchy-kids time earn QUESTIONS MINUTES [--user NAME]
        omarchy-kids time questions COUNT [--user NAME]
        omarchy-kids time rate MINUTES [--user NAME]
-       omarchy-kids time level <grade1|grade2|grade3|grade4|grade5|grade6> [--user NAME]
+       omarchy-kids time level <grade1|grade2|grade3|grade4|grade5|grade6|grade7> [--user NAME]
        omarchy-kids time cap MINUTES [--user NAME]
        omarchy-kids time budget MINUTES [DAYS] [--user NAME]
        omarchy-kids time <grant MINUTES|pause|resume|lock> [--user NAME]
@@ -286,7 +286,7 @@ time_command() {
       echo "Each right answer is now worth $value minutes for $USER_NAME: a set of $q earns $(( value * q ))."
       ;;
     level)
-      [[ $value =~ ^grade[1-6]$ ]] || fail "time level needs one of grade1 to grade6"
+      [[ $value =~ ^grade[1-7]$ ]] || fail "time level needs one of grade1 to grade7"
       patch "$(jq -nc --arg l "$value" '{earn: {level: $l}}')"
       echo "Earning questions are now at $value for $USER_NAME."
       ;;

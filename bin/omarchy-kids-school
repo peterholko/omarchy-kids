@@ -61,15 +61,15 @@ patch() {
 }
 
 ensure_bar_pill() {
-  local home
-  home=$(getent passwd "$USER_NAME" | cut -d: -f6)
-  [[ -n $home && -d $home ]] || return 0
-  runuser -u "$USER_NAME" -- env OMARCHY_PATH="$OMARCHY_PATH" HOME="$home" bash -c '
+  local user_home
+  user_home=$(getent passwd "$USER_NAME" | cut -d: -f6)
+  [[ -n $user_home && -d $user_home ]] || return 0
+  runuser -u "$USER_NAME" -- env OMARCHY_PATH="$OMARCHY_PATH" HOME="$user_home" bash -c '
     source "$OMARCHY_PATH/bin/omarchy-shell-config"
     commit "$NORMALIZE
-      | if any(.bar.layout[][]; (if type == \"object\" then .id else . end) == \"omarchy.school-mode\") then . else .bar.layout.left = [{\"id\": \"omarchy.school-mode\"}] + .bar.layout.left end
+      | if any(.bar.layout[][]; (if type == \"object\" then .id else . end) == \"omarchy.screen-time\") then . else .bar.layout.right = [{\"id\": \"omarchy.screen-time\"}] + .bar.layout.right end
 "
-  ' >/dev/null 2>&1 || echo "Could not put the school-mode button on $USER_NAME's bar; as $USER_NAME, run: omarchy bar put omarchy.school-mode --section left" >&2
+  ' >/dev/null 2>&1 || echo "Could not put the school-mode button on $USER_NAME's bar; as $USER_NAME, run: omarchy bar put omarchy.screen-time --section right" >&2
 }
 
 # The design before the daemon left a timer, a guard, and a sudo grant.

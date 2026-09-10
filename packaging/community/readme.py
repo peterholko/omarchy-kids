@@ -4,13 +4,13 @@ PREFIX = 'io.github.peterholko.'
 
 def readme(name, repository, title, description):
     plugin = PREFIX + name
-    service = name in {'screen-time', 'school-mode'}
+    service = name == 'screen-time'
     game = name in {'number-grove', 'paw-post', 'pawberry'}
     icon_directory = '$HOME/.local/share/icons/hicolor/512x512/apps'
     icon_install = (f'mkdir -p "{icon_directory}"\n'
                     f'ln -sfn "$HOME/.config/omarchy/plugins/{plugin}/assets/launcher.png" "{icon_directory}/{plugin}.png"\n') if game else ''
     icon_remove = f'rm -f "{icon_directory}/{plugin}.png"\n' if game else ''
-    module = 'time' if name == 'screen-time' else 'school'
+    module = 'controls'
     text = f'''# {title}
 
 {description}
@@ -20,6 +20,8 @@ A community plugin for **Omarchy Quattro with the Quickshell plugin system**. It
 '''
     if name in {'number-grove', 'paw-post', 'pawberry'}:
         text += '![The game running in Qt](preview.png)\n\n'
+    if service:
+        text += '![The combined parent control window in portable Qt](preview.png)\n\n'
     text += f'''## Install
 
 Run these commands in the intended user's Omarchy desktop session:
@@ -42,33 +44,37 @@ omarchy pkg add python
 sudo "$HOME/.config/omarchy/plugins/{plugin}/setup" --user CHILD_USERNAME
 ```
 
-Setup asks for a new **controls parent password** of at least eight characters. Screen Time and School Mode share this password and the `omarchy-kids-controls.service` service. Setup copies only this repository's local, reviewed payload; it does not download code. Installing the second plugin preserves the first plugin's settings and enrollments. Use matching plugin releases; mismatched service versions require an explicit `--upgrade`, and unknown files or locally modified installed service files stop setup.
+Setup asks for a new **controls parent password** of at least eight characters. School & Screen Time uses this password and the `omarchy-kids-controls.service` service. Setup copies only this repository's local, reviewed payload; it does not download code. The one plugin contains both controls. An upgrade preserves existing settings and enrollments; a fresh setup enrolls both controls. Use matching plugin releases; mismatched service versions require an explicit `--upgrade`, and unknown files or locally modified installed service files stop setup.
 
 Only the named account is enrolled. Root owns the password hash, schedules, budgets and reward checks. The UI sends passwords over stdin, and the local service authenticates callers by their Unix socket peer credentials. It rate limits failed parent-password attempts. The controls password is separate from the login, administrator and disk passwords.
 
 These are desktop controls for a cooperative family setup. An account that retains administrator access can disable the service, and user-controlled shell plugins are not an application sandbox. This installer does not convert or demote OS accounts. It refuses to enroll an account already configured for the original Omarchy Kids backend, to prevent two services enforcing different policies.
 
 '''
-        if name == 'school-mode':
-            text += f'''### Allow the temporary school desktop changes
+        text += f'''### Allow the temporary school desktop changes
 
 In the enrolled user's desktop, run the following **without sudo**. This explicitly permits School Mode to temporarily hide the stock launcher, route `Super+Space` and `Super+Alt+Space` to the school app list, disable the standard Omarchy app-launch shortcuts, quiet notifications and park existing windows. Free Time restores the previous state; windows are not closed.
 
 ```bash
-python3 -I "$HOME/.config/omarchy/plugins/{plugin}/school-desktop.py" enable
+python3 -I "$HOME/.config/omarchy/plugins/{plugin}/school/school-desktop.py" enable
 ```
 
-Click the book/sun widget to enter School Mode or request Free Time. Free Time and changes to the schedule or allowed apps require the controls parent password; the password field displays checking feedback. The settings include optional access to Number Grove, Paw Post Typing and Pawberry Pet Hotel when their desktop launchers are installed. Other desktop IDs can be configured with the client’s `config patch` command.
+Click the School & Screen Time widget to open the one control panel. Today shows the budget, activity and time grants; Time + Math sets budgets, bedtime and recall level; School + Apps sets school hours and app permissions. Free Time and changes to the schedule or allowed apps require the controls parent password; the password field displays checking feedback. School Mode never automatically opens Math Time after login or unlock, and stops an earning session already in progress. Deliberately opened practice remains optional. Bedtime still applies.
+
+The settings include optional access to Number Grove, Paw Post Typing and Pawberry Pet Hotel when their desktop launchers are installed. Other desktop IDs can be configured with the client’s `config patch` command.
 
 There is one browser profile. This plugin does not filter websites; use a separate DNS/browser policy if needed. The filtered launcher and standard shortcut changes do not prevent custom shortcuts, terminal commands or manually started applications.
 
 The desktop helper journals recovery before applying changes and changes only its own `disabledPlugins` entry in `~/.config/omarchy/shell.json`. Other bar and shell settings are preserved. It keeps a first-use backup under `~/.local/state/omarchy-community-school-mode/`. Custom `XDG_CONFIG_HOME` and `XDG_STATE_HOME` are respected by the helper. Run `school-desktop.py disable` before disabling or removing the plugin; this also revokes desktop consent.
 
 '''
-        else:
-            text += '''Click the screen-time widget to inspect remaining time, configure weekday budgets and bedtime, or grant extra time with the controls parent password. Only active, unlocked graphical-session time is counted. School Mode, when separately enabled for the account, pauses the free-time budget during school hours.
+        text += f'''Math Time is bundled inside this same plugin. Open optional practice with:
 
-Install [Math Time](https://github.com/peterholko/omarchy-math-time) to earn time through arithmetic. Without it, daily budgets and bedtime still work. At zero time the service locks the session. After a normal OS unlock, the Screen Time plugin opens Math Time; the service retains its lock fallback if the overlay cannot open. The controls parent password can grant a short bypass in Math Time. The stock OS lock screen continues to use the account's normal unlock credentials.
+```bash
+omarchy-shell shell summon {plugin} math
+```
+
+At zero free time, the service locks the session; after a normal OS unlock, the combined plugin opens its Math Time activity to earn minutes. It first checks the current mode, so School Mode cannot trigger this handoff. The controls parent password can grant a short bypass. The stock OS lock screen continues to use the account's normal unlock credentials. The separately published Math Time plugin is only needed when installing arithmetic practice by itself.
 
 '''
         text += f'''### Manage enrollment and password
@@ -93,8 +99,8 @@ The shared service uses Python 3's standard library, systemd/logind and Omarchy'
 '''
     else:
         details = {
-            'math': 'Practice uses local arithmetic facts for grades 1–6. Grades 5 and 6 use multiplication and division tables only. Practice works without the controls service. Earning time is available only when the separately installed Screen Time service enables it; answers and time grants are checked by that service.',
-            'number-grove': 'Choose calm or adventure play and a grade from 1–6. Move through the garden and collect answers with Space or Enter. Grades 5 and 6 focus on multiplication and division tables. Optional time rewards use the separately installed Screen Time service; ordinary play is fully standalone.',
+            'math': 'Practice uses the same local recall generator as the service, with grades 1–7: number bonds, facts within 20, core 1–10 multiplication/division tables, then familiar fractions, decimals, percentages, divisibility and signed facts. Practice works without the controls service. Earning time is available only when the School & Screen Time service enables it; answers and time grants are checked by that service.',
+            'number-grove': 'Choose calm or adventure play and a grade from 1–6. Move through the garden and collect answers with Space or Enter. Grades 5 and 6 focus on multiplication and division tables. Optional time rewards use the School & Screen Time service; ordinary play is fully standalone.',
             'paw-post': 'Deliver animal mail through home-row practice, everyday words and short messages, with accuracy and typing-speed feedback. No background service is required.',
             'pawberry': 'Collect 23 pets and 20 accessories by completing two- and three-digit addition, subtraction and multiplication. Enter the carries, borrowing and partial products before the final answer. Each finished problem welcomes a pet and earns a new accessory until the wardrobe is full. New pets are chosen before returning guests. Use **Try it on** after a reward or **My collection** to dress your friends in bows, hats, crowns, flowers, stars and scarves. Incorrect answers never take away earned rewards. Your collection and outfits are saved immediately under `$XDG_STATE_HOME/omarchy-pawberry/collection.ini` (normally `~/.local/state/omarchy-pawberry/collection.ini`) and retained across updates, restarts and removal. The Kids package and standalone plugin share this per-user collection. No background service is required.',
         }
@@ -114,7 +120,7 @@ The launcher has a unique ID. {'Its bundled icon uses the same unique name, and 
 
 ## Dependencies and data
 
-Uses the Quickshell and Qt Quick runtime supplied by Omarchy. {'Math Time also uses Python 3 to remember the chosen grade under the user’s XDG state directory.' if name == 'math' else 'The game runs locally; there are no accounts, API keys or network services.'} The optional controls service is not bundled with this plugin. School-mode status, if available, is read from `/var/lib/omarchy-kids-controls/`; the plugin does not write root-owned settings or reward totals.
+Uses the Quickshell and Qt Quick runtime supplied by Omarchy. {'Math Time uses Python 3’s standard library for offline questions and to remember the chosen grade under the user’s XDG state directory.' if name == 'math' else 'The game runs locally; there are no accounts, API keys or network services.'} The optional controls service is not bundled with this plugin. School-mode status, if available, is read from `/var/lib/omarchy-kids-controls/`; the plugin does not write root-owned settings or reward totals.
 
 '''
     text += f'''## Update
@@ -131,15 +137,26 @@ omarchy plugin update {plugin}
 sudo "$HOME/.config/omarchy/plugins/{plugin}/setup" --user CHILD_USERNAME --upgrade
 ```
 
-Updating the user-owned shell checkout never silently replaces the installed privileged service.
+Updating the user-owned shell checkout never silently replaces the installed privileged service. Upgrade preserves each existing account’s enabled/disabled time and school enrollment. To explicitly enable both for an account, run `sudo omarchy-kids-controls enable controls --user CHILD_USERNAME`.
+
+### Move from the old separate School Mode plugin
+
+Before enabling this combined plugin, restore the desktop with the old plugin and disable its UI (without sudo, in the child’s desktop):
+
+```bash
+python3 -I "$HOME/.config/omarchy/plugins/io.github.peterholko.school-mode/school-desktop.py" disable
+omarchy plugin disable io.github.peterholko.school-mode
+```
+
+Then install/update this plugin and run its `setup --upgrade` command above. Enable the combined plugin’s school desktop helper as shown above. The service reuses the existing school and time configuration; do not remove the old service module or its state to perform this migration.
 
 '''
     text += '## Remove\n\n'
-    if name == 'school-mode':
+    if service:
         text += f'''First restore the desktop **in each enrolled user's active session**, without sudo:
 
 ```bash
-python3 -I "$HOME/.config/omarchy/plugins/{plugin}/school-desktop.py" disable
+python3 -I "$HOME/.config/omarchy/plugins/{plugin}/school/school-desktop.py" disable
 ```
 
 '''
@@ -151,7 +168,7 @@ sudo omarchy-kids-controls remove {module}
 omarchy plugin remove {plugin}
 ```
 
-If the other module is installed, its shared service, password and settings remain. Removing the last module stops and removes the service, unit and owned command wrappers. Configuration, password and history are retained for a deliberate reinstall; inspect `/etc/omarchy-kids-controls/` and `/var/lib/omarchy-kids-controls/` before deleting that data yourself. Modified or unexpected installed files stop automatic removal for review.
+Removing `controls` disables both parts and removes the service, unit and owned command wrappers after restoring school desktops. Configuration, password and history are retained for a deliberate reinstall; inspect `/etc/omarchy-kids-controls/` and `/var/lib/omarchy-kids-controls/` before deleting that data yourself. Modified or unexpected installed files stop automatic removal for review.
 
 '''
     else:

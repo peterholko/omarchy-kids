@@ -127,15 +127,48 @@ class ModulesTest(unittest.TestCase):
         policy = host.services['school'].policy_for(self.uid)
         account = host.services['time'].account_for(self.uid)
         policy.set_mode('school', now, False)
-        self.assertFalse(account.screen_time_exempt(now))
+        self.assertTrue(account.screen_time_exempt(now))
         policy.set_mode('school', now, True)
         self.assertTrue(account.screen_time_exempt(now))
         account.profile['blocked_periods'] = [{'enabled': True, 'mode': 'block', 'start': '20:00', 'end': '07:00'}]
         self.assertFalse(account.screen_time_exempt(datetime(2026, 9, 2, 21, 0).timestamp()))
         policy.profile['blocked_periods'] = [{'enabled': True, 'mode': 'free', 'label': 'School', 'start': '17:00', 'end': '22:00'}]
         policy.set_mode('free', now, True)
-        self.assertTrue(account.screen_time_exempt(now))
-        self.assertTrue(account.screen_time_exempt(datetime(2026, 9, 2, 21, 0).timestamp()))
+        self.assertFalse(account.screen_time_exempt(now))
+        self.assertFalse(account.screen_time_exempt(datetime(2026, 9, 2, 21, 0).timestamp()))
+
+    def test_school_mode_cancels_earning_for_child_parent_and_schedule(self):
+        for reason in ('chosen', 'parent', 'schedule'):
+            with self.subTest(reason=reason):
+                host = self.host(); self.enable(host, 'school'); self.enable(host, 'time')
+                now = datetime(2026, 9, 2, 18, 0).timestamp(); host.clock.logical = now
+                policy = host.services['school'].policy_for(self.uid)
+                account = host.services['time'].account_for(self.uid)
+                policy.set_mode('free', now, True)
+                account.day.spent = account.day.budget
+                question = account.quiz_next(now)['question']
+                before = account.day.earned
+                if reason == 'schedule':
+                    policy.override = {}
+                    policy.profile['blocked_periods'] = [{'enabled': True, 'mode': 'free', 'label': 'School', 'start': '17:00', 'end': '22:00'}]
+                else:
+                    policy.set_mode('school', now, reason == 'parent')
+                self.assertEqual(account.quiz_answer(question['id'], '0', now + 5)['error'], 'school_mode_active')
+                self.assertIsNone(account.quiz.pending)
+                self.assertEqual(account.quiz_next(now + 6)['error'], 'school_mode_active')
+                self.assertEqual(account.day.earned, before)
+                self.assertEqual(account.status(now)['phase'], 'school')
+                account.publish_status(now)
+                status = read_json(account.layout.status_path(self.user))
+                self.assertTrue(status['school'])
+                self.assertFalse(status['earning'])
+                # Bedtime may still lock the laptop, but must never show math.
+                account.profile['blocked_periods'] = [{'enabled': True, 'mode': 'block', 'start': '17:00', 'end': '22:00'}]
+                account.publish_status(now)
+                self.assertTrue(read_json(account.layout.status_path(self.user))['school'])
+                self.assertEqual(account.status(now)['phase'], 'bedtime')
+                policy.set_mode('free', now, True)
+                self.assertTrue(account.quiz_next(now + 7)['ok'])
 
     def test_browsing_and_dns_policy_ownership(self):
         target = self.base / 'policies.json'
@@ -160,8 +193,9 @@ class ModulesTest(unittest.TestCase):
         output = subprocess.check_output(['bash', str(ROOT / 'bin/omarchy-kids-time-client'), 'practice', 'grade5'], text=True)
         response = json.loads(output)
         self.assertTrue(response['ok'])
-        self.assertTrue('×' in response['text'] or '÷' in response['text'])
-        self.assertIsInstance(response['answer'], int)
+        from omarchy_kids.screen_time.quiz import parse_number
+        self.assertTrue(response['text'])
+        self.assertIsNotNone(parse_number(response['answer']))
 
     def test_legacy_browser_keys_are_adopted_before_removal(self):
         target = self.base / 'policies.json'

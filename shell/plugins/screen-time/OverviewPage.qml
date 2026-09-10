@@ -1,0 +1,1132 @@
+import QtQuick
+import Quickshell
+import QtQuick.Controls
+import Quickshell.Io
+import qs.Ui
+import qs.Commons
+
+// The pill in the bar plus the panel behind it, vendored from Jankees van
+// Woezik's omarchy-screen-time. The pill shows a glyph for the phase and the
+// time that is left; the panel shows the day, opens Math time to earn
+// minutes, and lets a parent, behind the parent password, hand out time
+// with fixed choices or open the settings.
+Item {
+  id: root
+  property var bar: null
+  property bool opened: false
+  property var service: null
+  signal closeRequested()
+  signal settingsRequested()
+  function close() { closeRequested() }
+
+  readonly property bool connected: service ? service.connected === true : false
+  readonly property string phase: service ? String(service.phase) : ""
+  readonly property int remaining: service ? service.remainingSeconds : 0
+  // In together mode the widget is a mirror, not a meter: it shows time
+  // spent, never counts down, and carries no warning colours.
+  readonly property bool together: service ? service.philosophy === "together" : false
+  readonly property bool blockedPhase: phase === "empty" || phase === "bedtime"
+  readonly property bool low: connected && !together && !blockedPhase
+    && remaining <= (service ? service.minWarnSeconds : 60)
+
+  // Glyphs as \u escapes so they survive the trip through the editor.
+  readonly property string iconHourglass: "\uf254"
+  readonly property string iconClock: "\uf017"
+  readonly property string iconPause: "\uf04c"
+  readonly property string iconLock: "\uf023"
+  readonly property string iconUnlock: "\uf09c"
+  readonly property string iconMoon: "\uf186"
+  readonly property string iconGear: "\uf013"
+  readonly property string iconClose: "\uf00d"
+  readonly property string iconBook: "\uf02d"
+  readonly property string iconMath: "\uf1ec"
+
+  readonly property string icon: {
+    if (phase === "school") return iconBook
+    if (phase === "bedtime") return iconMoon
+    if (phase === "empty") return iconLock
+    if (phase === "paused") return iconPause
+    if (phase === "idle") return iconClock
+    return iconHourglass
+  }
+
+  // Colours that carry meaning have to hold up on light themes too, so blend
+  // towards the background instead of darkening, and pick the accent colours
+  // per theme.
+  function fade(c, amount) {
+    var bg = Color.background
+    return Qt.rgba(c.r + (bg.r - c.r) * amount,
+                   c.g + (bg.g - c.g) * amount,
+                   c.b + (bg.b - c.b) * amount, 1)
+  }
+  readonly property bool lightTheme: {
+    var bg = Color.background
+    return (0.299 * bg.r + 0.587 * bg.g + 0.114 * bg.b) > 0.5
+  }
+  readonly property color warnColor: lightTheme ? "#B4620A" : "#E5A050"
+  readonly property color blockColor: lightTheme ? "#B03434" : "#E06C6C"
+  readonly property color okColor: lightTheme ? "#3C7C4E" : "#5FA46B"
+  readonly property color pillColor: {
+    if (!root.bar) return Color.foreground
+    if (blockedPhase) return blockColor
+    if (low) return warnColor
+    if (phase === "idle" || phase === "paused" || phase === "school") return fade(root.bar.barForeground, 0.45)
+    return root.bar.barForeground
+  }
+
+  function fmt(seconds) {
+    seconds = Math.max(0, Math.floor(seconds))
+    if (seconds >= 3600) {
+      var h = Math.floor(seconds / 3600)
+      var m = Math.floor((seconds % 3600) / 60)
+      // A whole hour is "1h", not "1h00". The zeroes only earn their place
+      // when there are minutes to read next to them.
+      if (m === 0) return h + "h"
+      return h + "h" + (m < 10 ? "0" : "") + m
+    }
+    if (seconds >= 600) return Math.floor(seconds / 60) + "m"
+    var mm = Math.floor(seconds / 60)
+    var ss = seconds % 60
+    return mm + ":" + (ss < 10 ? "0" : "") + ss
+  }
+
+  function plain(s) { return String(s || "").replace(/[<>]/g, "") }
+
+  // The wall clock time of a ledger entry, for the notes. Seconds since the
+  // epoch, and anything that is not a number gets no label rather than a
+  // wrong one.
+  function clockTime(t) {
+    var seconds = Number(t)
+    if (!isFinite(seconds) || seconds <= 0) return ""
+    var when = new Date(seconds * 1000)
+    return Qt.formatTime(when, "HH:mm")
+  }
+
+  readonly property string label: {
+    if (together) return fmt(service ? service.spentSeconds : 0)
+    if (phase === "school") return "school"
+    if (blockedPhase) return phase === "bedtime" ? blockedName : "0:00"
+    return fmt(remaining)
+  }
+
+  readonly property string clientPath: service ? service.clientPath : Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-time-client"
+
+  // --- earning ----------------------------------------------------------
+
+  // Newest first, so the reward that just landed is always in view.
+  readonly property var earnEventsView: service && service.earnEvents
+    ? service.earnEvents.slice().reverse() : []
+  readonly property bool earnEnabled: service ? service.earnEnabled === true && !service.schoolMode : false
+  readonly property string setLine: service
+    ? "a set of " + service.questionsPerSet + " questions at grade " + String(service.level).replace("grade", "") + " earns " + service.setMinutes + " min  ·  " + fmt(service.earnRoomSeconds) + " earnable today"
+    : ""
+
+  function openMathTime() {
+    if (root.service && root.service.shell) root.service.shell.summon("omarchy.screen-time", '{"math":true}')
+    root.close()
+  }
+
+  // --- what the head of the panel says --------------------------------
+
+  // One line under the name: what the clock is doing. The numbers moved to
+  // the stat row, so this says the thing a number cannot.
+  readonly property string stateLine: {
+    if (!service) return ""
+    if (phase === "empty") return "time is up"
+    if (phase === "school") return "school time, not counting"
+    if (phase === "bedtime") return blockedName
+    if (phase === "paused") return "paused by a parent"
+    if (phase === "idle") return "idle, not counting"
+    return "counting down"
+  }
+
+  // What to call the block that is on right now. The daemon names the period
+  // the family wrote, so dinner does not get announced as bedtime.
+  readonly property string blockedName: {
+    var name = service ? plain(String(service.blockedLabel || "")).trim() : ""
+    return name === "" ? "blocked" : name.toLowerCase()
+  }
+
+  // A fresh config names the profile "Default", which is nobody, and that is
+  // what ends up in the biggest text on the card. Until a family gives a
+  // child a name of their own, the panel says what it is instead.
+  readonly property string heroTitle: {
+    if (!service) return "Screen time"
+    var name = plain(service.profileName).trim()
+    return (name === "" || name === "Default") ? "Screen time" : name
+  }
+
+  // The line under the bar: what the bar itself cannot say. In limits mode
+  // that is when the day ends, in agreement mode what the family settled on.
+  // It lives here rather than in the hero's meta because the hero shouts its
+  // meta in capitals, and a sentence is not a label.
+  readonly property string underBarLine: {
+    if (!service) return ""
+    if (together) {
+      if (service.agreementMinutes > 0)
+        return "about " + fmt(service.agreementMinutes * 60) + " agreed"
+      return ""
+    }
+    var next = service.nextBlock
+    if (!next || !next.start) return ""
+    return plain(String(next.label)).toLowerCase() + " at " + plain(String(next.start))
+  }
+
+  // The day in even cells, so the eye can compare them instead of reading a
+  // sentence. Earned and given only appear once they have something to say,
+  // which keeps a plain day a plain two-cell row.
+  readonly property var dayStats: {
+    if (!service || together) return []
+    var out = [{ label: "used", value: fmt(service.spentSeconds), accent: false }]
+    if (service.earnedSeconds > 0)
+      out.push({ label: "earned", value: fmt(service.earnedSeconds), accent: true })
+    if (service.grantedSeconds > 0)
+      out.push({ label: "given", value: fmt(service.grantedSeconds), accent: true })
+    out.push({ label: "budget", value: fmt(service.budgetSeconds), accent: false })
+    return out
+  }
+
+  // --- parent state ---------------------------------------------------
+
+  // The parent password, held only while the panel is open and sent to the
+  // daemon over stdin, never as an argument; the daemon checks it as the
+  // kid through sudo, the same way the lock screen does.
+  property string parentPassword: ""
+  property bool parentUnlocked: false
+  readonly property bool authenticating: unlockProc.running
+  property string parentNote: ""
+  property color parentNoteColor: root.bar ? root.bar.barForeground : Color.foreground
+  // Read off the note's own colour rather than tracked separately, so every
+  // place that reports a refusal turns the drawer red without remembering to.
+  readonly property bool parentError: parentNote !== ""
+    && Qt.colorEqual(parentNoteColor, root.blockColor)
+
+  // Takes the password rather than reading one field, because two drawers
+  // ask for it: the parent controls in limits mode and revisiting the agreement.
+  function tryUnlock(password) {
+    if (unlockProc.running) return
+    password = String(password || "")
+    if (password.trim() === "") return
+    root.parentPassword = password
+    passwordField.text = ""
+    togetherPasswordField.text = ""
+    unlockProc.running = true
+  }
+
+  // The drawer's colour says where you are before you read a word.
+  function drawerColor(typed) {
+    if (parentError) return fade(blockColor, 0.84)
+    if (parentUnlocked) return fade(okColor, 0.84)
+    if (typed > 0) return fade(Color.accent, Math.max(0.7, 0.88 - 0.045 * typed))
+    return fade(Color.popups.text, 0.9)
+  }
+
+  function grant(minutes) {
+    if (actionProc.running) return
+    actionProc.command = [root.clientPath, "--password-stdin", "grant", String(minutes)]
+    actionProc.pendingLabel = (minutes > 0 ? "+" : "") + minutes + " minutes"
+    actionProc.running = true
+  }
+
+  function togglePause() {
+    if (actionProc.running) return
+    var cmd = root.phase === "paused" ? "resume" : "pause"
+    actionProc.command = [root.clientPath, "--password-stdin", cmd]
+    actionProc.pendingLabel = cmd === "pause" ? "paused" : "resumed"
+    actionProc.running = true
+  }
+
+  function resetPanel() {
+    unlockProc.running = false
+    parentPassword = ""
+    parentUnlocked = false
+    parentNote = ""
+    passwordField.text = ""
+    togetherPasswordField.text = ""
+  }
+
+  onOpenedChanged: {
+    if (!opened) resetPanel()
+  }
+
+  function forgetNote(t) {
+    if (forgetProc.running) return
+    var stamp = Number(t)
+    if (!isFinite(stamp) || stamp <= 0) return
+    forgetProc.command = [root.clientPath, "forget", String(stamp)]
+    forgetProc.running = true
+  }
+
+  function submitReflection() {
+    if (reflectProc.running) return
+    var text = reflectField.text.trim()
+    if (text === "") return
+    reflectProc.command = [root.clientPath, "reflect", text]
+    reflectProc.running = true
+  }
+
+  // --- processes ------------------------------------------------------
+
+  Process {
+    id: reflectProc
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var payload
+        try { payload = JSON.parse(text) } catch (e) { return }
+        if (payload.ok === true) reflectField.text = ""
+      }
+    }
+  }
+
+  Process {
+    id: forgetProc
+    // The list redraws off the watch stream, so nothing to do here but read
+    // the answer and let a refusal be quiet: a note that would not go is
+    // still on screen, which is the whole message.
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var payload
+        try { payload = JSON.parse(text) } catch (e) { return }
+      }
+    }
+  }
+
+  Process {
+    id: unlockProc
+    command: [root.service && !root.service.connected ? root.service.schoolClientPath : root.clientPath, "--password-stdin", "config", "get"]
+    stdinEnabled: true
+    onStarted: write(root.parentPassword + "\n")
+    stdout: StdioCollector {
+      onStreamFinished: {
+        if (!root.opened) { root.resetPanel(); return }
+        var payload
+        try { payload = JSON.parse(text) } catch (e) { return }
+        if (payload.ok === true) {
+          root.parentUnlocked = true
+          root.parentNote = ""
+          passwordField.text = ""
+          togetherPasswordField.text = ""
+        } else if (payload.error === "password_locked_out") {
+          root.parentNote = "Too many tries. Wait " + payload.retry_in_seconds + "s."
+          root.parentNoteColor = root.blockColor
+        } else {
+          root.parentNote = "That is not the parent password."
+          root.parentNoteColor = root.blockColor
+        }
+      }
+    }
+  }
+
+  Process {
+    id: actionProc
+    property string pendingLabel: ""
+    stdinEnabled: true
+    onStarted: write(root.parentPassword + "\n")
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var payload
+        try { payload = JSON.parse(text) } catch (e) { return }
+        if (payload.ok === true) {
+          // The demo answers ok to every write and changes nothing, so say
+          // that rather than reporting minutes that were never handed out.
+          root.parentNote = payload.demo === true
+            ? "Demo mode, nothing changed." : actionProc.pendingLabel
+          root.parentNoteColor = payload.demo === true
+            ? root.fade(Color.popups.text, 0.3) : root.okColor
+        } else if (payload.error === "password_locked_out") {
+          root.parentUnlocked = false
+          root.parentNote = "Too many tries. Wait " + payload.retry_in_seconds + "s."
+          root.parentNoteColor = root.blockColor
+        } else if (payload.error === "bad_password") {
+          root.parentUnlocked = false
+          root.parentNote = "The parent password was not accepted. Enter it again."
+          root.parentNoteColor = root.blockColor
+        } else {
+          root.parentNote = String(payload.error || "failed")
+          root.parentNoteColor = root.blockColor
+        }
+      }
+    }
+  }
+
+  ScrollView {
+    id: scrollArea
+    anchors.fill: parent
+    anchors.margins: Style.space(20)
+    clip: true
+    contentWidth: availableWidth
+    contentHeight: content.implicitHeight
+    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+    // A form, so a plain Item as the key catcher: Tab walks the controls the
+    // way Qt already knows how to, and only the panel-wide keys live here.
+    Item {
+      id: keyCatcher
+      width: scrollArea.availableWidth
+      height: content.implicitHeight
+      focus: true
+
+      Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) { root.close(); event.accepted = true }
+      }
+
+      Column {
+        id: content
+        width: parent.width
+        // The shell's own rhythm: 14 between sections, 6 inside one.
+        spacing: Style.space(14)
+
+        // header, in the shell's own hero shape: icon, name, the time as the
+        // detail pill, and one uppercase meta line underneath
+        PanelHero {
+          width: parent.width
+          foreground: Color.popups.text
+          title: root.heroTitle
+          detail: {
+            if (root.together) return root.fmt(root.service ? root.service.spentSeconds : 0) + " today"
+            if (root.blockedPhase) return root.phase === "bedtime" ? root.blockedName : "time's up"
+            return root.fmt(root.remaining) + " left"
+          }
+          // One line, so one fact at a time: the hero meta elides rather than
+          // wraps. Earned and granted minutes already show further down, and
+          // the agreed time is also the progress bar's scale.
+          meta: {
+            if (!root.service) return ""
+            if (root.together) {
+              if (root.phase === "paused") return "paused"
+              if (root.service.stretchSeconds >= 600)
+                return root.fmt(root.service.stretchSeconds) + " without a break"
+              return ""
+            }
+            return root.stateLine
+          }
+          iconComponent: Component {
+            Text {
+              id: heroIcon
+              textFormat: Text.PlainText
+              text: root.icon
+              color: root.pillColor
+              font.family: Style.font.family
+              font.pixelSize: Style.font.display
+
+              // An hourglass that never turns is a drawing. Turning it over
+              // every fifteen seconds is the panel saying the day is still
+              // running, which is exactly when the glyph is an hourglass:
+              // paused, idle and bedtime all draw something else.
+              // The glyph is close to symmetric top to bottom, so the turn
+              // itself is the whole effect: it lands looking the same. Hence
+              // the overshoot and the squash, and hence the first turn coming
+              // a second after the panel opens rather than only at the first
+              // fifteen second mark, which you would have to be lucky to see.
+              property real flip: 0
+              rotation: flip
+              transformOrigin: Item.Center
+
+              Behavior on flip {
+                NumberAnimation { duration: 900; easing.type: Easing.InOutBack }
+              }
+
+              SequentialAnimation {
+                id: flipSquash
+                NumberAnimation {
+                  target: heroIcon; property: "scale"
+                  to: 0.8; duration: 450; easing.type: Easing.OutQuad
+                }
+                NumberAnimation {
+                  target: heroIcon; property: "scale"
+                  to: 1.0; duration: 450; easing.type: Easing.OutBack
+                }
+              }
+
+              Timer {
+                id: flipTimer
+                interval: 1200
+                repeat: true
+                running: root.opened && root.phase === "running"
+                onRunningChanged: if (running) interval = 1200
+                onTriggered: {
+                  heroIcon.flip += 180
+                  flipSquash.restart()
+                  interval = 15000
+                }
+              }
+            }
+          }
+        }
+
+        // The day, broken into cells of exactly equal width so the figures
+        // line up under each other however many there are. The cell is a
+        // plain Item and the labels are centred inside it: a nested layout
+        // sizes itself to its content and packs everything to the left.
+        Row {
+          id: statRow
+          width: parent.width
+          spacing: 0
+          visible: root.dayStats.length > 0
+
+          Repeater {
+            model: root.dayStats
+
+            delegate: Item {
+              width: statRow.width / Math.max(1, root.dayStats.length)
+              height: statCell.implicitHeight
+
+              Column {
+                id: statCell
+                anchors.centerIn: parent
+                spacing: Style.space(4)
+
+                Text {
+                  textFormat: Text.PlainText
+                  text: modelData.value
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  color: modelData.accent === true ? root.okColor : Color.popups.text
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.title
+                  font.bold: true
+                }
+
+                Text {
+                  textFormat: Text.PlainText
+                  text: String(modelData.label).toUpperCase()
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  color: root.fade(Color.popups.text, 0.45)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
+                  font.bold: true
+                  font.letterSpacing: 1.2
+                }
+              }
+            }
+          }
+        }
+
+        // How far into the day you are: spent versus everything there is
+        // today (or versus the agreement, in together mode, where the bar
+        // stays a neutral colour whatever it says). The bar and the line
+        // under it are one block, so they sit closer than the sections do.
+        Column {
+          width: parent.width
+          spacing: Style.space(6)
+
+          // Square ends, because the hatching runs to the edge and a rounded
+          // cap would cut the diagonals off mid stroke.
+          Rectangle {
+            id: dayBar
+            width: parent.width
+            height: Style.space(12)
+            radius: 0
+            visible: !root.together || (root.service && root.service.agreementMinutes > 0)
+            color: root.fade(Color.popups.text, 0.86)
+
+            readonly property int total: {
+              if (!root.service) return 0
+              if (root.together) return root.service.agreementMinutes * 60
+              return root.service.spentSeconds + root.remaining
+            }
+            readonly property real fraction: total > 0
+              ? Math.min(1, (root.service ? root.service.spentSeconds : 0) / total) : 0
+            readonly property color fillColor: root.together
+              ? (root.bar ? root.bar.barForeground : Color.foreground) : root.pillColor
+
+            // The hatching: thin bars on the diagonal, one pitch apart. The
+            // pitch is also how far the pattern has to travel before it repeats,
+            // so drifting by exactly one pitch loops without a seam.
+            readonly property int stroke: Style.space(2)
+            readonly property int pitch: Style.space(7)
+            property real drift: 0
+
+            NumberAnimation on drift {
+              from: 0
+              to: dayBar.pitch
+              duration: 2200
+              loops: Animation.Infinite
+              // Only while time is actually being used up, and only while
+              // somebody is looking: a drifting pattern behind a closed panel
+              // is work nobody asked for. Agreement mode drifts too. The rule
+              // there is that nothing counts down and nothing warns, and a
+              // pattern saying the clock runs does neither.
+              running: root.opened && root.phase === "running"
+            }
+
+            Item {
+              id: fill
+              height: parent.height
+              width: parent.width * dayBar.fraction
+
+              Behavior on width {
+                NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+              }
+
+              // The base tint under the hatching.
+              Rectangle {
+                anchors.fill: parent
+                color: root.fade(dayBar.fillColor, 0.55)
+              }
+
+              Item {
+                anchors.fill: parent
+                clip: true
+
+                Row {
+                  height: parent.height
+                  x: -dayBar.pitch + dayBar.drift
+                  spacing: dayBar.pitch - dayBar.stroke
+
+                  Repeater {
+                    // Counted off the track, not off the fill, so the model
+                    // does not churn while the fill animates.
+                    model: Math.ceil((dayBar.width + dayBar.pitch * 4) / dayBar.pitch)
+
+                    delegate: Rectangle {
+                      width: dayBar.stroke
+                      // Taller than the bar and lifted, so the 45 degree turn
+                      // still covers the full height at both ends.
+                      height: dayBar.height * 2.4
+                      y: -dayBar.height * 0.7
+                      color: dayBar.fillColor
+                      rotation: 45
+                      antialiasing: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // When the day ends, which the bar cannot say because bedtime is not
+          // a share of the budget.
+          Text {
+            textFormat: Text.PlainText
+            visible: root.underBarLine !== ""
+            text: root.underBarLine
+            width: parent.width
+            color: root.fade(Color.popups.text, 0.45)
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+          }
+
+        }
+
+        // --- together mode: the agreement and the child's own notes ------
+        PanelSeparator { width: parent.width; visible: root.together }
+
+        Column {
+          width: parent.width
+          spacing: Style.space(6)
+          visible: root.together
+
+          PanelSectionHeader {
+            text: "OUR AGREEMENT"
+            foreground: Color.popups.text
+          }
+
+          Text {
+            textFormat: Text.PlainText
+            text: root.service && root.service.agreementText !== ""
+              ? "“" + root.plain(root.service.agreementText) + "”"
+              : "Nothing written down yet. Make one together."
+            width: parent.width
+            wrapMode: Text.WordWrap
+            font.italic: root.service ? root.service.agreementText !== "" : false
+            color: Color.popups.text
+            font.family: Style.font.family
+            font.pixelSize: Style.font.body
+          }
+
+        }
+
+        PanelSeparator { width: parent.width; visible: root.together }
+
+        Column {
+          width: parent.width
+          spacing: Style.space(6)
+          visible: root.together
+
+          PanelSectionHeader {
+            text: "HOW IS IT GOING?"
+            foreground: Color.popups.text
+          }
+
+          // No button next to it: enter keeps the note, and the placeholder
+          // is where that is said, now that the button is gone. Rounded like
+          // the bubbles underneath, because it is the one you are writing.
+          TextField {
+            id: reflectField
+            width: parent.width
+            placeholderText: "a note to yourself, enter keeps it"
+            activeFocusOnTab: true
+            Keys.onPressed: function(event) {
+              if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                root.submitReflection(); event.accepted = true
+              } else if (event.key === Qt.Key_Escape) {
+                root.close(); event.accepted = true
+              }
+            }
+
+            // Only the corner radius differs from the shared field, so the
+            // fill and the border spec come from the field itself.
+            background: BorderSurface {
+              color: Style.controlFill(reflectField._focused, reflectField._hot,
+                                       reflectField.foreground, reflectField.accent)
+              borderSpec: reflectField._borderSpec
+              radius: Math.max(Style.cornerRadius, Style.space(10))
+            }
+          }
+
+          // The notes read as a conversation with yourself, so they are
+          // bubbles and they run oldest to newest, the way a chat does. The
+          // rounding is deliberate rather than the theme's: a square bubble
+          // is not a bubble, so it takes the larger of the two.
+          Column {
+            id: notes
+            width: parent.width
+            // Bubbles need room to read as separate notes rather than as one
+            // block of text, so they sit further apart than a list row would.
+            // The top padding is the gap to the field you write them in.
+            spacing: Style.space(10)
+            topPadding: Style.space(12)
+            bottomPadding: Style.space(4)
+
+            Repeater {
+              model: root.service && root.service.reflections
+                ? root.service.reflections : []
+
+              // Anchored rather than a Row: the times line up in one column
+              // on the right instead of trailing each bubble at whatever
+              // width it happens to have, which reads as ragged.
+              delegate: Item {
+                id: noteRow
+                width: notes.width
+                height: bubble.height
+
+                required property var modelData
+                required property int index
+                // Every other note leans the other way. A degree is enough to
+                // read as handwriting on a wall; more and it reads as broken.
+                readonly property real tilt: (index % 2 === 0 ? -0.9 : 0.8)
+                // The hover covers the whole row, not just the bubble. With it
+                // on the bubble the cross faded out exactly as the pointer
+                // travelled to it, and an invisible button still takes clicks,
+                // so it could also be hit blind.
+                readonly property bool showForget: rowHover.hovered || forgetButton.activeFocus
+
+                HoverHandler { id: rowHover }
+
+                Rectangle {
+                  id: bubble
+                  anchors.left: parent.left
+                  anchors.top: parent.top
+                  radius: Math.max(Style.cornerRadius, Style.space(10))
+                  color: root.fade(Color.popups.text, 0.86)
+                  width: bubbleText.width + Style.space(20)
+                  height: bubbleText.implicitHeight + Style.space(16)
+                  rotation: noteRow.tilt
+                  antialiasing: true
+
+                  Text {
+                    id: bubbleText
+                    textFormat: Text.PlainText
+                    text: root.plain(noteRow.modelData.text)
+                    // Clamped against its own natural width, so a short note
+                    // gets a short bubble and a long one wraps at the card.
+                    width: Math.min(implicitWidth, notes.width * 0.72)
+                    wrapMode: Text.WordWrap
+                    anchors.centerIn: parent
+                    color: Color.popups.text
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                  }
+                }
+
+                // Taking a note back. Hidden until the pointer is on the
+                // bubble, but it also appears on keyboard focus, because a
+                // control that only a mouse can find is not a control.
+                PanelActionButton {
+                  id: forgetButton
+                  iconText: root.iconClose
+                  tooltipText: "Forget this note"
+                  foreground: Color.popups.text
+                  hoverColor: root.blockColor
+                  size: Style.space(20)
+                  focusable: true
+                  opacity: noteRow.showForget ? 1 : 0
+                  anchors.right: noteTime.left
+                  anchors.rightMargin: Style.space(6)
+                  anchors.verticalCenter: bubble.verticalCenter
+                  onClicked: root.forgetNote(noteRow.modelData.t)
+
+                  Behavior on opacity {
+                    NumberAnimation { duration: 120 }
+                  }
+                }
+
+                Text {
+                  id: noteTime
+                  textFormat: Text.PlainText
+                  text: root.clockTime(noteRow.modelData.t)
+                  visible: text !== ""
+                  anchors.right: parent.right
+                  anchors.bottom: bubble.bottom
+                  anchors.bottomMargin: Style.space(5)
+                  color: root.fade(Color.popups.text, 0.55)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.caption
+                }
+              }
+            }
+          }
+
+        }
+
+        // Revisiting the agreement lives at the very bottom, under the
+        // notes: it is the one thing here a parent reaches for, and it
+        // should not sit between the child and their own words.
+        PanelSeparator { width: parent.width; visible: root.together }
+
+        // The same two steps as the parent drawer in limits mode: the parent
+        // password first, the button after.
+        Rectangle {
+          width: parent.width
+          // It used to inherit this from the section it sat in; standing on
+          // its own it has to say so itself, or it turns up in limits mode.
+          visible: root.together
+          radius: Style.cornerRadius
+          implicitHeight: togetherContent.implicitHeight + Style.space(12)
+          color: root.drawerColor(togetherPasswordField.text.length)
+
+          Behavior on color {
+            ColorAnimation { duration: 180; easing.type: Easing.OutCubic }
+          }
+
+          Item {
+            id: togetherContent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Style.space(10)
+            anchors.rightMargin: Style.space(10)
+            anchors.verticalCenter: parent.verticalCenter
+            implicitHeight: root.parentUnlocked
+              ? revisitRow.implicitHeight : togetherLockRow.implicitHeight
+            height: implicitHeight
+
+            Row {
+              id: togetherLockRow
+              width: parent.width
+              spacing: Style.space(8)
+              visible: false
+
+              ParentPasswordField {
+                id: togetherPasswordField
+                width: Math.max(Style.space(80),
+                                togetherLockRow.width - togetherUnlock.implicitWidth
+                                  - togetherLockRow.spacing)
+                password: true
+                checking: unlockProc.running
+                activeFocusOnTab: true
+                Keys.onPressed: function(event) {
+                  if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    root.tryUnlock(togetherPasswordField.text); event.accepted = true
+                  } else if (event.key === Qt.Key_Escape) {
+                    root.close(); event.accepted = true
+                  }
+                }
+              }
+
+              Button {
+                id: togetherUnlock
+                text: "Unlock"
+                focusable: true
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: root.tryUnlock(togetherPasswordField.text)
+              }
+            }
+
+            Row {
+              id: revisitRow
+              width: parent.width
+              spacing: Style.space(8)
+              visible: root.parentUnlocked
+
+              Button {
+                text: "Revisit together"
+                focusable: true
+                // The only thing in this drawer, so it takes the whole width
+                // rather than sitting in the corner of an empty box.
+                width: revisitRow.width
+                onClicked: {
+                  root.settingsRequested()
+                }
+              }
+            }
+          }
+        }
+
+        Text {
+          textFormat: Text.PlainText
+          visible: root.together && root.parentNote !== ""
+          text: root.parentNote
+          width: parent.width
+          wrapMode: Text.WordWrap
+          color: root.parentNoteColor
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+        }
+
+        // --- limits mode: Math time and the parent controls ----------------
+        PanelSeparator { width: parent.width; visible: root.earnEnabled && !root.together }
+
+        // Earning happens in Math time, full screen; the panel opens it and
+        // keeps the day's tally.
+        Column {
+          width: parent.width
+          spacing: Style.space(6)
+          visible: root.earnEnabled && !root.together
+
+          PanelSectionHeader {
+            text: "EARN MINUTES"
+            foreground: Color.popups.text
+          }
+
+          Row {
+            width: parent.width
+            spacing: Style.space(10)
+
+            Button {
+              id: mathButton
+              text: "Open Math time"
+              iconText: root.iconMath
+              bordered: true
+              focusable: true
+              anchors.verticalCenter: parent.verticalCenter
+              onClicked: root.openMathTime()
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              width: parent.width - mathButton.implicitWidth - parent.spacing
+              text: root.setLine
+              wrapMode: Text.WordWrap
+              color: root.fade(Color.popups.text, 0.45)
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              anchors.verticalCenter: parent.verticalCenter
+            }
+          }
+
+          // The tally: every reward earned today, newest on top. The list
+          // scrolls inside a capped height, so the card never outgrows the
+          // screen however good the day was.
+          Column {
+            width: parent.width
+            spacing: Style.space(3)
+            visible: root.earnEventsView.length > 0
+
+            PanelSectionHeader {
+              text: "SUMS TODAY  ·  " + root.fmt(root.service ? root.service.earnedSeconds : 0).toUpperCase() + " EARNED"
+              foreground: Color.popups.text
+            }
+
+            ListView {
+              id: earnList
+              width: parent.width
+              height: Math.min(contentHeight, Style.space(110))
+              clip: true
+              interactive: contentHeight > height
+              model: root.earnEventsView
+              delegate: Item {
+                width: earnList.width
+                height: earnRowText.implicitHeight + Style.space(10)
+
+                readonly property bool missed: modelData.kind === "miss"
+
+                Text {
+                  id: earnRowText
+                  textFormat: Text.PlainText
+                  text: root.plain(modelData.q)
+                  color: root.fade(Color.popups.text, 0.2)
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Row {
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  spacing: Style.space(6)
+
+                  Text {
+                    textFormat: Text.PlainText
+                    visible: parent.parent.missed
+                    text: String(modelData.given)
+                    color: root.blockColor
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    font.strikeout: true
+                  }
+
+                  Text {
+                    textFormat: Text.PlainText
+                    text: parent.parent.missed
+                      ? String(modelData.answer)
+                      : "+" + root.fmt(Number(modelData.seconds))
+                    color: parent.parent.missed
+                      ? root.fade(Color.popups.text, 0.35) : root.okColor
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    font.bold: !parent.parent.missed
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        PanelSeparator { width: parent.width; visible: !root.together && root.parentUnlocked }
+
+        // parent controls
+        Column {
+          width: parent.width
+          spacing: Style.space(6)
+          visible: !root.together && root.parentUnlocked
+
+          // The header carries the lock itself, so the state is readable
+          // from the shape before anybody reads the words.
+          Item {
+            width: parent.width
+            implicitHeight: parentHeader.implicitHeight
+
+            PanelSectionHeader {
+              id: parentHeader
+              text: "PARENT"
+              foreground: Color.popups.text
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              text: root.parentUnlocked ? root.iconUnlock : root.iconLock
+              color: root.parentUnlocked ? root.okColor : root.fade(Color.popups.text, 0.5)
+              anchors.right: parent.right
+              anchors.verticalCenter: parentHeader.verticalCenter
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+          }
+
+          // The drawer. Quiet while it is shut, warming towards the accent
+          // as the password comes in, green once it is open and red when it
+          // was wrong: the colour says where you are before the note does.
+          Rectangle {
+            id: parentDrawer
+            width: parent.width
+            radius: Style.cornerRadius
+            implicitHeight: parentContent.implicitHeight + Style.space(12)
+
+            color: root.drawerColor(passwordField.text.length)
+
+            Behavior on color {
+              ColorAnimation { duration: 180; easing.type: Easing.OutCubic }
+            }
+
+            Item {
+              id: parentContent
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.leftMargin: Style.space(10)
+              anchors.rightMargin: Style.space(10)
+              anchors.verticalCenter: parent.verticalCenter
+              implicitHeight: root.parentUnlocked ? actionArea.implicitHeight : 0
+              height: implicitHeight
+
+              Row {
+                id: lockRow
+                width: parent.width
+                spacing: Style.space(8)
+                visible: false
+
+                ParentPasswordField {
+                  id: passwordField
+                  width: Math.max(Style.space(80),
+                                  lockRow.width - unlockButton.implicitWidth - lockRow.spacing)
+                  password: true
+                  checking: unlockProc.running
+                  activeFocusOnTab: true
+                  Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                      root.tryUnlock(passwordField.text); event.accepted = true
+                    } else if (event.key === Qt.Key_Escape) {
+                      root.close(); event.accepted = true
+                    }
+                  }
+                }
+
+                Button {
+                  id: unlockButton
+                  text: "Unlock"
+                  focusable: true
+                  anchors.verticalCenter: parent.verticalCenter
+                  onClicked: root.tryUnlock(passwordField.text)
+                }
+              }
+
+              // The gear is pinned to the right edge instead of trailing the
+              // row: it opens a window rather than handing out time, and a
+              // wrapping Flow would otherwise park it wherever it happens to
+              // land. Anchored to the top so it stays level with the first
+              // row of buttons when the rest wraps.
+              Item {
+                id: actionArea
+                width: parent.width
+                visible: root.parentUnlocked
+                implicitHeight: Math.max(actionFlow.implicitHeight, gearButton.height)
+                height: implicitHeight
+
+                Flow {
+                  id: actionFlow
+                  anchors.left: parent.left
+                  anchors.right: gearButton.left
+                  anchors.rightMargin: Style.space(8)
+                  anchors.top: parent.top
+                  spacing: Style.space(6)
+
+                  Button { text: "+15"; focusable: true; onClicked: root.grant(15) }
+                  Button { text: "+60"; focusable: true; onClicked: root.grant(60) }
+                  Button { text: "-15"; focusable: true; onClicked: root.grant(-15) }
+                  Button {
+                    text: root.phase === "paused" ? "Resume" : "Pause"
+                    focusable: true
+                    onClicked: root.togglePause()
+                  }
+                }
+
+                PanelActionButton {
+                  id: gearButton
+                  iconText: root.iconGear
+                  tooltipText: "Settings"
+                  foreground: Color.popups.text
+                  size: Style.spacing.controlHeight
+                  focusable: true
+                  bordered: true
+                  anchors.right: parent.right
+                  anchors.top: parent.top
+                  onClicked: {
+                    root.settingsRequested()
+                  }
+                }
+              }
+            }
+          }
+
+          Text {
+            textFormat: Text.PlainText
+            visible: root.parentNote !== ""
+            text: root.parentNote
+            color: root.parentNoteColor
+            font.family: Style.font.family
+            font.pixelSize: Style.font.body
+          }
+        }
+
+      }
+    }
+  }
+}

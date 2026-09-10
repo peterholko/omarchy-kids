@@ -1,5 +1,5 @@
 pkgbase=omarchy-kids-modules
-pkgname=(omarchy-kids-core omarchy-kids-dns omarchy-kids-browsing omarchy-kids-time omarchy-kids-school omarchy-kids-grove omarchy-kids-typing omarchy-kids-pawberry)
+pkgname=(omarchy-kids-core omarchy-kids-dns omarchy-kids-browsing omarchy-kids-time omarchy-kids-grove omarchy-kids-typing omarchy-kids-pawberry)
 pkgver=0.1.0
 pkgrel=${KIDS_PKGREL:-1}
 arch=(any)
@@ -40,14 +40,12 @@ package_omarchy-kids-browsing() {
   _stage_module browsing
 }
 package_omarchy-kids-time() {
-  pkgdesc='Optional Omarchy screen-time limits and arithmetic practice'
+  pkgdesc='School mode, screen-time limits and grade 1–7 arithmetic in one control panel'
   depends=("omarchy-kids-core=$pkgver-$pkgrel")
   _stage_module time
-}
-package_omarchy-kids-school() {
-  pkgdesc='Optional Omarchy school and free-time modes'
-  depends=("omarchy-kids-core=$pkgver-$pkgrel")
-  _stage_module school
+  provides+=("omarchy-kids-school=$pkgver-$pkgrel" "omarchy-parent-school=$pkgver-$pkgrel")
+  conflicts+=(omarchy-kids-school omarchy-parent-school)
+  replaces+=(omarchy-kids-school omarchy-parent-school)
 }
 package_omarchy-kids-grove() {
   pkgdesc='Number Grove: an original arithmetic garden game for Omarchy Kids'

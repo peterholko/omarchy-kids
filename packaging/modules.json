@@ -42,15 +42,11 @@
     "lib/screen-time/README.md",
     "lib/screen-time/LICENSE",
     "shell/plugins/screen-time",
-    "shell/plugins/math",
     "install/user/screen-time.sh",
-    "applications/child/Math Time.desktop"
-  ],
-  "school": [
+    "applications/child/Math Time.desktop",
     "bin/omarchy-kids-school",
     "bin/omarchy-kids-school-client",
     "lib/parent/omarchy_kids/school_mode",
-    "shell/plugins/school-mode",
     "install/user/school-mode.sh"
   ],
   "grove": [

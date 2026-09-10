@@ -17,7 +17,7 @@ MODULES = tuple(name for name in MODULE_NAMES if name != 'core')
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('packages', type=Path, help='directory containing all built packages and release.json')
-    parser.add_argument('modules', nargs='*', choices=['core', *MODULES], help='additional modules to install; existing selections are retained')
+    parser.add_argument('modules', nargs='*', choices=['core', 'school', *MODULES], help='additional modules to install; existing selections are retained')
     parser.add_argument('--user', required=True, help='existing account to configure for the kid')
     parser.add_argument('--convert', action='store_true', help='convert a clean Omarchy 4 account; install every module by default')
     parser.add_argument('--all', action='store_true', help='install all modules')
@@ -38,7 +38,9 @@ def main():
         conversion = None
     archives = verify(args.packages, os.uname().machine)
     installed = set(subprocess.check_output(['pacman', '-Qq'], text=True).splitlines())
-    selected = {'core', *args.modules} | {m for m in MODULES if {'omarchy-kids-' + m, 'omarchy-parent-' + m} & installed}
+    selected = {'core', *('time' if m == 'school' else m for m in args.modules)} | {m for m in MODULES if {'omarchy-kids-' + m, 'omarchy-parent-' + m} & installed}
+    if {'omarchy-kids-school', 'omarchy-parent-school'} & installed:
+        selected.add('time')
     if args.all or args.convert and not args.modules:
         selected.update(MODULES)
     legacy_policy_modules = []
@@ -49,10 +51,10 @@ def main():
         if config.get('users'):
             selected.add('time')
             if config.get('version', 1) < 3:
-                selected.add('school')
+                selected.add('time')
     school = Path('/etc/omarchy/parent/school-mode.json')
     if school.exists() and json.loads(school.read_text()).get('users'):
-        selected.add('school')
+        selected.add('time')
     conf = Path('/etc/omarchy/parent.conf')
     if conf.exists() and any(line.startswith('dns=') and line.strip() != 'dns=off' for line in conf.read_text().splitlines()):
         selected.add('dns')

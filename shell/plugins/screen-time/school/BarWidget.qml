@@ -6,7 +6,7 @@ import qs.Ui
 // opens is the stock menu in free time and the filtered one in school mode.
 BarWidget {
   id: root
-  moduleName: "omarchy.school-mode"
+  moduleName: "omarchy.screen-time.menu"
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
@@ -21,7 +21,7 @@ BarWidget {
     tooltipText: "Omarchy menu"
     onPressed: function(buttonCode) {
       if (buttonCode === Qt.LeftButton && root.bar)
-        root.bar.run("omarchy-shell shell toggle omarchy.school-mode '{\"menu\":\"root\"}'")
+        root.bar.run("omarchy-shell shell toggle omarchy.screen-time '{\"menu\":\"root\"}'")
     }
   }
 }

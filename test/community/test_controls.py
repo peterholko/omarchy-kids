@@ -141,8 +141,8 @@ class ControlsTest(unittest.TestCase):
                 self.assertEqual(directory.stat().st_mode & 0o777, 0o755)
 
     def test_handoff_never_resets_an_open_math_quiz_or_runs_while_locked(self):
-        for outputs, expected_calls in [(['true'], 1), (['false', 'true'], 2), (['false', 'false', 'ok'], 3)]:
-            with patch.object(handoff, 'reply', side_effect=outputs) as reply:
+        for outputs, expected_calls in [(['true'], 1), (['false', 'true'], 2), (['false', 'false', 'true'], 3), (['false', 'false', 'false', 'ok'], 4)]:
+            with patch.object(handoff, 'should_open', return_value=True), patch.object(handoff, 'reply', side_effect=outputs) as reply:
                 handoff.main()
                 self.assertEqual(reply.call_count, expected_calls)
 
@@ -166,13 +166,14 @@ class InstallerTest(unittest.TestCase):
         manager.CONFIG.mkdir(parents=True)
         write_json(manager.PASSWORD_PATH, {'test': True})
 
-    def install(self, module):
+    def install(self, module, upgrade=False):
         original_is_file = Path.is_file
         def is_file(path):
             return str(path) == '/usr/share/omarchy/config/omarchy/shell.json' or original_is_file(path)
         with patch.object(manager, 'check_account'), patch.object(Path, 'is_file', is_file), \
-             patch.object(manager, 'run'), patch.object(manager, 'wait_for_service'), patch.object(manager, 'enroll'):
-            manager.install(SimpleNamespace(user='linnea', module=module, upgrade=False))
+             patch.object(manager, 'run'), patch.object(manager, 'wait_for_service'), patch.object(manager, 'enroll') as enroll:
+            manager.install(SimpleNamespace(user='linnea', module=module, upgrade=upgrade))
+            return enroll.call_args_list
 
     def test_install_remove_preserves_other_module_and_data(self):
         self.install('time'); self.install('school')
@@ -189,6 +190,23 @@ class InstallerTest(unittest.TestCase):
         self.assertFalse(manager.UNIT.exists())
         self.assertTrue(manager.PASSWORD_PATH.exists())
         self.assertTrue(manager.config_path('time').exists())
+
+    def test_fresh_combined_install_enrolls_both_controls(self):
+        calls = self.install('controls')
+        self.assertEqual([call.args for call in calls], [('school', 'linnea', True), ('time', 'linnea', True)])
+        self.assertEqual(manager.installed()['modules'], ['school', 'time'])
+
+    def test_combined_upgrade_preserves_existing_enrollments_and_settings(self):
+        self.install('school')
+        school = {'users': {'linnea': {'profile': 'default'}}, 'profiles': {'default': {'school_apps': ['chromium']}}}
+        time = {'users': {}, 'profiles': {'default': {'budget_minutes': {'mon': 35}}}}
+        write_json(manager.config_path('school'), school)
+        write_json(manager.config_path('time'), time)
+        calls = self.install('controls', upgrade=True)
+        self.assertEqual(calls, [])
+        self.assertEqual(read_json(manager.config_path('school'), {}), school)
+        self.assertEqual(read_json(manager.config_path('time'), {}), time)
+        self.assertEqual(manager.installed()['modules'], ['school', 'time'])
 
     def test_command_collision_is_not_overwritten(self):
         self.wrapper.write_text('another application')

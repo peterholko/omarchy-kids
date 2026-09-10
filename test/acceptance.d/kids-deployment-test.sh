@@ -31,7 +31,7 @@ PY
 pass "all modules and the matching package cache are installed; optional collection and limits await setup"
 
 plugins=$(omarchy-shell shell listPlugins)
-for plugin in omarchy.screen-time omarchy.school-mode omarchy.math omarchy.number-grove omarchy.paw-post omarchy.pawberry; do
+for plugin in omarchy.screen-time omarchy.number-grove omarchy.paw-post omarchy.pawberry; do
   [[ $plugins == *"$plugin"* ]] || fail "the installed shell sees $plugin"
 done
 screenshot "success-kids-desktop"

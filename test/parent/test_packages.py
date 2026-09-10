@@ -48,7 +48,7 @@ print(json.dumps(sorted(host.services)))
                     self.assertTrue((dest / 'usr/lib/systemd/system/omarchy-kids-timed.service').exists())
                     env = {**os.environ, 'SCREEN_TIME_ROOT': str(dest / 'state'), 'OMARCHY_PATH': str(dest / 'usr/share/omarchy')}
                     output = subprocess.check_output([sys.executable, '-I', '-c', script, str(dest / 'usr/share/omarchy/lib/parent')], env=env, text=True)
-                    self.assertEqual(json.loads(output), sorted(set(selected) & {'school', 'time'}))
+                    self.assertEqual(json.loads(output), ['school', 'time'] if 'time' in selected else [])
                     for module in optional:
                         self.assertEqual((dest / 'usr/bin' / ('omarchy-kids-' + module)).exists(), module in selected)
                     self.assertEqual((dest / 'usr/share/applications/omarchy-paw-post.desktop').exists(), 'typing' in selected)
@@ -57,22 +57,27 @@ print(json.dumps(sorted(host.services)))
                     self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/paw-post/TypingView.qml').exists(), 'typing' in selected)
                     self.assertEqual((dest / 'usr/share/applications/omarchy-number-grove.desktop').exists(), 'grove' in selected)
                     self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/number-grove/GameView.qml').exists(), 'grove' in selected)
-                    self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/math').exists(), 'time' in selected)
-                    self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/school-mode').exists(), 'school' in selected)
+                    self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/screen-time/math').exists(), 'time' in selected)
+                    self.assertFalse((dest / 'usr/share/omarchy/shell/plugins/math').exists())
+                    self.assertEqual((dest / 'usr/share/omarchy/shell/plugins/screen-time/school').exists(), 'time' in selected)
 
     def test_base_relinquishes_every_module_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp)
+            shared_gate = dest / 'usr/share/omarchy/shell/services/MathModel.js'
+            shared_gate.parent.mkdir(parents=True)
+            shared_gate.write_text((ROOT / 'shell/services/MathModel.js').read_text())
             for module in Manager(ROOT).catalog:
                 stage.stage(ROOT, dest, module)
             stage.prune(ROOT, dest)
+            self.assertTrue(shared_gate.is_file(), "the lock-screen gate must remain in the base without controls")
             for relative in stage.entries(ROOT):
                 for target in stage.destinations(relative):
                     self.assertFalse((dest / target).exists(), target)
 
     def test_dependency_resolution_and_core_protection(self):
         manager = Manager(ROOT)
-        self.assertEqual(manager.resolve(['school-mode', 'time', 'school']), ['core', 'school', 'time'])
+        self.assertEqual(manager.resolve(['school-mode', 'time', 'school']), ['core', 'time'])
         with self.assertRaises(ValueError):
             manager.remove('core')
         manager.catalog['core']['requires'] = ['school']

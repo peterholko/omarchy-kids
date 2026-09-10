@@ -7,11 +7,11 @@ import re
 import unittest
 
 BASE = Path(os.environ['COMMUNITY_EXPORT'])
-NAMES = ['screen-time', 'math-time', 'school-mode', 'number-grove', 'paw-post', 'pawberry']
+NAMES = ['screen-time', 'math-time', 'number-grove', 'paw-post', 'pawberry']
 
 
 class ExportsTest(unittest.TestCase):
-    def test_six_distinct_root_plugins(self):
+    def test_five_distinct_root_plugins(self):
         ids = set()
         for name in NAMES:
             root = BASE / ('omarchy-' + name)
@@ -25,17 +25,21 @@ class ExportsTest(unittest.TestCase):
             self.assertFalse((root / '.github/workflows').exists())
             for path in root.rglob('*'): self.assertFalse(path.is_symlink(), str(path))
 
-    def test_shared_service_payloads_are_identical(self):
-        def hashes(module):
-            root = BASE / ('omarchy-' + module) / 'service'
-            return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*')
-                    if p.is_file() and '__pycache__' not in p.parts}
-        self.assertEqual(hashes('screen-time'), hashes('school-mode'))
+    def test_one_control_plugin_contains_both_controllers(self):
+        root = BASE / 'omarchy-screen-time'
+        self.assertFalse((BASE / 'omarchy-school-mode').exists())
+        self.assertEqual(list(root.rglob('manifest.json')), [root / 'manifest.json'])
+        self.assertTrue((root / 'math/MathTime.qml').exists())
+        self.assertTrue((root / 'math/practice.py').exists())
+        self.assertTrue((root / 'school/Service.qml').exists())
+        self.assertIn('--module controls', (root / 'setup').read_text())
+        self.assertIn('School.SchoolSettingsPage', (root / 'SettingsWindow.qml').read_text())
+        self.assertIn('TimeSettingsPage', (root / 'SettingsWindow.qml').read_text())
 
     def test_qml_local_imports_exist_and_no_private_kids_paths_remain(self):
         for name in NAMES:
             root = BASE / ('omarchy-' + name)
-            for path in root.glob('*.qml'):
+            for path in root.rglob('*.qml'):
                 text = path.read_text()
                 for relative in re.findall(r'^import "([^\"]+)"', text, re.M):
                     self.assertTrue((path.parent / relative).exists(), str(path) + ': ' + relative)
@@ -52,9 +56,10 @@ class ExportsTest(unittest.TestCase):
             self.assertIn('/var/lib/omarchy-kids-controls/status/', policy)
             self.assertTrue((root / ('io.github.peterholko.' + name + '.desktop')).is_file())
 
-    def test_math_practice_has_no_backend_process_dependency(self):
+    def test_math_practice_has_no_daemon_dependency(self):
         text = (BASE / 'omarchy-math-time/MathTime.qml').read_text()
-        self.assertIn('var question = Facts.question(grade)', text)
+        self.assertIn('Qt.resolvedUrl("practice.py")', text)
+        self.assertTrue((BASE / 'omarchy-math-time/practice-facts.py').exists())
         self.assertNotIn('"practice", Quiz.levelName(grade)', text)
         self.assertIn('"-I", decodeURIComponent(Qt.resolvedUrl("remember-grade.py")', text)
 

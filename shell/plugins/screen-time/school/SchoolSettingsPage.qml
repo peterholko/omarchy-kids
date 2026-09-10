@@ -12,6 +12,7 @@ import "Allowlist.js" as Allowlist
 Item {
   id: root
 
+  signal closeRequested()
   property var service: null
   property string clientPath: ""
   property string password: ""
@@ -59,13 +60,10 @@ Item {
     var profile = config && config.profiles ? config.profiles[key || config.active_profile] : null
     root.localPeriods = Schedule.schoolPeriods(profile ? profile.blocked_periods : (root.service ? root.service.blockedPeriods : []))
     root.localApps = Allowlist.normalizeIds(profile ? profile.school_apps : (root.service ? root.service.allowedDesktopIds : []))
-    win.visible = true
   }
 
   function close() {
-    win.visible = false
-    root.password = ""
-    root.pendingPatch = null
+    closeRequested()
   }
 
   function nonSchoolCount() {
@@ -188,15 +186,8 @@ Item {
     onRunningChanged: if (!running && !launched) root.handlePatchReply("")
   }
 
-  FloatingWindow {
-    id: win
-    visible: false
-    title: "School settings"
-    color: Color.background
-    implicitWidth: 520
-    implicitHeight: 660
-    minimumSize: Qt.size(520, 420)
-    maximumSize: Qt.size(520, 760)
+  Item {
+    anchors.fill: parent
 
     FocusScope {
       anchors.fill: parent

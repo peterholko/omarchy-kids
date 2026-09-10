@@ -13,15 +13,16 @@ Loader {
   property string omarchyPath: ""
   property var shell: null
   property var manifest: null
+  readonly property bool opened: item ? item.opened === true : false
   property string pendingPayload: ""
   property bool hasPendingPayload: false
 
   readonly property var sourceAppLibrary: shell ? shell.appLibrary : null
   readonly property var modeService: shell && typeof shell.serviceFor === "function"
-    ? shell.serviceFor("omarchy.school-mode")
+    ? (shell.serviceFor("omarchy.screen-time") || {}).schoolService
     : null
   readonly property bool schoolMode: root.modeService ? root.modeService.schoolMode === true : false
-  readonly property string pluginRoot: omarchyPath ? omarchyPath + "/shell/plugins/school-mode" : ""
+  readonly property string pluginRoot: omarchyPath ? omarchyPath + "/shell/plugins/screen-time/school" : ""
   readonly property string homeDir: Quickshell.env("HOME")
 
   asynchronous: false
@@ -194,6 +195,8 @@ Loader {
     configureMenu()
     return item.refresh()
   }
+
+  function removalReady() { return root.modeService ? root.modeService.removalReady() : "restoring" }
 
   function ping() { return item ? item.ping() : "loading" }
 

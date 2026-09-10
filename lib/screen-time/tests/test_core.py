@@ -169,72 +169,11 @@ def test_quiz():
     from screen_time import config, quiz
 
     section("quiz")
-    g = quiz.Generator(random.Random(7))
+    # Detailed grade boundaries and exact rational judging are covered by
+    # test/parent/test_recall.py. Keep the legacy suite's quiz lifecycle checks.
     for level in config.LEVELS:
-        operations = set()
-        ok = True
-        table_count = 0
-        table_max = 10 if level in ("grade2", "grade3") else 12
-        for _ in range(1000):
-            q = g.question(level, 0)
-            terms = q.text.split()
-            valid = len(terms) == 3 and evaluate(q.text) == q.answer
-            if valid:
-                a, operation, b = int(terms[0]), terms[1], int(terms[2])
-                operations.add(operation)
-                if operation == "+":
-                    valid = 2 <= a <= 10 and 2 <= b <= 10 and q.answer <= 20
-                elif operation == "-":
-                    valid = a <= 20 and 2 <= b <= 10 and 2 <= q.answer <= 10
-                elif operation == "×":
-                    valid = 2 <= a <= (5 if level == "grade2" else table_max) and 2 <= b <= table_max
-                    table_count += 1
-                elif operation == "÷":
-                    valid = 2 <= b <= table_max and 2 <= q.answer <= table_max and a % b == 0
-                    table_count += 1
-                else:
-                    valid = False
-            if not valid or q.key != f"{q.kind}:{q.text}":
-                ok = False
-                print("     bad:", level, q.text, q.answer)
-        check(f"{level} asks correct small facts and remembers each fact separately", ok)
-        if level == "grade1":
-            expected = {"+", "-"}
-        elif level == "grade2":
-            expected = {"+", "-", "×"}
-        elif level in ("grade5", "grade6"):
-            expected = {"×", "÷"}
-        else:
-            expected = {"+", "-", "×", "÷"}
-        check(f"{level} covers its operations", operations == expected, str(operations))
-        if level in ("grade5", "grade6"):
-            check(f"{level} asks only multiplication and division tables", table_count == 1000, str(table_count))
-
-    class HighestChoice:
-        @staticmethod
-        def choice(values):
-            return values[-1]
-
-    edge_generator = quiz.Generator(HighestChoice())
-    check("addition reaches 10 + 10 and subtraction uses its inverse pair",
-          edge_generator.make("add20") == ("10 + 10", 20)
-          and edge_generator.make("sub20") == ("20 - 10", 10))
-    check("the starter tables reach 5 times 10", edge_generator.make("mulsmall") == ("5 × 10", 50))
-    check("the tables reach 12 times 12 and divide back exactly",
-          edge_generator.make("table") == ("12 × 12", 144)
-          and edge_generator.make("tablediv") == ("144 ÷ 12", 12))
-
-    class TenChoice:
-        @staticmethod
-        def choice(values):
-            assert 10 in values, "ten must be available for facts and tables"
-            return 10
-
-    tens = quiz.Generator(TenChoice())
-    check("the ten-times table and its divisions are included",
-          tens.make("table") == ("10 × 10", 100) and tens.make("tablediv") == ("100 ÷ 10", 10))
-    p = quiz.practice("grade2", random.Random(1))
-    check("practice hands over the answer with the question", evaluate(p["text"]) == p["answer"])
+        question = quiz.Generator(random.Random(7)).question(level, 0)
+        check(f"{level} produces a valid recall answer", quiz.parse_number(question.answer) is not None)
 
     earn = config.sanitize_earn({"level": "grade1", "min_answer_seconds": 1.5, "question_timeout_seconds": 90})
     q = quiz.Quiz(earn, rng=random.Random(7))
@@ -245,14 +184,14 @@ def test_quiz():
     question = q.next_question(now=2000.0)
     check("a right answer counts", q.answer(question.id, question.answer, now=2005.0)["correct"])
     question = q.next_question(now=2100.0)
-    check("commas and spaces in an answer are fine", q.answer(question.id, f"{question.answer:,}", now=2105.0)["correct"])
+    check("surrounding spaces in an answer are fine", q.answer(question.id, f" {question.answer} ", now=2105.0)["correct"])
     question = q.next_question(now=3000.0)
     check("the same question cannot be answered twice",
           q.answer(question.id, question.answer, now=3005.0)["ok"] and not q.answer(question.id, question.answer, now=3006.0)["ok"])
 
     q.stats = {"table:7 × 8": {"seen": 10, "wrong": 9, "last_wrong": time.time()},
                "table:6 × 2": {"seen": 10, "wrong": 0}}
-    q.config = config.sanitize_earn({"level": "grade3", "drill_weak": True})
+    q.config = config.sanitize_earn({"level": "grade4", "drill_weak": True})
     seen = {}
     for i in range(1500):
         item = q.next_question(now=4000.0 + i)
@@ -382,7 +321,7 @@ def test_school_mode():
           fake.set_mode("free", school_time, by_parent=True)["ok"])
     check("and not past it", fake.effective_mode(evening) == ("free", "free"))
     check("the kid may choose school mode in the evening", fake.set_mode("school", evening, by_parent=False)["ok"] and fake.effective_mode(evening) == ("school", "chosen"))
-    check("the kid's school-mode choice still uses screen time", not fake.screen_time_exempt(evening))
+    check("the kid's school-mode choice pauses free-time accounting", fake.screen_time_exempt(evening))
     check("which lasts until midnight", fake.mode_override_until == datetime(2026, 9, 3, 0, 0).timestamp())
     check("the kid cannot leave chosen school mode for free time",
           fake.set_mode("free", evening, by_parent=False).get("error") == "parent_required")
@@ -434,7 +373,7 @@ def test_session_env():
         session.shutil.which = lambda command: f"/usr/bin/{command}"
         session._as_user = lambda *_args, **_kwargs: Reply()
         check("the daemon can ask whether Math time is visibly open",
-              session.shell_plugin_open(os.getuid(), "omarchy.math") is True)
+              session.shell_math_open(os.getuid()) is True)
     finally:
         session.shutil.which = real_which
         session._as_user = real_as_user
@@ -479,21 +418,21 @@ def test_math_unlock_grace():
     account.last_lock_ok = True
     account.watcher = Watcher()
 
-    real_open = daemon.session.shell_plugin_open
+    real_open = daemon.session.shell_math_open
     real_notify = daemon.session.notify
     try:
         daemon.session.notify = lambda *_args, **_kwargs: True
-        daemon.session.shell_plugin_open = lambda *_args: True
+        daemon.session.shell_math_open = lambda *_args: True
         account.enforce(100.0)
         check("an open Math time session cancels the relock deadline", account.lock_after is None)
 
-        daemon.session.shell_plugin_open = lambda *_args: False
+        daemon.session.shell_math_open = lambda *_args: False
         account.enforce(101.0)
         check("closing Math time starts the one-minute failsafe", account.lock_after == 161.0)
 
         account.reason = "bedtime"
         account.lock_after = None
-        daemon.session.shell_plugin_open = lambda *_args: True
+        daemon.session.shell_math_open = lambda *_args: True
         account.enforce(200.0)
         check("Math time never postpones bedtime", account.lock_after == 260.0)
 
@@ -501,11 +440,11 @@ def test_math_unlock_grace():
         account.lock_count = 0
         account.last_lock_ok = False
         account.lock_after = None
-        daemon.session.shell_plugin_open = lambda *_args: False
+        daemon.session.shell_math_open = lambda *_args: False
         account.enforce(300.0)
         check("the first time-up countdown is ten seconds", account.lock_after == 310.0)
     finally:
-        daemon.session.shell_plugin_open = real_open
+        daemon.session.shell_math_open = real_open
         daemon.session.notify = real_notify
 
 

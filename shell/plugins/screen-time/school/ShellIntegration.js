@@ -158,6 +158,36 @@ function deactivate(config, managerId, restoreValue) {
   target.splice(Math.min(restore.index, target.length), 0, cloneJson(restore.entry))
 }
 
+// The controls plugin owns one right-hand control and an internal replacement
+// for the ordinary Omarchy menu button. Old school widgets collapse here on
+// the first load; the saved stock-menu position survives shell restarts.
+function activateCombined(config, pluginId, menuPath, schoolActive) {
+  ensureConfigShape(config)
+  var menuId = pluginId + ".menu"
+  var location = barLocation(config, menuId) || barLocation(config, "omarchy.school-mode")
+  var restore = location && isObject(location.entry) ? normalizedRestore(location.entry[RESTORE_KEY]) : null
+  var stock = barLocation(config, STOCK_MENU_ID)
+  if (!restore && stock) restore = { section: stock.section, index: stock.index,
+    entry: isObject(stock.entry) ? cloneJson(stock.entry) : {id: STOCK_MENU_ID} }
+  if (!restore) restore = { section: "left", index: 0, entry: {id: STOCK_MENU_ID} }
+  removeBarEntries(config, STOCK_MENU_ID)
+  removeBarEntries(config, "omarchy.school-mode")
+  removeBarEntries(config, "omarchy.school-mode.mode")
+  removeBarEntries(config, menuId)
+  var entry = managerEntry(menuId, menuPath)
+  entry[RESTORE_KEY] = cloneJson(restore)
+  config.bar.layout[restore.section].splice(Math.min(restore.index, config.bar.layout[restore.section].length), 0, entry)
+  if (!barLocation(config, pluginId)) config.bar.layout.right.push({id: pluginId})
+  setStockMenuDisabled(config, schoolActive)
+  return {restore: restore}
+}
+
+function deactivateCombined(config, pluginId, restore) {
+  removeBarEntries(config, pluginId + ".menu")
+  removeBarEntries(config, "omarchy.school-mode")
+  deactivate(config, "omarchy.school-mode.mode", restore)
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     STOCK_MENU_ID: STOCK_MENU_ID,
@@ -168,6 +198,8 @@ if (typeof module !== "undefined") {
     normalizedRestore: normalizedRestore,
     restoreFromPluginEntry: restoreFromPluginEntry,
     setStockMenuDisabled: setStockMenuDisabled,
+    activateCombined: activateCombined,
+    deactivateCombined: deactivateCombined,
     activate: activate,
     deactivate: deactivate
   }

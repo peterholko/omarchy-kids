@@ -13,9 +13,8 @@ ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = Path(__file__).resolve().parent / 'templates'
 PREFIX = 'io.github.peterholko.'
 PLUGINS = {
-    'screen-time': ('omarchy-screen-time', 'Screen Time', 'Daily budgets, bedtime, parent controls, and optional arithmetic rewards.', ['bar', 'kids', 'security']),
-    'math': ('omarchy-math-time', 'Math Time', 'Friendly arithmetic facts for grades 1–6, with optional screen-time rewards.', ['education', 'kids', 'games']),
-    'school-mode': ('omarchy-school-mode', 'School / Free Time', 'Scheduled school mode, an app allowlist, and password-protected free time.', ['education', 'kids', 'security']),
+    'screen-time': ('omarchy-screen-time', 'School & Screen Time', 'One control panel for school schedules, apps, free-time budgets, bedtime and math rewards.', ['bar', 'kids', 'security']),
+    'math': ('omarchy-math-time', 'Math Time', 'Friendly arithmetic facts for grades 1–7, with optional screen-time rewards.', ['education', 'kids', 'games']),
     'number-grove': ('omarchy-number-grove', 'Number Grove', 'An arithmetic garden game with calm and adventure play for grades 1–6.', ['education', 'kids', 'games']),
     'paw-post': ('omarchy-paw-post', 'Paw Post Typing', 'Deliver mail to animal friends while practising accurate, confident typing.', ['education', 'kids', 'games']),
     'pawberry': ('omarchy-pawberry', 'Pawberry Pet Hotel', 'Collect 23 pets and 20 accessories by showing every step of long arithmetic.', ['education', 'kids', 'games']),
@@ -92,23 +91,24 @@ def games(name, destination):
 
 
 def math(destination):
-    shutil.copy2(ROOT / 'shell/plugins/number-grove/Facts.js', destination / 'PracticeFacts.js')
+    # Bundle the same standard-library generator as the earning service.
+    # Practice needs Python, but no daemon, credentials or installation.
+    shutil.copy2(ROOT / 'lib/parent/omarchy_kids/screen_time/quiz.py', destination / 'practice-facts.py')
+    (destination / 'practice.py').write_text("import importlib.util, json, pathlib, sys\n"
+        "spec = importlib.util.spec_from_file_location('facts', pathlib.Path(__file__).with_name('practice-facts.py'))\n"
+        "facts = importlib.util.module_from_spec(spec); spec.loader.exec_module(facts)\n"
+        "level = sys.argv[1]\n"
+        "if level not in facts.GRADES: raise SystemExit('unknown grade')\n"
+        "print(json.dumps({'ok': True, **facts.practice(level)}))\n")
     path = destination / 'MathTime.qml'
-    replace(path, 'import "MathModel.js" as Quiz', 'import "MathModel.js" as Quiz\nimport "PracticeFacts.js" as Facts')
     replace(path, 'WlrLayershell.namespace: "omarchy-math"', 'WlrLayershell.namespace: "io.github.peterholko.math"')
-    replace(path, 'Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-time-client"',
-            '"/usr/bin/omarchy-kids-controls-time-client"')
+    path.write_text(path.read_text().replace('Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-time-client"',
+            '"/usr/bin/omarchy-kids-controls-time-client"'))
     replace(path, 'homeDir + "/.local/state/omarchy/math-grade"',
             '(Quickshell.env("XDG_STATE_HOME") || homeDir + "/.local/state") + "/omarchy-math-time/grade"')
-    replace(path, 'if (earning) questionProc.command = [clientPath, "quiz"]\n    else questionProc.command = [clientPath, "practice", Quiz.levelName(grade)]',
-            '''if (!earning) {
-      var question = Facts.question(grade)
-      takeQuestion(JSON.stringify({ok: true, text: question.text, answer: question.answer}), "")
-      Qt.callLater(function() { answerInput.forceActiveFocus() })
-      return
-    }
-    questionProc.command = [clientPath, "quiz"]''')
-    replace(path, 'if (!opened) return\n    var toplevels', 'if (!opened || !earning) return\n    var toplevels')
+    replace(path, 'else questionProc.command = [clientPath, "practice", Quiz.levelName(grade)]',
+            'else questionProc.command = ["python3", "-I", decodeURIComponent(Qt.resolvedUrl("practice.py").toString().replace(/^file:\\/\\//, "")), Quiz.levelName(grade)]')
+    replace(path, 'if (!opened || decidePending || status.school) return\n    var toplevels', 'if (!opened || decidePending || status.school || !earning) return\n    var toplevels')
     replace(path, 'saveGradeProc.command = ["bash", "-c", "mkdir -p ~/.local/state/omarchy && printf \'%s\\\\n\' " + n + " >~/.local/state/omarchy/math-grade"]',
             'saveGradeProc.command = ["python3", "-I", decodeURIComponent(Qt.resolvedUrl("remember-grade.py").toString().replace(/^file:\\/\\//, "")), String(n)]')
     shutil.copy2(TEMPLATES / 'remember-grade.py', destination / 'remember-grade.py')
@@ -137,7 +137,14 @@ def export(output):
         destination = output / repository
         if destination.exists() and any(destination.iterdir()):
             raise ValueError(f'export destination is not empty: {destination}')
-        copy_tree(ROOT / 'shell/plugins' / name, destination)
+        source = 'screen-time/math' if name == 'math' else name
+        copy_tree(ROOT / 'shell/plugins' / source, destination)
+        if name == 'math':
+            (destination / 'manifest.json').write_text(json.dumps({
+                'schemaVersion': 1, 'id': PREFIX + name, 'name': title, 'version': '0.2.0',
+                'author': 'Peter Holko', 'kinds': ['overlay'], 'keepLoaded': True,
+                'entryPoints': {'overlay': 'MathTime.qml'},
+            }))
         common_references(destination)
         if name in {'number-grove', 'paw-post', 'pawberry'}:
             games(name, destination)
@@ -145,20 +152,20 @@ def export(output):
             math(destination)
         if name in {'screen-time', 'school-mode'}:
             export_service(ROOT, destination, name)
-        if name == 'school-mode':
-            export_school(ROOT, destination)
+        if name == 'screen-time':
+            shutil.copy2(ROOT / 'docs/images/school-screen-time.png', destination / 'preview.png')
+            math(destination / 'math')
+            export_school(ROOT, destination / 'school')
         manifest = json.loads((destination / 'manifest.json').read_text())
         manifest.update(id=PREFIX + name, name=title, author='Peter Holko',
                         description=description, license='MIT')
-        if name == 'school-mode':
-            manifest['barWidget'].update(displayName=title, description=description, defaultSection='right')
         (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         license_file(destination, name)
         (destination / '.gitignore').write_text('.DS_Store\n__pycache__/\n*.pyc\n')
         (destination / 'README.md').write_text(readme(name, repository, title, description))
         (destination / 'SOURCE.json').write_text(json.dumps({
             'repository': 'https://github.com/peterholko/omarchy-kids', 'commit': revision,
-            'path': 'shell/plugins/' + name, 'exporter': 'packaging/community/export.py',
+            'path': 'shell/plugins/' + source, 'exporter': 'packaging/community/export.py',
         }, indent=2) + '\n')
         if name not in {'screen-time', 'school-mode'}:
             icon = PREFIX + name if name in {'number-grove', 'paw-post', 'pawberry'} else 'applications-education'

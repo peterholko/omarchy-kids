@@ -7,30 +7,48 @@ Selectable parental-control and learning modules for Omarchy.
 | Kids / Parent Password | `omarchy-kids-core` | Required foundation: parent password, child profile controls, shared authentication, module picker and service host. |
 | DNS Filtering | `omarchy-kids-dns` | Domain and page lists, resolver, firewall rules and managed browser policies. |
 | Browsing Logging | `omarchy-kids-browsing` | Browser-history collection, page/video reports and its collection timer. |
-| Screen Time and Math | `omarchy-kids-time` | Daily budgets, bedtime, time grants and arithmetic practice. |
-| School / Free Time | `omarchy-kids-school` | School schedule, app list, desktop restrictions and password-protected free time. |
+| School & Screen Time | `omarchy-kids-time` | One control panel for school/free time, app permissions, schedules, daily budgets, bedtime, time grants and grade 1–7 arithmetic recall. |
 | Number Grove | `omarchy-kids-grove` | Original arithmetic garden game with grades 1–6, calm/adventure play and optional screen-time rewards. |
 | Paw Post Typing | `omarchy-kids-typing` | Cute animal mail-delivery game: home row, everyday words, short messages, accuracy and typing speed. |
 | Pawberry Pet Hotel | `omarchy-kids-pawberry` | Collect 23 pets and 20 wearable accessories by showing every step of two- and three-digit arithmetic. |
 
-The seven optional modules can be installed and removed individually. School mode works without screen time. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
+The six optional modules can be installed and removed individually. School and Screen Time install together; their existing per-account enrollment choices are preserved. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
 
-The existing `omarchy.screen-time`, `omarchy.math` and `omarchy.school-mode` shell plugins are reused. There is one browser profile. Grades 5 and 6 use multiplication and division tables exclusively; younger grades practice small arithmetic facts. Selecting free time always requires the parent password, and the password field shows “Checking password…” while authentication runs.
+`omarchy.screen-time` is the single **School & Screen Time** control plugin. Its one window has **Today**, **Time + Math**, and **School + Apps** tabs; one parent unlock authorizes settings and a return to Free Time. The internal school controller filters the Omarchy app menu, shortcuts and desktop. Math Time is bundled inside the same plugin; its full-screen practice activity uses the grade and reward settings from this window. There is one browser profile.
+
+![The combined parent control window in a portable Qt preview](docs/images/school-screen-time.png)
+
+**School Mode never opens Math Time automatically after login or unlock**, whether School Mode was scheduled, chosen by the child, or selected by a parent. It pauses the free-time budget; bedtime restrictions still apply. Switching to School Mode cancels any earning question already in progress. A child can still open optional math practice deliberately.
+
+Math practice follows these recall targets. Earlier facts remain in rotation; these are practice goals, not deadlines for every child. Core multiplication/division stops at the 1–10 tables, including zero and one facts without division by zero.
+
+| Grade | Recall practice |
+| --- | --- |
+| 1 | Bonds to 5 and 10; addition/subtraction within 10; doubles through 5 + 5. |
+| 2 | Addition/subtraction within 20, missing-number facts, doubles and near doubles. |
+| 3 | Earlier facts plus multiplication/division families for 0, 1, 2, 5 and 10. |
+| 4 | Full multiplication/division tables through 10 × 10. |
+| 5 | Consolidate the core tables, especially 3, 4, 6, 7, 8 and 9; familiar fraction/decimal equivalents. |
+| 6 | Core facts, familiar fraction/decimal/percent equivalents, simple percentages, powers of ten and divisibility. |
+| 7 | Maintain core facts; add signed multiplication/division and equivalents including fifths, eighths and exact thirds. |
+
+Answers can include negative numbers, decimals, fractions such as `1/8`, mixed numbers such as `33 1/3%`, percentages, or `yes`/`no` for divisibility. Equivalent values are checked exactly: `0.333` and `33.33%` do not equal `1/3`. Number Grove retains whole-number table questions for its optional reward rounds.
+
+The merged package replaces `omarchy-kids-school` in the same package transaction. Old `school` and `school-mode` module selections resolve to `time`. Existing budgets, schedules, app permissions, history, and enabled/disabled account enrollments are retained; `plugin enable time` explicitly enables both controls for the selected child.
 
 ## Community plugins for regular Omarchy
 
-Six independent repositories package the shell features for Omarchy Quattro's plugin system:
+Five repositories package the shell features for Omarchy Quattro's plugin system:
 
 | Plugin | Repository |
 | --- | --- |
-| Screen Time | [omarchy-screen-time](https://github.com/peterholko/omarchy-screen-time) |
+| School & Screen Time | [omarchy-screen-time](https://github.com/peterholko/omarchy-screen-time) |
 | Math Time | [omarchy-math-time](https://github.com/peterholko/omarchy-math-time) |
-| School / Free Time | [omarchy-school-mode](https://github.com/peterholko/omarchy-school-mode) |
 | Number Grove | [omarchy-number-grove](https://github.com/peterholko/omarchy-number-grove) |
 | Paw Post Typing | [omarchy-paw-post](https://github.com/peterholko/omarchy-paw-post) |
 | Pawberry Pet Hotel | [omarchy-pawberry](https://github.com/peterholko/omarchy-pawberry) |
 
-These use unique `io.github.peterholko.*` IDs. The three games and Math Time practice are standalone. Screen Time and School Mode include explicit setup for a shared controls service and separate parent password on regular Omarchy; they do not require this repository's packages or change OS login/administrator credentials. Follow each plugin README for setup, dependencies and removal. The service refuses to enroll an account already managed by the original Kids backend, avoiding duplicate enforcement.
+These use unique `io.github.peterholko.*` IDs. The three games and Math Time practice are standalone. School & Screen Time includes explicit setup for its controls service and separate parent password on regular Omarchy; they do not require this repository's packages or change OS login/administrator credentials. Follow each plugin README for setup, dependencies and removal. The service refuses to enroll an account already managed by the original Kids backend, avoiding duplicate enforcement.
 
 The community export and focused tests live under [packaging/community](packaging/community/README.md). Linux installation and enforcement remain subject to a manual laptop check; no ISO build or GitHub Actions is used for these exports. Catalog listing requires marketplace maintainer approval.
 
@@ -62,7 +80,7 @@ From the updated checkout on the Omarchy laptop:
 omarchy kids pawberry
 ```
 
-With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School settings** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. Rewards are collectible pets and accessories, with no screen-time credits. **Motion: off** shows the same rewards immediately without animation.
+With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School + Apps** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. Rewards are collectible pets and accessories, with no screen-time credits. **Motion: off** shows the same rewards immediately without animation.
 
 The preview is the actual Qt component rendered locally. See [how the steps, artwork and checks work](docs/pawberry.md); installed Omarchy integration remains for a laptop check.
 
@@ -84,7 +102,7 @@ omarchy kids grove
 
 With a current package cache, you can also use `omarchy kids plugin add grove`. Launch **Number Grove** from the application menu or with `omarchy kids grove`; remove it with `omarchy kids plugin remove grove`. It is ready after installation and has no separate enable step. Arrow keys or WASD move, Space/Enter collects, and P/Escape pauses. Switching away pauses the game until you resume.
 
-To make it available during school, open the School Mode pill → **School settings** gear, enter the parent password, and turn on **Number Grove** under **School apps**. Number Grove and Paw Post have separate choices; each starts off unless already allowed. Turning it off keeps Number Grove available in Free Time.
+To make it available during school, open **School & Screen Time**, unlock the parent controls, choose **School + Apps**, and turn on **Number Grove** under **School apps**. Number Grove and Paw Post have separate choices; each starts off unless already allowed. Turning it off keeps Number Grove available in Free Time.
 
 See the [game architecture and local checks](docs/number-grove.md). The screenshot is a local Qt component render; a new Linux package release and ISO have not been built for this addition.
 
@@ -106,7 +124,7 @@ omarchy kids typing
 
 With a matching package cache, `omarchy kids plugin add typing` also installs it. The application is ready as soon as it is installed and can be removed with `omarchy kids plugin remove typing`. It depends only on Kids core, works offline, and follows School Mode's app list when that module is installed. Round statistics stay in memory; it does not record typing outside the game or award screen time.
 
-To make it available during school, open the School Mode pill → **School settings** gear, enter the parent password, and turn on **Paw Post** under **School apps**. This optional choice starts off unless you have already allowed the game. Turning it off keeps Paw Post available in Free Time.
+To make it available during school, open **School & Screen Time**, unlock the parent controls, choose **School + Apps**, and turn on **Paw Post** under **School apps**. This optional choice starts off unless you have already allowed the game. Turning it off keeps Paw Post available in Free Time.
 
 The preview comes from the real Qt Quick component running locally. See [Paw Post architecture, artwork and local checks](docs/paw-post.md). Linux desktop integration and a new package/ISO build remain for manual validation.
 
@@ -134,7 +152,7 @@ A full desktop view followed by short clips from the recorded demo. The GIFs are
 
 ## Install on an existing Omarchy laptop
 
-A parent can convert a clean **Omarchy 4** installation without reinstalling the OS. Use the laptop’s existing regular account as the kid account. The installer keeps its login password, home and desktop configuration, asks for a separate parent password, and installs all eight modules. The parent password authorizes administration and also unlocks the login and lock screens. On an encrypted laptop it is added as another disk-unlock key; existing keys are kept. An unencrypted disk stays unencrypted.
+A parent can convert a clean **Omarchy 4** installation without reinstalling the OS. Use the laptop’s existing regular account as the kid account. The installer keeps its login password, home and desktop configuration, asks for a separate parent password, and installs all seven modules. The parent password authorizes administration and also unlocks the login and lock screens. On an encrypted laptop it is added as another disk-unlock key; existing keys are kept. An unencrypted disk stays unencrypted.
 
 In your `omarchy-kids` checkout on the Omarchy laptop, run these commands one at a time as the regular signed-in user:
 
@@ -154,13 +172,13 @@ On an already configured kids laptop, install every module with:
 ./packaging/install ./build-output --user CHILD_USERNAME --all
 ```
 
-For a smaller installation, list the optional modules instead of `--all`, for example `dns school`. Add `--convert` as well when converting a normal installation. Core is always installed, and existing module selections and enrollments are preserved. Installing code alone does not start logging or impose an optional restriction; the parent enables and configures restriction modules through **Setup → Kids Modules**.
+For a smaller installation, list the optional modules instead of `--all`, for example `dns time`. Add `--convert` as well when converting a normal installation. Core is always installed, and existing module selections and enrollments are preserved. Installing code alone does not start logging or impose an optional restriction; the parent enables and configures restriction modules through **Setup → Kids Modules**.
 
-Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All ten package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. ARM runtime validation remains outstanding.
+Both deployment paths install a matching `omarchy-kids-base` / `omarchy-kids-settings` pair and use `/usr/share/omarchy` as `OMARCHY_PATH`. This pair replaces the monolithic Omarchy packages in one transaction. The previous source checkout is kept. All nine package archives remain in `/var/cache/omarchy-kids/packages` so another module can be installed later without rebuilding. ARM runtime validation remains outstanding.
 
 ## Install a fresh laptop with the Kids ISO
 
-The dedicated Kids ISO carries the same ten packages, including all eight modules, in its offline mirror. Its setup creates a kid account and asks for separate kid and parent passwords. An encrypted installation accepts either password at disk unlock. Account setup uses the same command as conversion, and the target retains the complete package cache for future module changes.
+The dedicated Kids ISO carries the same nine packages, including all seven modules, in its offline mirror. Its setup creates a kid account and asks for separate kid and parent passwords. An encrypted installation accepts either password at disk unlock. Account setup uses the same command as conversion, and the target retains the complete package cache for future module changes.
 
 The ISO build is independent of upstream accepting the child-profile PR. Build and validation instructions are in [the deployment guide](docs/kids-deployment.md).
 
@@ -183,8 +201,8 @@ From the child’s session:
 ```bash
 omarchy kids plugin pick
 omarchy kids plugin list
-omarchy kids plugin add school
-omarchy kids plugin enable school
+omarchy kids plugin add time
+omarchy kids plugin enable time
 omarchy kids plugin disable time
 omarchy kids plugin remove browsing
 ```
@@ -202,7 +220,7 @@ omarchy kids time level grade5
 omarchy kids time earn 10 30
 ```
 
-The older `time school`, `time mode` and `time school-apps` commands forward to the school module.
+The older `time school`, `time mode` and `time school-apps` commands forward to the school controller inside the merged module.
 
 ## Update this build
 
@@ -214,7 +232,7 @@ git pull --ff-only
 
 A successful build replaces the previous package output. The installer verifies the complete release’s checksums and updates the compatible base pair, core and currently installed optional modules together. Standard `omarchy update` continues to update system packages; it does not fetch a new kids release from this repository. Switching to the upstream stable/edge packages is a separate migration and must not be mixed with these module packages.
 
-The command family is `omarchy kids`, and the eight module packages use the `omarchy-kids-` prefix. Upgrading a previous installation replaces its packages together and migrates the login rules, services and browser-policy filenames. Existing settings and history are preserved. Conflicting destination files or commands stop the upgrade for review; originals are backed up under `/var/lib/omarchy/kids-namespace-backup`.
+The command family is `omarchy kids`, and the seven module packages use the `omarchy-kids-` prefix. Upgrading a previous installation replaces its packages together and migrates the login rules, services and browser-policy filenames. Existing settings and history are preserved. Conflicting destination files or commands stop the upgrade for review; originals are backed up under `/var/lib/omarchy/kids-namespace-backup`.
 
 The [namespace inventory](docs/kids-namespace-rename.md) lists every renamed source file and the compatibility references retained for upgrades and external plugins.
 
@@ -225,6 +243,6 @@ The [namespace inventory](docs/kids-namespace-rename.md) lists every renamed sou
 ./test/cli
 ```
 
-The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 128 combinations of optional package contents. Builds and tests are run manually on local machines. Package-upgrade and conversion integration checks use a disposable Linux container; full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
+The focused suite covers the existing password, arithmetic and browser-policy behavior; migration recovery; module lifecycle; and all 64 combinations of optional package contents. The merged control window is also checked with portable Qt in `test/controls/visual.py`; that fixture does not run Linux services. Builds and tests are run manually on local machines. Package-upgrade and conversion integration checks use a disposable Linux container; full desktop acceptance uses the disposable-VM procedure in [the acceptance guide](agents/skills/acceptance-tests.md).
 
 See [module architecture and migration](docs/kids-modules.md), [the original design](plans/kids-modules.md), and [upstream Omarchy](https://github.com/basecamp/omarchy). Existing source history and vendored MIT licenses are retained.

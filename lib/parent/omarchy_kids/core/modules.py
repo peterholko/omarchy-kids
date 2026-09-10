@@ -12,7 +12,7 @@ from omarchy_kids import VERSION
 from . import session
 from .storage import read_json
 
-ALIASES = {'screen-time': 'time', 'school-mode': 'school'}
+ALIASES = {'screen-time': 'time', 'school-mode': 'time', 'school': 'time'}
 
 
 class Manager:
@@ -64,7 +64,10 @@ class Manager:
             return [p.parent.parent.name for p in Path('/var/lib/omarchy/parent').glob('*/browsing/enabled')]
         if name in ('time', 'school'):
             filename = 'screen-time.json' if name == 'time' else 'school-mode.json'
-            return sorted(read_json(Path('/etc/omarchy/parent') / filename, {}).get('users', {}))
+            users = set(read_json(Path('/etc/omarchy/parent') / filename, {}).get('users', {}))
+            if name == 'time':
+                users.update(read_json(Path('/etc/omarchy/parent/school-mode.json'), {}).get('users', {}))
+            return sorted(users)
         return []
 
     def refresh_desktops(self):
@@ -93,9 +96,18 @@ class Manager:
                 raise ValueError('choose a child account with --user NAME')
             pwd.getpwnam(user)
             command += ['--user', user]
-        subprocess.run(command, check=True)
-        if not enabled and name == 'school':
-            self.wait_school_restore(user)
+        if name == 'time':
+            school = [str(self.root / 'bin/omarchy-kids-school'), 'on' if enabled else 'off', '--user', user]
+            # Restore school restrictions before disabling accounting or
+            # removing code. A failed restoration leaves the package intact.
+            if not enabled:
+                subprocess.run(school, check=True)
+                self.wait_school_restore(user)
+            subprocess.run(command, check=True)
+            if enabled:
+                subprocess.run(school, check=True)
+        else:
+            subprocess.run(command, check=True)
 
     def wait_school_restore(self, user):
         uid = pwd.getpwnam(user).pw_uid
@@ -107,7 +119,7 @@ class Manager:
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             command = ['runuser', '-u', user, '--', 'env', *[k + '=' + v for k, v in env.items()],
-                       'omarchy-shell', 'shell', 'call', 'omarchy.school-mode', 'removalReady', '']
+                       'omarchy-shell', 'shell', 'call', 'omarchy.screen-time', 'removalReady', '']
             result = subprocess.run(command, capture_output=True, text=True)
             if result.returncode == 0 and result.stdout.strip() == 'ready':
                 return
@@ -148,6 +160,10 @@ class Manager:
             if installed:
                 if name == 'core' or item.get('kind') == 'application':
                     enabled, healthy = True, True
+                elif name == 'time' and ('time' in running or 'school' in running):
+                    services = [running.get(scope, {}) for scope in ('time', 'school')]
+                    enabled = any(part.get('users', 0) > 0 for part in services)
+                    healthy = all(part.get('healthy', False) for part in services)
                 elif name in running:
                     enabled = running[name]['users'] > 0
                     healthy = running[name].get('healthy')

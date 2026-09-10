@@ -1,9 +1,9 @@
 [Desktop Entry]
 Version=1.0
 Name=Math Time
-Comment=Arithmetic for grades 1 to 6: practise, or earn screen time
+Comment=Arithmetic for grades 1 to 7: practise, or earn screen time
 TryExec=omarchy-kids-time-client
-Exec=omarchy-shell shell summon omarchy.math
+Exec=omarchy-shell shell summon omarchy.screen-time math
 Terminal=false
 Type=Application
 Icon=accessories-calculator

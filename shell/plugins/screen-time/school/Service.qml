@@ -58,12 +58,10 @@ Item {
   readonly property string statusPath: "/var/lib/omarchy/parent/" + userName + "/school-mode/status.json"
   readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || homeDir + "/.local/state") + "/omarchy-school-mode"
   readonly property string notificationStatePath: stateDir + "/notifications.json"
-  readonly property string pluginDir: omarchyPath + "/shell/plugins/school-mode"
+  readonly property string pluginDir: omarchyPath + "/shell/plugins/screen-time/school"
   readonly property string windowSessionTool: pluginDir + "/window-session"
   readonly property string shortcutPolicyTool: pluginDir + "/shortcut-policy"
-  readonly property string pluginId: "omarchy.school-mode"
-  readonly property string modePillId: pluginId + ".mode"
-  readonly property string modePillPath: pluginDir + "/ModePill.qml"
+  readonly property string pluginId: "omarchy.screen-time"
   readonly property var notificationService: root.shell && typeof root.shell.serviceFor === "function"
     ? root.shell.serviceFor("omarchy.notifications") : null
 
@@ -255,7 +253,7 @@ Item {
     if (root.schoolMode && typeof root.shell.hide === "function")
       root.shell.hide(ShellIntegration.STOCK_MENU_ID)
     root.shell.mutateShellConfig(function(config) {
-      var result = ShellIntegration.activate(config, root.pluginId, root.modePillId, root.modePillPath, root.schoolMode)
+      var result = ShellIntegration.activateCombined(config, root.pluginId, root.pluginDir + "/BarWidget.qml", root.schoolMode)
       if (result && result.restore) root.stockMenuRestore = result.restore
     })
   }
@@ -263,7 +261,7 @@ Item {
   function releaseShellIntegration() {
     if (!root.shell || typeof root.shell.mutateShellConfig !== "function") return
     root.shell.mutateShellConfig(function(config) {
-      ShellIntegration.deactivate(config, root.modePillId, root.stockMenuRestore)
+      ShellIntegration.deactivateCombined(config, root.pluginId, root.stockMenuRestore)
     })
   }
 

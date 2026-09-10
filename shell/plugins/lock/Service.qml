@@ -4,7 +4,7 @@ import Quickshell.Io
 import Quickshell.Services.Pam
 import Quickshell.Wayland
 import qs.Commons
-import "../math/MathModel.js" as MathGate
+import "../../services/MathModel.js" as MathGate
 
 Item {
   id: root
@@ -214,7 +214,7 @@ Item {
   function enforceTimeBudget() {
     if (!childInstall || !timeGate.enabled || !timeGate.gated) return
     if (locked || lockRequested || mathSummonPending) return
-    if (shell && typeof shell.isPluginOpen === "function" && shell.isPluginOpen("omarchy.math")) return
+    if (shell && typeof shell.callIfLoaded === "function" && shell.callIfLoaded("omarchy.screen-time", "mathOpen", "") === "true") return
     logEvent("math: summoned, no time left and nothing on screen")
     summonMath()
   }
@@ -449,7 +449,7 @@ Item {
 
   Process {
     id: summonMathProc
-    command: ["omarchy-shell", "-q", "shell", "summon", "omarchy.math", "{\"forced\":true}"]
+    command: ["omarchy-shell", "-q", "shell", "summon", "omarchy.screen-time", "{\"math\":true,\"forced\":true}"]
   }
 
   Process {

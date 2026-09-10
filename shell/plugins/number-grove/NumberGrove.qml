@@ -10,7 +10,7 @@ Item {
   property string omarchyPath: Quickshell.env("OMARCHY_PATH")
   property bool opened: false
   readonly property var schoolService: shell && typeof shell.serviceFor === "function"
-    ? shell.serviceFor("omarchy.school-mode") : null
+    ? (shell.serviceFor("omarchy.screen-time") || {}).schoolService : null
   readonly property bool schoolAllowed: !schoolService || !schoolService.schoolMode
     || schoolService.isAllowed("omarchy-number-grove.desktop")
 

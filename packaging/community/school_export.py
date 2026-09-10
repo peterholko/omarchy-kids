@@ -6,8 +6,8 @@ def export_desktop(root, destination):
     from export import TEMPLATES, PREFIX
     shutil.copy2(TEMPLATES / 'school-desktop.py', destination / 'school-desktop.py')
     for filename in ('window-session', 'shortcut-policy'):
-        text = (root / 'shell/plugins/school-mode' / filename).read_text()
-        text = text.replace('omarchy.school-mode', PREFIX + 'school-mode')
+        text = (root / 'shell/plugins/screen-time/school' / filename).read_text()
+        text = text.replace('omarchy.screen-time', PREFIX + 'screen-time')
         text = text.replace('omarchy-school-mode', 'omarchy-community-school-mode')
         text = text.replace('special:omarchy-school-parked', 'special:omarchy-community-school-parked')
         text = text.replace('name:omarchy-school', 'name:omarchy-community-school')
@@ -38,15 +38,8 @@ def export_school(root, destination):
     from export import replace, TEMPLATES, PREFIX
     export_desktop(root, destination)
     shutil.copy2(TEMPLATES / 'SchoolService.qml', destination / 'Service.qml')
-    # One registered widget owns the service and the mode panel. Community
-    # plugins cannot inject a second widget into another plugin's bar.
-    pill = (destination / 'ModePill.qml').read_text().replace(PREFIX + 'school-mode.mode', PREFIX + 'school-mode')
-    (destination / 'ModePill.qml').unlink()
-    (destination / 'BarWidget.qml').write_text(pill.replace('BarWidget {', 'Ui.BarWidget {', 1).replace('import qs.Ui', 'import qs.Ui as Ui'))
-    # Keep component names from shadowing the shared Ui base classes.
-    replace(destination / 'BarWidget.qml', '  BarIconButton {', '  Ui.BarIconButton {')
     menu = destination / 'Menu.qml'
-    replace(menu, 'omarchyPath ? omarchyPath + "/shell/plugins/school-mode" : ""',
+    replace(menu, 'omarchyPath ? omarchyPath + "/shell/plugins/screen-time/school" : ""',
             'decodeURIComponent(Qt.resolvedUrl(".").toString().replace(/^file:\\/\\//, "")).replace(/\\/$/, "")')
     replace(menu, 'root.sourceAppLibrary ? root.sourceAppLibrary.isHiddenEntry(entry) : false',
             'root.sourceAppLibrary && typeof root.sourceAppLibrary.isHiddenEntry === "function" ? root.sourceAppLibrary.isHiddenEntry(entry) : false')

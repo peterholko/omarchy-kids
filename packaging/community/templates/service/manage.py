@@ -205,7 +205,8 @@ def install(args):
     # Record ownership before creating wrappers/unit so an interrupted setup
     # can safely be retried without adopting unrelated files.
     unit = (SOURCE / UNIT.name).read_text()
-    modules = sorted(set(previous.get('modules', [])) | {args.module})
+    selected = ('school', 'time') if args.module == 'controls' else (args.module,)
+    modules = sorted(set(previous.get('modules', [])) | set(selected))
     write_json(MARKER, {'identity': IDENTITY, 'version': VERSION, 'payload': incoming, 'unit': unit, 'modules': modules})
     for path, text in wrappers().items():
         write_wrapper(path, text)
@@ -214,8 +215,12 @@ def install(args):
     run('systemctl', 'daemon-reload')
     run('systemctl', 'enable', '--now', UNIT.name)
     wait_for_service()
-    enroll(args.module, args.user, True)
-    print(f'{args.module} controls enabled for {args.user}. The other module settings were retained.')
+    for module in selected:
+        # Updating an already-installed family preserves both enrollment
+        # decisions. A fresh install enrolls both parts of the combined control.
+        if not previous or not args.upgrade:
+            enroll(module, args.user, True)
+    print(f'School & Screen Time installed for {args.user}. Existing settings were retained.')
     print('Open the plugin’s parent settings to choose the schedule and limits.')
 
 
@@ -262,15 +267,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='action', required=True)
     installer = sub.add_parser('install')
-    installer.add_argument('--module', choices=['time', 'school'], required=True)
+    installer.add_argument('--module', choices=['controls', 'time', 'school'], required=True)
     installer.add_argument('--user', required=True)
     installer.add_argument('--upgrade', action='store_true')
     for action in ('enable', 'disable'):
         command = sub.add_parser(action)
-        command.add_argument('module', choices=['time', 'school'])
+        command.add_argument('module', choices=['controls', 'time', 'school'])
         command.add_argument('--user', required=True)
     sub.add_parser('password')
-    sub.add_parser('remove').add_argument('module', choices=['time', 'school'])
+    sub.add_parser('remove').add_argument('module', choices=['controls', 'time', 'school'])
     args = parser.parse_args()
     if os.geteuid() != 0 or sys.platform != 'linux':
         parser.error('run this command with sudo on the Omarchy laptop')
@@ -282,15 +287,18 @@ def main():
         elif args.action == 'password':
             set_parent_password()
         elif args.action == 'remove':
-            remove(args.module)
+            for module in (('school', 'time') if args.module == 'controls' else (args.module,)):
+                remove(module)
         else:
-            if args.module not in installed().get('modules', []):
-                raise ValueError('install this module with its plugin setup command first')
-            if args.action == 'enable':
-                check_account(args.user)
-            enroll(args.module, args.user, args.action == 'enable')
-            if args.action == 'disable' and args.module == 'school':
-                restore_desktop(args.user)
+            selected = ('school', 'time') if args.module == 'controls' else (args.module,)
+            for module in selected:
+                if module not in installed().get('modules', []):
+                    raise ValueError('install the controls plugin with its setup command first')
+                if args.action == 'enable':
+                    check_account(args.user)
+                enroll(module, args.user, args.action == 'enable')
+                if args.action == 'disable' and module == 'school':
+                    restore_desktop(args.user)
 
 
 if __name__ == '__main__':

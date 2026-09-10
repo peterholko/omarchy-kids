@@ -1,19 +1,24 @@
 {
   "schemaVersion": 1,
   "id": "omarchy.screen-time",
-  "name": "Screen time",
-  "version": "0.1.0",
+  "name": "School & Screen Time",
+  "version": "0.2.0",
   "author": "Omarchy, from Jankees van Woezik's omarchy-screen-time",
-  "description": "A child install's screen time: the minutes left in the bar, a lock at zero, and the parent's controls behind the parent password.",
-  "kinds": ["service", "bar-widget"],
+  "description": "One parent control panel for school mode, app permissions, free-time budgets, bedtime and grade 1\u20137 math practice.",
+  "kinds": [
+    "service",
+    "bar-widget",
+    "menu"
+  ],
   "keepLoaded": true,
   "entryPoints": {
     "service": "Service.qml",
-    "barWidget": "BarWidget.qml"
+    "barWidget": "BarWidget.qml",
+    "menu": "Entry.qml"
   },
   "barWidget": {
-    "displayName": "Screen time",
-    "description": "The screen time left today.",
+    "displayName": "School & Screen Time",
+    "description": "School mode and the free-time budget, with one parent control panel.",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

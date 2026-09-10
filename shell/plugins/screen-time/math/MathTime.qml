@@ -6,7 +6,7 @@ import qs.Commons
 import "MathModel.js" as Quiz
 
 // Math time (plans/kids-screen-time.md): the arithmetic app of a child
-// install. Two ways to use it. Practice: any grade from 1 to 6, ten
+// install. Two ways to use it. Practice: any grade from 1 to 7, ten
 // questions, checked here from the answer the daemon hands over with the
 // question, recorded by nobody. Earn time: the parent's grade and set,
 // questions from and answers to omarchy-kids-timed over its socket, so
@@ -48,7 +48,7 @@ Item {
   property bool decidePending: false
   property int grade: 5
   readonly property bool earning: mode === "earn"
-  readonly property bool canEarn: status.enabled && !status.school
+  readonly property bool canEarn: status.enabled && status.earning && !status.school
   readonly property bool parentBypassAvailable: forcedOpen && status.enabled && status.gated
   readonly property bool showEscapeHint: !forcedOpen && !status.gated
   readonly property int level: earning ? Quiz.levelNumber(status.level) : grade
@@ -63,6 +63,7 @@ Item {
   property int bestStreak: 0
   property string questionId: ""
   property string questionText: ""
+  property string questionHint: ""
   property string expectedAnswer: ""
   property string feedback: ""
   property string feedbackKind: ""
@@ -99,14 +100,16 @@ Item {
     parentPromptError = false
     opened = true
     screen = ""
-    blockCalculatorWindows()
     decidePending = true
-    statusView.reload()
+    if (forcedOpen) gateProc.running = true
+    else statusView.reload()
   }
 
   function decideStart() {
     if (!decidePending) return
     decidePending = false
+    if (forcedOpen && !status.gated) { close(); return }
+    blockCalculatorWindows()
     // With no time left the app is the session: straight into earning.
     if (status.gated) {
       mode = "earn"
@@ -120,6 +123,15 @@ Item {
 
   function close() {
     opened = false
+    nextQuestionTimer.stop()
+    finishTimer.stop()
+    questionWatchdog.stop()
+    answerWatchdog.stop()
+    slowQuestionTimer.stop()
+    questionProc.running = false
+    answerProc.running = false
+    gateProc.running = false
+    checking = false
     forcedOpen = false
     parentPromptOpen = false
     parentPromptNote = ""
@@ -141,7 +153,7 @@ Item {
   }
 
   function chooseGrade(n) {
-    if (earning || n < 1 || n > 6) return
+    if (earning || n < 1 || n > 7) return
     grade = n
     saveGradeProc.command = ["bash", "-c", "mkdir -p ~/.local/state/omarchy && printf '%s\\n' " + n + " >~/.local/state/omarchy/math-grade"]
     saveGradeProc.running = true
@@ -156,7 +168,7 @@ Item {
   // launched while a question is on screen. Watching compositor toplevels
   // covers the launcher, calculator keys, terminals, and alternate binaries.
   function blockCalculatorWindows() {
-    if (!opened) return
+    if (!opened || decidePending || status.school) return
     var toplevels = ToplevelManager.toplevels.values || []
     for (var i = toplevels.length - 1; i >= 0; i--) {
       var toplevel = toplevels[i]
@@ -200,11 +212,14 @@ Item {
   // helper that could not start at all with runningChanged alone, no exited,
   // so a failure arrives here with a name of its own.
   function takeQuestion(raw, failure) {
+    if (!opened) return
     slowQuestionTimer.stop()
     questionWatchdog.stop()
     var question = Quiz.parseQuestionJson(raw)
     if (!(question && question.text) && failure) question = { error: failure }
+    if (question.error === "school_mode_active") { close(); return }
     if (question && question.text) {
+      questionHint = question.hint || ""
       questionId = question.id || ""
       questionText = question.text
       expectedAnswer = question.answer || ""
@@ -228,7 +243,7 @@ Item {
     if (earning) {
       checking = true
       answerProc.launched = false
-      answerProc.command = [clientPath, "answer", questionId, answer]
+      answerProc.command = [clientPath, "answer", "--", questionId, answer]
       answerProc.running = true
       answerWatchdog.restart()
     } else {
@@ -237,12 +252,14 @@ Item {
   }
 
   function handleAnswer(reply) {
+    if (!opened) return
     answerWatchdog.stop()
     checking = false
     handleResult(Quiz.parseVerdictJson(reply))
   }
 
   function handleResult(result) {
+    if (result.kind === "school") { close(); return }
     feedback = Quiz.feedbackFor(result, mode)
     if (earning) statusView.reload()
     if (result.kind === "correct") {
@@ -268,7 +285,7 @@ Item {
     }
     // A first practice miss keeps the question for one more try, and "too
     // fast" keeps it too; anything else brings the next after the banner.
-    if ((result.kind === "wrong" && !result.expected) || result.kind === "too_fast") {
+    if ((result.kind === "wrong" && !result.expected) || result.kind === "too_fast" || result.kind === "invalid") {
       if (result.kind === "wrong") attempts += 1
       answerText = ""
       return
@@ -400,13 +417,35 @@ Item {
     printErrors: false
     onLoaded: {
       root.statusRaw = text()
-      root.decideStart()
+      if (!root.forcedOpen) root.decideStart()
     }
     onLoadFailed: {
       root.statusRaw = ""
-      root.decideStart()
+      if (!root.forcedOpen) root.decideStart()
     }
     onFileChanged: reload()
+  }
+
+  // A summon after login/unlock must consult the live policy, not just a
+  // status file left behind before the service or school schedule changed.
+  Process {
+    id: gateProc
+    command: [root.clientPath, "status"]
+    stdout: StdioCollector { id: gateOutput; waitForEnd: true }
+    onExited: function(code) {
+      if (!root.opened || !root.decidePending) return
+      if (code !== 0) { root.close(); return }
+      root.statusRaw = gateOutput.text
+      root.decideStart()
+    }
+  }
+  Timer {
+    interval: 6000
+    running: root.decidePending && root.forcedOpen
+    onTriggered: root.close()
+  }
+  onStatusChanged: {
+    if (opened && status.school && (forcedOpen || earning)) close()
   }
 
   // The grade she practised last, hers to keep.
@@ -416,7 +455,7 @@ Item {
     printErrors: false
     onLoaded: {
       var n = parseInt(String(text()).trim(), 10)
-      if (n >= 1 && n <= 6) root.grade = n
+      if (n >= 1 && n <= 7) root.grade = n
     }
   }
 
@@ -508,7 +547,7 @@ Item {
 
   PanelWindow {
     id: panel
-    visible: root.opened
+    visible: root.opened && !root.decidePending && !(root.forcedOpen && root.status.school)
     anchors { top: true; bottom: true; left: true; right: true }
     color: root.paper
     WlrLayershell.namespace: "omarchy-math"
@@ -543,9 +582,9 @@ Item {
       Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Escape) { root.back(); event.accepted = true; return }
         if (root.screen === "start") {
-          if (event.key >= Qt.Key_1 && event.key <= Qt.Key_6) { root.chooseGrade(event.key - Qt.Key_0); event.accepted = true }
+          if (event.key >= Qt.Key_1 && event.key <= Qt.Key_7) { root.chooseGrade(event.key - Qt.Key_0); event.accepted = true }
           else if (event.key === Qt.Key_Left) { root.chooseGrade(Math.max(1, root.grade - 1)); event.accepted = true }
-          else if (event.key === Qt.Key_Right) { root.chooseGrade(Math.min(6, root.grade + 1)); event.accepted = true }
+          else if (event.key === Qt.Key_Right) { root.chooseGrade(Math.min(7, root.grade + 1)); event.accepted = true }
           else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down || event.key === Qt.Key_Tab) { root.chooseMode(root.earning ? "practice" : "earn"); event.accepted = true }
           else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.startSession(); event.accepted = true }
         } else if (root.screen === "results") {
@@ -588,7 +627,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: Style.space(10)
         Repeater {
-          model: 6
+          model: 7
           Chip {
             required property int index
             readonly property int n: index + 1
@@ -644,7 +683,7 @@ Item {
       Text {
         textFormat: Text.PlainText
         width: parent.width
-        text: (root.status.enabled ? root.balance + "  ·  " : "") + "1 to 6 picks a grade  ·  Enter to start" + (root.showEscapeHint ? "  ·  Esc to leave" : (root.parentBypassAvailable ? "  ·  Esc for parent" : ""))
+        text: (root.status.school ? "School Mode · Optional practice  ·  " : root.status.enabled ? root.balance + "  ·  " : "") + "1 to 7 picks a grade  ·  Enter to start" + (root.showEscapeHint ? "  ·  Esc to leave" : (root.parentBypassAvailable ? "  ·  Esc for parent" : ""))
         color: root.inkSoft
         font.family: Style.font.family
         font.pixelSize: Style.font.body
@@ -704,8 +743,20 @@ Item {
         text: root.questionText.length > 0 ? root.questionText.replace(/^What is /, "").replace(/\?$/, "") : "…"
         color: root.ink
         font.family: Style.font.family
-        font.pixelSize: Math.round(Style.font.displayLarge * 2.4)
+        font.pixelSize: Math.round(Style.font.displayLarge * (root.questionText.length > 18 ? 1.2 : 2.4))
         font.bold: true
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.WordWrap
+      }
+
+      Text {
+        width: parent.width
+        visible: text !== ""
+        text: root.questionHint
+        textFormat: Text.PlainText
+        color: root.inkSoft
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.WordWrap
       }
@@ -721,12 +772,13 @@ Item {
         border.color: root.feedbackKind === "wrong" || root.feedbackKind === "reveal" ? root.bad : root.mark
 
         RegularExpressionValidator {
-          id: digitsOnly
-          regularExpression: /[0-9]{0,9}/
+          id: answerCharacters
+          regularExpression: /[0-9+−\-./% yesnoYESNO]{0,40}/
         }
 
         TextInput {
           id: answerInput
+          objectName: "mathAnswer"
           anchors.fill: parent
           anchors.leftMargin: Style.space(18)
           anchors.rightMargin: Style.space(18)
@@ -735,8 +787,8 @@ Item {
           focus: root.opened && root.screen === "question"
           enabled: !root.checking
           readOnly: root.checking
-          inputMethodHints: Qt.ImhDigitsOnly
-          validator: digitsOnly
+          inputMethodHints: Qt.ImhNoPredictiveText
+          validator: answerCharacters
           text: root.answerText
           color: root.ink
           selectionColor: Util.alpha(root.mark, 0.3)

@@ -106,11 +106,13 @@ class Account:
         """
         return self._period(now, "block")
 
+    def school_active(self, now):
+        return self.school_snapshot(now).get("mode") == "school"
+
     def screen_time_exempt(self, now):
-        policy = self.school_snapshot(now)
-        if policy.get("active_period") is not None:
-            return True
-        return self.blocking_period(now) is None and policy.get("mode") == "school" and policy.get("mode_reason") == "parent"
+        # School never spends the free-time budget. A bedtime restriction
+        # still applies, even when the child chooses School Mode herself.
+        return self.school_active(now) and self.blocking_period(now) is None
 
     def next_period(self, now):
         """The enabled period that starts next, for the line under the bar."""
@@ -146,6 +148,8 @@ class Account:
     def tick(self, now, elapsed, demo=False):
         self.rollover(now)
         self.watcher.poll()
+        if self.school_active(now):
+            self.quiz.pending = None
 
         if self.idle_since is not None and now - self.idle_since > IDLE_MAX_SECONDS:
             self.log(f"idle flag for {self.username} expired, counting again")
@@ -253,7 +257,7 @@ class Account:
         # session take as long as it takes. If the app or shell disappears,
         # the ordinary post-unlock deadline starts again on this same path.
         # Bedtime is never held off by Math time.
-        if reason == "empty" and session.shell_plugin_open(self.uid, "omarchy.math") is True:
+        if reason == "empty" and session.shell_math_open(self.uid) is True:
             self.lock_after = None
             return
 
@@ -318,7 +322,7 @@ class Account:
                 "schemaVersion": 1,
                 "updatedAt": now,
                 "enabled": True,
-                "school": self.screen_time_exempt(now),
+                "school": self.school_active(now),
                 "paused": self.paused,
                 "budget": max(0, int(self.day.remaining)),
                 "earnedToday": int(math.ceil(self.day.earned / 60)),
@@ -329,7 +333,7 @@ class Account:
                 "questions": earn["questions_per_set"],
                 "sessionMinutes": earn["set_minutes"],
                 "level": earn["level"],
-                "earning": bool(earn["enabled"]) and self.earn_room() > 0,
+                "earning": bool(earn["enabled"]) and not self.together and not self.school_active(now) and self.earn_room() > 0,
                 "phase": self.phase(now),
             }
             payload.update(self.mode_status(now))
@@ -352,13 +356,16 @@ class Account:
         return max(0, cap - self.day.earned)
 
     def quiz_next(self, now, choices=0):
+        if self.school_active(now):
+            self.quiz.pending = None
+            return {"ok": False, "error": "school_mode_active"}
         earn = self.profile["earn"]
         if self.together or not earn["enabled"]:
             return {"ok": False, "error": "earning_disabled"}
         if self.earn_room() <= 0:
             return {"ok": False, "error": "daily_cap_reached",
                     "cap_minutes": earn["daily_cap_minutes"]}
-        question = self.quiz.next_question(now)
+        question = self.quiz.next_question(now, game=choices == 6)
         if question is None:
             return {"ok": False, "error": "no_questions"}
         reward = min(config_mod.seconds_per_correct(earn), self.earn_room())
@@ -371,6 +378,9 @@ class Account:
                 "set_minutes": earn["set_minutes"], "level": earn["level"]}
 
     def quiz_answer(self, question_id, given, now):
+        if self.school_active(now):
+            self.quiz.pending = None
+            return {"ok": False, "error": "school_mode_active"}
         earn = self.profile["earn"]
         if self.together or not earn["enabled"]:
             self.quiz.pending = None

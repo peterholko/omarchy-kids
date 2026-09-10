@@ -26,6 +26,7 @@ def export_service(root, destination, name):
             '/var/lib/omarchy/parent': '/var/lib/omarchy-kids-controls',
             '/run/omarchy-kids/screen-time': '/run/omarchy-kids-controls',
             'omarchy.math': PREFIX + 'math',
+            'omarchy.screen-time': PREFIX + 'screen-time',
             'omarchy-number-grove.desktop': PREFIX + 'number-grove.desktop',
             'omarchy-paw-post.desktop': PREFIX + 'paw-post.desktop',
             'omarchy-pawberry.desktop': PREFIX + 'pawberry.desktop',
@@ -44,6 +45,9 @@ def export_service(root, destination, name):
     paths.private_dir(target.parent, mode=0o755, scrub=False)''')
     replace(package / 'school_mode/defaults.py', '"Khan Academy", "Wikipedia", "Math Time"',
             '"Khan Academy", "Wikipedia", "io.github.peterholko.math"')
+    replace(package / 'core/session.py',
+            '    return value == "true" if value in ("true", "false") else None',
+            '    if value == "true": return True\n    return shell_plugin_open(uid, "io.github.peterholko.math")')
     replace(package / 'core/session.py', 'kwargs["group"] = entry.pw_gid',
             'kwargs["group"] = entry.pw_gid\n        kwargs["extra_groups"] = []')
     replace(package / 'core/session.py', 'NOTIFY_COMMANDS = ["omarchy-notification-send", "notify-send"]',
@@ -86,7 +90,7 @@ def export_service(root, destination, name):
         shutil.copy2(TEMPLATES / 'service' / filename, service / filename)
     shutil.copy2(TEMPLATES / 'service/credentials.py', package / 'core/credentials.py')
     export_desktop(root, service)
-    module = 'time' if name == 'screen-time' else 'school'
+    module = 'controls'
     (destination / 'setup').write_text(f'''#!/bin/bash
 # Install the reviewed local service payload; no code is downloaded here.
 set -euo pipefail
@@ -96,7 +100,7 @@ exec /usr/bin/python3 -I "$plugin_dir/service/manage.py" install --module {modul
     (destination / 'setup').chmod(0o755)
     shutil.copy2(root / 'shell/Ui/ParentPasswordField.qml', destination / 'ParentPasswordField.qml')
     replace(destination / 'ParentPasswordField.qml', 'import QtQuick', 'import QtQuick\nimport qs.Ui')
-    for path in destination.glob('*.qml'):
+    for path in destination.rglob('*.qml'):
         text = path.read_text()
         text = text.replace('Quickshell.env("OMARCHY_PATH") + "/bin/omarchy-kids-time-client"',
                             '"/usr/bin/omarchy-kids-controls-time-client"')
@@ -104,9 +108,6 @@ exec /usr/bin/python3 -I "$plugin_dir/service/manage.py" install --module {modul
                             '"/usr/bin/omarchy-kids-controls-school-client"')
         path.write_text(text)
     if name == 'screen-time':
-        replace(destination / 'BarWidget.qml',
-            'if (root.bar && root.bar.shell && typeof root.bar.shell.summon === "function") root.bar.shell.summon("io.github.peterholko.math", "{}")',
-            'Quickshell.execDetached(["omarchy-shell", "shell", "summon", "io.github.peterholko.math", "{}"])')
         # The stock lock screen has no Kids-specific handoff. Ask over the
         # public IPC after an unlock, and keep the daemon’s lock fallback.
         shutil.copy2(TEMPLATES / 'math-handoff.py', destination / 'math-handoff.py')
@@ -117,7 +118,7 @@ exec /usr/bin/python3 -I "$plugin_dir/service/manage.py" install --module {modul
   }
   Timer {
     interval: 5000
-    running: root.connected && root.phase === "empty"
+    running: root.connected && !root.schoolMode && root.phase === "empty"
     repeat: true
     onTriggered: if (!handoff.running) handoff.running = true
   }
