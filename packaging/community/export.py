@@ -18,7 +18,7 @@ PLUGINS = {
     'school-mode': ('omarchy-school-mode', 'School / Free Time', 'Scheduled school mode, an app allowlist, and password-protected free time.', ['education', 'kids', 'security']),
     'number-grove': ('omarchy-number-grove', 'Number Grove', 'An arithmetic garden game with calm and adventure play for grades 1–6.', ['education', 'kids', 'games']),
     'paw-post': ('omarchy-paw-post', 'Paw Post Typing', 'Deliver mail to animal friends while practising accurate, confident typing.', ['education', 'kids', 'games']),
-    'pawberry': ('omarchy-pawberry', 'Pawberry Pet Hotel', 'Welcome surprise pets by showing every step of long arithmetic.', ['education', 'kids', 'games']),
+    'pawberry': ('omarchy-pawberry', 'Pawberry Pet Hotel', 'Collect 23 pets and 20 accessories by showing every step of long arithmetic.', ['education', 'kids', 'games']),
 }
 
 
@@ -87,6 +87,8 @@ def games(name, destination):
         text = text.replace(f"ROOT / 'shell/plugins/{name}'", 'ROOT')
         (test_directory / 'visual.py').write_text(text)
     shutil.copy2(ROOT / 'docs/images' / (name + '.png'), destination / 'preview.png')
+    if name == 'pawberry':
+        shutil.copy2(ROOT / 'docs/images/pawberry-collection.png', destination / 'collection.png')
 
 
 def math(destination):
@@ -146,7 +148,7 @@ def export(output):
         if name == 'school-mode':
             export_school(ROOT, destination)
         manifest = json.loads((destination / 'manifest.json').read_text())
-        manifest.update(id=PREFIX + name, name=title, version='1.0.0', author='Peter Holko',
+        manifest.update(id=PREFIX + name, name=title, author='Peter Holko',
                         description=description, license='MIT')
         if name == 'school-mode':
             manifest['barWidget'].update(displayName=title, description=description, defaultSection='right')

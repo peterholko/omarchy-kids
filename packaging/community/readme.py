@@ -96,9 +96,11 @@ The shared service uses Python 3's standard library, systemd/logind and Omarchy'
             'math': 'Practice uses local arithmetic facts for grades 1–6. Grades 5 and 6 use multiplication and division tables only. Practice works without the controls service. Earning time is available only when the separately installed Screen Time service enables it; answers and time grants are checked by that service.',
             'number-grove': 'Choose calm or adventure play and a grade from 1–6. Move through the garden and collect answers with Space or Enter. Grades 5 and 6 focus on multiplication and division tables. Optional time rewards use the separately installed Screen Time service; ordinary play is fully standalone.',
             'paw-post': 'Deliver animal mail through home-row practice, everyday words and short messages, with accuracy and typing-speed feedback. No background service is required.',
-            'pawberry': 'Welcome surprise pets by completing two- and three-digit addition, subtraction and multiplication. Enter the carries, borrowing and partial products before the final answer. Completed work reveals a pet and improves its room. No background service is required.',
+            'pawberry': 'Collect 23 pets and 20 accessories by completing two- and three-digit addition, subtraction and multiplication. Enter the carries, borrowing and partial products before the final answer. Each finished problem welcomes a pet and earns a new accessory until the wardrobe is full. New pets are chosen before returning guests. Use **Try it on** after a reward or **My collection** to dress your friends in bows, hats, crowns, flowers, stars and scarves. Incorrect answers never take away earned rewards. Your collection and outfits are saved immediately under `$XDG_STATE_HOME/omarchy-pawberry/collection.ini` (normally `~/.local/state/omarchy-pawberry/collection.ini`) and retained across updates, restarts and removal. The Kids package and standalone plugin share this per-user collection. No background service is required.',
         }
         text += '## Play\n\n' + details[name] + '\n\n'
+        if name == 'pawberry':
+            text += '![Bubbles the axolotl wearing a collected bow in the accessory wardrobe](collection.png)\n\n'
         text += f'''### Optional app launcher and School Mode
 
 To make the plugin appear in the apps menu and School Mode's app picker, explicitly install its desktop launcher:

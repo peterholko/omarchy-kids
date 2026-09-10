@@ -1,8 +1,12 @@
 import QtQuick
+import "PetCatalog.js" as Catalog
 
 Item {
   id: root
-  property int petIndex: 0
+  property string petId: "peaches"
+  property string accessoryId: ""
+  property int roomNumber: 1
+  readonly property var guest: Catalog.pet(petId)
   // Preparing every comfort still requires the final answer to welcome the pet.
   property real progress: 0
   property bool welcomed: false
@@ -12,8 +16,6 @@ Item {
   property real confettiProgress: 1
   readonly property int comforts: Math.min(3, Math.floor(Math.max(0, progress) * 3))
   readonly property bool revealing: reveal.running
-  readonly property var names: ["Peaches", "Biscuit", "Bluebell"]
-  readonly property var greetings: ["Purr-fect! Peaches loves the cozy bed.", "Biscuit’s tail is doing a happy wag.", "Bluebell has found a cozy spot."]
   readonly property var roomColors: ["#F5E3DA", "#DFECF0", "#EAE0F1"]
 
   function settle() {
@@ -27,30 +29,25 @@ Item {
     settle()
     if (welcomed && visible && !reducedMotion) reveal.restart()
   }
-  onPetIndexChanged: if (initialized) settle()
+  onPetIdChanged: if (initialized) settle()
   onVisibleChanged: if (initialized && !visible) settle()
   onReducedMotionChanged: if (initialized && reducedMotion) settle()
 
-  Rectangle { anchors.fill: parent; radius: 24; color: root.roomColors[root.petIndex] }
+  Rectangle { anchors.fill: parent; radius: 24; color: root.roomColors[(root.roomNumber - 1) % 3] }
   Rectangle { x: 20; y: 56; width: parent.width - 40; height: parent.height - 151; radius: 70; color: "#FFF9F4"; opacity: 0.8 }
-  Text { x: 22; y: 18; text: root.welcomed ? "Meet " + root.names[root.petIndex] + "!" : "A surprise guest…"; color: "#654E5E"; font.pixelSize: 19; font.bold: true }
-  Text { anchors.right: parent.right; anchors.rightMargin: 24; y: 19; text: root.welcomed ? "♥" : (root.petIndex + 1) + " / 3"; color: "#B96785"; font.pixelSize: root.welcomed ? 24 : 13 }
+  Text { x: 22; y: 18; text: root.welcomed ? "Meet " + root.guest.name + "!" : "A surprise guest…"; color: "#654E5E"; font.pixelSize: 19; font.bold: true }
+  Text { anchors.right: parent.right; anchors.rightMargin: 24; y: 19; text: root.welcomed ? "♥" : root.roomNumber + " / 3"; color: "#B96785"; font.pixelSize: root.welcomed ? 24 : 13 }
 
   Rectangle { x: parent.width * 0.15; y: parent.height - 118; width: parent.width * 0.7; height: 28; radius: 14; color: "#DFA4B5"; opacity: root.comforts >= 1 ? 1 : 0.15 }
   Rectangle { x: parent.width * 0.22; y: parent.height - 118; width: parent.width * 0.56; height: 19; radius: 10; color: "#FFE9D4"; visible: root.comforts >= 1 }
-  Image {
+  PetPortrait {
     id: pet
     objectName: "petPortrait"
     anchors.horizontalCenter: parent.horizontalCenter
     y: 48; width: parent.width * 0.72; height: parent.height - 137
-    source: "assets/pets.png"
-    sourceClipRect: Qt.rect(root.petIndex * 512 + 8, 0, 496, 1024)
-    fillMode: Image.PreserveAspectFit
-    smooth: true; mipmap: true
+    petId: root.petId; accessoryId: root.accessoryId
     visible: root.welcomed
     opacity: root.revealProgress
-    Accessible.role: Accessible.Graphic
-    Accessible.name: root.names[root.petIndex] + ", welcomed to the hotel"
   }
   Rectangle {
     objectName: "mysteryDoor"
@@ -60,7 +57,7 @@ Item {
     visible: !root.welcomed || root.revealProgress < 1
     opacity: 1 - root.revealProgress
     Rectangle { x: 10; y: 10; width: parent.width - 20; height: parent.height - 20; radius: 23; color: "transparent"; border.color: "#EDC7D0"; border.width: 2 }
-    Text { anchors.horizontalCenter: parent.horizontalCenter; y: 19; text: "ROOM 0" + (root.petIndex + 1); color: "#784F62"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 1.5 }
+    Text { anchors.horizontalCenter: parent.horizontalCenter; y: 19; text: "ROOM 0" + root.roomNumber; color: "#784F62"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 1.5 }
     Item {
       anchors.centerIn: parent; width: 64; height: 65
       Repeater {
@@ -107,7 +104,7 @@ Item {
   Text {
     objectName: "roomFeedback"
     x: 18; y: parent.height - 44; width: parent.width - 36; height: 36
-    text: root.welcomed ? root.greetings[root.petIndex] : root.comforts === 3 ? "Room ready! Finish the answer to meet your pet." : "Check each step to get the room ready."
+    text: root.welcomed ? root.guest.name + " loves this cozy room. A friend to keep!" : root.comforts === 3 ? "Room ready! Finish the answer to meet your pet." : "Check each step to get the room ready."
     horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
     color: "#6C5965"; font.pixelSize: 12
   }

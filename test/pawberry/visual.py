@@ -6,6 +6,7 @@ Requires PySide6 Essentials. This checks the component, not installed Omarchy.
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
@@ -26,6 +27,9 @@ app = QGuiApplication(sys.argv)
 # Match keyboard-focusable Linux controls when this runs on macOS.
 app.styleHints().setTabFocusBehavior(Qt.TabFocusAllControls)
 view = QQuickView(); view.setResizeMode(QQuickView.SizeRootObjectToView)
+save_directory = tempfile.TemporaryDirectory(prefix='pawberry-collection-')
+save_path = Path(save_directory.name) / 'profile with spaces #1' / 'collection.ini'
+view.setInitialProperties({'collectionLocation': QUrl.fromLocalFile(str(save_path))})
 view.setSource(QUrl.fromLocalFile(str(ROOT / 'shell/plugins/pawberry/HotelView.qml')))
 assert view.status() != QQuickView.Error, view.errors()
 view.resize(1120, 800); view.show(); QTest.qWait(300)
@@ -92,8 +96,9 @@ key(Qt.Key_Space); assert state() == s, 'hidden Start button restarted the visit
 # Fixed examples exercise the same view and session transitions as generated visits.
 for name in ['WorkSteps.js', 'WorkSession.js']:
     js((ROOT / 'shell/plugins/pawberry' / name).read_text())
-js('game.session = create([build(300,156,"subtract"),build(203,104,"multiply"),build(67,58,"add")]); game.answerInput = "";')
+js('game.visitPets = ["peaches", "biscuit", "bluebell"]; game.session = create([build(300,156,"subtract"),build(203,104,"multiply"),build(67,58,"add")]); game.answerInput = "";')
 hidden_guest(); capture('subtraction')
+assert js('game.collection.completed') == 0
 enter(144)
 assert state()['stepIndex'] == 0 and state()['rooms'] == 0 and state()['mistakes'] == 1
 hidden_guest()
@@ -116,6 +121,7 @@ assert state()['phase'] == 'work' and state()['rooms'] == 0
 assert room.property('comforts') == 3, 'room should be prepared before the final answer'
 capture('final-answer')
 enter(145); hidden_guest()
+assert js('game.collection.completed') == 0, 'wrong or intermediate answers awarded collectibles'
 assert state()['mistakes'] == 2 and state()['rooms'] == 0
 capture('wrong-final')
 key(Qt.Key_Delete); key(Qt.Key_Return); hidden_guest()
@@ -133,9 +139,31 @@ assert min(scales) < 0.98 and max(scales) > 1.01
 assert min(opacities) < 1 and opacities[-1] == 1
 welcomed_guest(); assert not room.property('revealing')
 capture('cozy-room')
+assert js('game.collection.completed') == 1
+assert js('game.collection.pets') == ['peaches']
+assert len(js('game.collection.accessories')) == 1
+assert save_path.exists(), 'reward was not saved immediately'
 completed = state()
 for k in (Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter): key(k)
 assert state() == completed, 'repeat answer keys skipped the pet reward'
+assert js('game.collection.completed') == 1, 'repeat keys duplicated the reward'
+click('wearRewardButton', focused=True)
+assert js('game.collection.outfits.peaches === game.lastReward.accessoryId')
+assert find('wornAccessory', portrait).isVisible()
+capture('accessory-reward')
+click('collectionButton', focused=True); assert game.property('collectionOpen')
+assert find('collectionPortrait').property('accessoryId') == js('game.lastReward.accessoryId')
+click('accessoriesTab', focused=True); capture('first-accessory')
+locked_id = js('game.collection.accessories[0] === "berry-bow" ? "sky-bow" : "berry-bow"')
+assert not find('wardrobe-' + locked_id).isEnabled()
+outfits_before = js('JSON.stringify(game.collection.outfits)')
+click('wardrobe-' + locked_id)
+assert js('JSON.stringify(game.collection.outfits)') == outfits_before, 'a locked accessory could be equipped'
+click('removeAccessoryButton', focused=True)
+assert not js('game.collection.outfits.peaches')
+click('closeCollectionButton', focused=True)
+assert not game.property('collectionOpen')
+click('wearRewardButton', focused=True)
 click('nextButton', focused=True)
 assert state()['problemIndex'] == 1 and state()['stepIndex'] == 0
 hidden_guest(); assert room.property('comforts') == 0
@@ -199,6 +227,47 @@ assert state()['stepIndex'] == 1, 'Leave/Start kept a hidden button focused'
 hidden_guest()
 js('game.reset()')
 view.resize(840,600); capture('compact-menu')
+
+# Collect every new guest through the real answer handler, then inspect the album.
+view.resize(1120,800)
+js((ROOT / 'shell/plugins/pawberry/PetCatalog.js').read_text())
+for pet_id in js('petIds'):
+    js('game.reset(); game.start(); game.visitPets = [' + json.dumps(pet_id) + ', "biscuit", "bluebell"]; game.session = create([build(12,23,"add")]);')
+    js('while (game.session.phase === "work") { game.answerInput = String(activeStep(game.session).expected); game.check(); }')
+    QTest.qWait(20)
+    assert js('artwork.status === 1'), pet_id + ' portrait failed to load'
+    assert room.property('petId') == pet_id
+js('game.reset()')
+assert len(js('game.collection.pets')) == 23
+assert len(js('game.collection.accessories')) == 20
+click('collectionButton', focused=True)
+click('petsTab', focused=True)
+capture('pet-album')
+album = find('collectionGrid')
+album.setProperty('contentY', 290); QTest.qWait(60); capture('more-pets')
+album.setProperty('contentY', 435); QTest.qWait(60)
+capture('last-pets')
+click('album-bubbles', focused=True)
+click('accessoriesTab', focused=True)
+click('wardrobe-berry-bow', focused=True)
+assert js('game.collection.outfits.bubbles') == 'berry-bow'
+assert find('wornAccessory', find('collectionPortrait')).isVisible()
+capture('wardrobe')
+view.resize(840,600); capture('compact-collection'); view.resize(1120,800)
+saved_collection = js('JSON.parse(JSON.stringify(game.collection))')
+key(Qt.Key_Escape); assert not game.property('collectionOpen')
+view.close(); view.deleteLater(); QTest.qWait(100)
+
+# A fresh Qt engine reloads the on-disk collection, including the equipped bow.
+view = QQuickView(); view.setResizeMode(QQuickView.SizeRootObjectToView)
+view.setInitialProperties({'collectionLocation': QUrl.fromLocalFile(str(save_path))})
+view.setSource(QUrl.fromLocalFile(str(ROOT / 'shell/plugins/pawberry/HotelView.qml')))
+assert view.status() != QQuickView.Error, view.errors()
+view.resize(1120,800); view.show(); QTest.qWait(150)
+game = view.rootObject(); engine = view.engine()
+engine.globalObject().setProperty('game', engine.newQObject(game))
+assert js('JSON.parse(JSON.stringify(game.collection))') == saved_collection, 'reopening lost collectibles or outfits'
+click('collectionButton', focused=True); capture('restored-collection')
 assert not errors, '\n'.join(errors)
-print('PASS: generated practice, required intermediates, hidden guests, wrong/early final gates, three pet reveals, interrupted animation, keyboard/button focus, borrowing, partial products, hints, focus/pause, reduced motion and compact layouts.')
+print('PASS: arithmetic, reward gates, all 23 pets, all 20 accessories, outfit selection/removal, immediate saves, fresh-engine persistence, keyboard focus, animations and compact layouts.')
 view.close()

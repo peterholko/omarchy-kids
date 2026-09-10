@@ -11,7 +11,7 @@ Selectable parental-control and learning modules for Omarchy.
 | School / Free Time | `omarchy-kids-school` | School schedule, app list, desktop restrictions and password-protected free time. |
 | Number Grove | `omarchy-kids-grove` | Original arithmetic garden game with grades 1–6, calm/adventure play and optional screen-time rewards. |
 | Paw Post Typing | `omarchy-kids-typing` | Cute animal mail-delivery game: home row, everyday words, short messages, accuracy and typing speed. |
-| Pawberry Pet Hotel | `omarchy-kids-pawberry` | Care for cute pets by entering every intermediate step of two- and three-digit arithmetic. |
+| Pawberry Pet Hotel | `omarchy-kids-pawberry` | Collect 23 pets and 20 wearable accessories by showing every step of two- and three-digit arithmetic. |
 
 The seven optional modules can be installed and removed individually. School mode works without screen time. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
 
@@ -44,9 +44,13 @@ Each optional game package installs its own launcher icon. The icons appear in t
 
 ## Pawberry Pet Hotel math game
 
-Reveal a surprise pet by finishing a math problem! Checked steps prepare a bed, treat, and toy while the guest waits behind a mystery door. The correct final answer reveals and welcomes Peaches the kitten, Biscuit the puppy, or Bluebell the bunny with a little celebration. Finish three problems to see all three guests together. Choose two- or three-digit **addition**, **subtraction**, **multiplication**, or a mixed visit covering all three.
+Reveal a surprise pet by finishing a math problem! Checked steps prepare a bed, treat, and toy while the guest waits behind a mystery door. Meet **23 pets**, including Peaches the kitten, Biscuit the puppy, Bluebell the bunny, and 20 more friends such as Maple the red panda and Bubbles the axolotl. Each finished problem also earns a new accessory until all **20 accessories** are collected. Finish three problems per visit, choosing two- or three-digit **addition**, **subtraction**, **multiplication**, or a mixed visit covering all three.
 
 ![Pawberry Pet Hotel revealing Peaches the kitten after every step of 300 minus 156 is checked](docs/images/pawberry.png)
+
+Use **Try it on** when you earn a reward, or open **My collection** to dress your pets in bows, hats, crowns, flowers, stars and scarves. Pets, accessories and outfits are saved between visits and game restarts. New friends and accessories appear before repeats; mistakes never take away a reward.
+
+![The Pawberry accessory wardrobe with Bubbles the axolotl wearing a collected bow](docs/images/pawberry-collection.png)
 
 The final answer stays locked behind the working: column totals and carries for addition, regrouping (including across zeros) for subtraction, and aligned partial products plus their column sums for multiplication. Wrong values keep the current step open. Hints, the growing worksheet, and a scrollable work log help without a countdown or lost hearts.
 
@@ -58,7 +62,7 @@ From the updated checkout on the Omarchy laptop:
 omarchy kids pawberry
 ```
 
-With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School settings** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. Rewards are the revealed pets and their cozy rooms for this visit, with no screen-time credits. **Motion: off** shows the same rewards immediately without animation.
+With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School settings** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. Rewards are collectible pets and accessories, with no screen-time credits. **Motion: off** shows the same rewards immediately without animation.
 
 The preview is the actual Qt component rendered locally. See [how the steps, artwork and checks work](docs/pawberry.md); installed Omarchy integration remains for a laptop check.
 
