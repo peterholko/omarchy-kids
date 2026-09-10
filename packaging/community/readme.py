@@ -5,6 +5,11 @@ PREFIX = 'io.github.peterholko.'
 def readme(name, repository, title, description):
     plugin = PREFIX + name
     service = name in {'screen-time', 'school-mode'}
+    game = name in {'number-grove', 'paw-post', 'pawberry'}
+    icon_directory = '$HOME/.local/share/icons/hicolor/512x512/apps'
+    icon_install = (f'mkdir -p "{icon_directory}"\n'
+                    f'ln -sfn "$HOME/.config/omarchy/plugins/{plugin}/assets/launcher.png" "{icon_directory}/{plugin}.png"\n') if game else ''
+    icon_remove = f'rm -f "{icon_directory}/{plugin}.png"\n' if game else ''
     module = 'time' if name == 'screen-time' else 'school'
     text = f'''# {title}
 
@@ -101,9 +106,9 @@ To make the plugin appear in the apps menu and School Mode's app picker, explici
 ```bash
 mkdir -p "$HOME/.local/share/applications"
 install -m 644 "$HOME/.config/omarchy/plugins/{plugin}/{plugin}.desktop" "$HOME/.local/share/applications/{plugin}.desktop"
-```
+{icon_install}```
 
-The launcher has a unique ID. Check before replacing an existing file with that ID if you have customized it. When School Mode is installed, the parent must separately allow the app; installation does not grant school access automatically.
+The launcher has a unique ID. {'Its bundled icon uses the same unique name, and the symbolic link picks up artwork updates from the plugin checkout. ' if game else ''}Check before replacing an existing file with that ID if you have customized it. When School Mode is installed, the parent must separately allow the app; installation does not grant school access automatically.
 
 ## Dependencies and data
 
@@ -152,7 +157,7 @@ If the other module is installed, its shared service, password and settings rema
 
 ```bash
 rm -f "$HOME/.local/share/applications/{plugin}.desktop"
-omarchy plugin remove {plugin}
+{icon_remove}omarchy plugin remove {plugin}
 ```
 
 '''

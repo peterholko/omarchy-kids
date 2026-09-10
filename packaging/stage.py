@@ -29,6 +29,10 @@ def destinations(relative):
     if relative.parts[0] == 'bin':
         return [Path('usr/bin') / relative.name, Path('usr/share/omarchy') / relative]
     values = [Path('usr/share/omarchy') / relative]
+    if (relative.parts[:2] == ('shell', 'plugins')
+            and relative.parts[2] in {'number-grove', 'paw-post', 'pawberry'}
+            and relative.parts[3:] == ('assets', 'launcher.png')):
+        values.append(Path('usr/share/icons/hicolor/512x512/apps') / ('omarchy-' + relative.parts[2] + '.png'))
     if relative.parts[:3] == ('default', 'libalpm', 'hooks'):
         values.append(Path('usr/share/libalpm/hooks') / relative.name)
     if str(relative) == 'default/parent/omarchy-kids-timed.service':

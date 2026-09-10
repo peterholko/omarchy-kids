@@ -34,6 +34,14 @@ These use unique `io.github.peterholko.*` IDs. The three games and Math Time pra
 
 The community export and focused tests live under [packaging/community](packaging/community/README.md). Linux installation and enforcement remain subject to a manual laptop check; no ISO build or GitHub Actions is used for these exports. Catalog listing requires marketplace maintainer approval.
 
+## Game launcher icons
+
+| Number Grove | Paw Post Typing | Pawberry Pet Hotel |
+| --- | --- | --- |
+| <img src="shell/plugins/number-grove/assets/launcher.png" alt="Number Grove sprout courier icon" width="128" height="128"> | <img src="shell/plugins/paw-post/assets/launcher.png" alt="Paw Post fox courier icon" width="128" height="128"> | <img src="shell/plugins/pawberry/assets/launcher.png" alt="Pawberry kitten hotel icon" width="128" height="128"> |
+
+Each optional game package installs its own launcher icon. The icons appear in the app launcher, including the filtered launcher during School Mode, and are removed with the corresponding package. Artwork and generation prompts are bundled in each game’s `assets/` directory.
+
 ## Pawberry Pet Hotel math game
 
 Reveal a surprise pet by finishing a math problem! Checked steps prepare a bed, treat, and toy while the guest waits behind a mystery door. The correct final answer reveals and welcomes Peaches the kitten, Biscuit the puppy, or Bluebell the bunny with a little celebration. Finish three problems to see all three guests together. Choose two- or three-digit **addition**, **subtraction**, **multiplication**, or a mixed visit covering all three.

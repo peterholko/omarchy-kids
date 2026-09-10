@@ -122,7 +122,7 @@ def license_file(destination, name):
     (destination / 'ATTRIBUTION.md').write_text(
         '# Attribution\n\nExtracted from [Omarchy Kids](https://github.com/peterholko/omarchy-kids), maintained by Peter Holko. The inherited Omarchy MIT copyright notice is retained.\n\n'
         + ('The shared controls service and screen-time UI derive from Jankees van Woezik’s MIT-licensed omarchy-screen-time. School-mode work derives from elgevan’s MIT-licensed omarchy-kids-menu. Their notices are retained in LICENSE.\n' if name in {'screen-time', 'school-mode'} else '')
-        + ('\nThe game illustrations were generated for Omarchy Kids; their original prompts are included under assets/. The preview shows the game’s actual Qt interface.\n' if name in {'paw-post', 'pawberry'} else '')
+        + ('\nThe game artwork and launcher icons were generated for Omarchy Kids; their original prompts are included under assets/. The preview shows the game’s actual Qt interface.\n' if name in {'number-grove', 'paw-post', 'pawberry'} else '')
     )
 
 
@@ -159,9 +159,10 @@ def export(output):
             'path': 'shell/plugins/' + name, 'exporter': 'packaging/community/export.py',
         }, indent=2) + '\n')
         if name not in {'screen-time', 'school-mode'}:
+            icon = PREFIX + name if name in {'number-grove', 'paw-post', 'pawberry'} else 'applications-education'
             (destination / (PREFIX + name + '.desktop')).write_text(
                 f'[Desktop Entry]\nType=Application\nName={title}\nComment={description}\n'
-                f'Exec=omarchy-shell shell summon {PREFIX}{name} {{}}\nIcon=applications-education\nTerminal=false\nCategories=Education;Game;\n')
+                f'Exec=omarchy-shell shell summon {PREFIX}{name} {{}}\nIcon={icon}\nTerminal=false\nCategories=Education;Game;\n')
         for path in destination.rglob('*'):
             if path.is_file() and (path.suffix in {'.qml', '.js', '.py', '.md', '.json', '.jsonc', '.cjs', '.desktop'} or path.name == 'LICENSE'):
                 path.write_text(path.read_text().rstrip() + '\n')

@@ -6,6 +6,6 @@ TryExec=omarchy-kids-pawberry
 Exec=omarchy-kids-pawberry
 Terminal=false
 Type=Application
-Icon=applications-education
+Icon=omarchy-pawberry
 Categories=Education;Game;
 StartupNotify=false

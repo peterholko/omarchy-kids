@@ -6,6 +6,6 @@ TryExec=omarchy-kids-grove
 Exec=omarchy-kids-grove
 Terminal=false
 Type=Application
-Icon=applications-education
+Icon=omarchy-number-grove
 Categories=Education;Math;Game;
 StartupNotify=false
