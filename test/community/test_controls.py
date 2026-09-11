@@ -83,6 +83,15 @@ class ControlsTest(unittest.TestCase):
         self.assertTrue(self.send('school', 'users.set', root=True, enabled=False)['ok'])
         self.assertTrue(self.send('time', 'status')['ok'])
 
+    def test_pawberry_multiplication_limit_survives_service_restart(self):
+        self.assertTrue(self.send('pawberry','settings.set',limits={'multiply':1},password='correct password')['ok'])
+        issued=self.send('pawberry','begin',problem={'operation':'multiply','a':7,'b':8})
+        self.assertEqual(self.send('pawberry','complete',id=issued['id'],answer=56)['remaining']['multiply'],0)
+        self.host = Daemon(paths.detect(), log=lambda _: None)
+        for a,b in [(7,8),(24,12),(123,234)]:
+            self.assertEqual(self.send('pawberry','begin',problem={'operation':'multiply','a':a,'b':b})['error'],'daily_limit')
+        self.assertTrue(self.send('pawberry','begin',problem={'operation':'divide','a':56,'b':8})['ok'])
+
     def test_pawberry_time_rewards_use_the_shared_cap_and_parent_password(self):
         self.enable('time')
         settings = {'enabled':True, 'minutes_per_problem':2, 'daily_cap_minutes':3}

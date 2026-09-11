@@ -99,6 +99,16 @@ class PawberryRewardsTest(unittest.TestCase):
         self.assertEqual(self.complete()['reward_seconds'],0)
         self.assertEqual(self.send('status')['screen_time']['earned_today_seconds'],30)
 
+    def test_multiplication_cap_prevents_extra_completions_and_time_rewards(self):
+        account = self.enable(cap=30)
+        self.assertEqual(self.complete()['reward_seconds'],120)
+        identifier = self.begin()
+        self.assertTrue(self.send('settings.set', password='correct', limits={'multiply':1})['ok'])
+        self.assertEqual(self.complete(identifier)['error'],'daily_limit')
+        self.assertEqual(self.send('begin', problem={'operation':'multiply','a':123,'b':234})['error'],'daily_limit')
+        self.assertEqual(self.send('status')['completed']['multiply'],1)
+        self.assertEqual(account.day.earned,120)
+
     def test_wrong_answers_replays_and_parallel_completions(self):
         account = self.enable(cap=30)
         identifier = self.begin()

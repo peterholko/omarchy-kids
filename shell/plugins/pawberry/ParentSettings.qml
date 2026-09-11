@@ -14,7 +14,8 @@ FocusScope {
   property int retrySeconds: 0
   property bool screenTimeTab: false
   readonly property bool available: connected && managed
-  readonly property bool valid: addition.valid && subtraction.valid && rewards.valid
+  readonly property bool multiplicationSupported: !!status.limits && ("multiply" in status.limits)
+  readonly property bool valid: addition.valid && subtraction.valid && (!multiplicationSupported || multiplication.valid) && rewards.valid
   readonly property bool canSave: available && loaded && dirty && valid && !busy && retrySeconds === 0 && password.text.length > 0
   signal saveRequested(var limits, string password, var screenTime)
   signal closeRequested()
@@ -26,6 +27,7 @@ FocusScope {
     var current = source || status
     if (!available || !current || !current.limits) return
     addition.load(current.limits.add); subtraction.load(current.limits.subtract)
+    multiplication.load(current.limits.multiply)
     rewards.load(current.screen_time)
     loaded = true; dirty = false
   }
@@ -35,7 +37,9 @@ FocusScope {
     if (!canSave) return
     var secret = password.text
     password.text = ""; feedback = ""; failed = false
-    saveRequested({add: addition.limit, subtract: subtraction.limit}, secret, rewards.supported ? rewards.settings : null)
+    var limits = {add: addition.limit, subtract: subtraction.limit}
+    if (multiplicationSupported) limits.multiply = multiplication.limit
+    saveRequested(limits, secret, rewards.supported ? rewards.settings : null)
   }
   function finish(result) {
     if (result.ok) {
@@ -77,24 +81,31 @@ FocusScope {
     onEdited: root.edit()
   }
   PracticeLimitRow {
-    id: subtraction; objectName: "subtractionLimits"; x: 36; y: 294; width: 1012; visible: !root.screenTimeTab
+    id: subtraction; objectName: "subtractionLimits"; x: 36; y: 268; width: 1012; visible: !root.screenTimeTab
     operation: "subtract"; title: "Subtraction"; enabled: root.available && root.loaded && !root.busy
     completed: root.status && root.status.completed ? Number(root.status.completed.subtract) || 0 : 0
     onEdited: root.edit()
   }
+  PracticeLimitRow {
+    id: multiplication; objectName: "multiplicationLimits"; x: 36; y: 382; width: 1012; visible: !root.screenTimeTab
+    operation: "multiply"; title: "Multiplication"; enabled: root.available && root.loaded && !root.busy && root.multiplicationSupported
+    unavailableNote: root.multiplicationSupported ? "" : "Update parent controls to set this limit."
+    completed: root.status && root.status.completed ? Number(root.status.completed.multiply) || 0 : 0
+    onEdited: root.edit()
+  }
   ScreenTimeSettings {
-    id: rewards; objectName: "screenTimeSettings"; x: 36; y: 154; width: 1012; height: 268
+    id: rewards; objectName: "screenTimeSettings"; x: 36; y: 154; width: 1012; height: 332
     visible: root.screenTimeTab; status: root.status.screen_time || null
     enabled: root.available && root.loaded && !root.busy
     onEdited: root.edit()
   }
   Rectangle {
-    x: 36; y: 437; width: 1012; height: 163; radius: 18; color: "#F1E4E9"
+    x: 36; y: 501; width: 1012; height: 148; radius: 18; color: "#F1E4E9"
     visible: root.available
     Text { x: 22; y: 16; text: "PARENT PASSWORD"; color: "#977288"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.3 }
     TextField {
       id: password; objectName: "parentPasswordInput"
-      x: 22; y: 42; width: 554; height: 48
+      x: 22; y: 38; width: 554; height: 44
       echoMode: TextInput.Password; selectByMouse: true
       readOnly: root.busy || root.retrySeconds > 0
       placeholderText: root.busy ? "Checking password…" : "Enter the parent password to save"
@@ -107,24 +118,24 @@ FocusScope {
       onAccepted: root.submit()
     }
     HotelButton {
-      objectName: "saveParentSettingsButton"; x: 596; y: 42; width: 394; height: 48; primary: true
+      objectName: "saveParentSettingsButton"; x: 596; y: 38; width: 394; height: 44; primary: true
       enabled: root.canSave
       text: root.busy ? "Checking password…" : root.retrySeconds > 0 ? "Try again in " + root.retrySeconds + "s" : "Save settings"
       onClicked: root.submit()
     }
     Text {
-      objectName: "parentSettingsFeedback"; x: 24; y: 104; width: 964; height: 46
+      objectName: "parentSettingsFeedback"; x: 24; y: 94; width: 964; height: 44
       text: root.busy ? "Checking the parent password and saving your changes…"
-        : root.feedback || (!addition.valid || !subtraction.valid ? "Daily practice: enter a limit from 1 to 10,000." : !rewards.valid ? "Screen time: use 1–60 minutes per problem and a daily maximum of 1–1,440 minutes." : "Only completed problems count. New allowances start each day; today's progress is kept.")
+        : root.feedback || (!addition.valid || !subtraction.valid || (root.multiplicationSupported && !multiplication.valid) ? "Daily practice: enter a limit from 1 to 10,000." : !rewards.valid ? "Screen time: use 1–60 minutes per problem and a daily maximum of 1–1,440 minutes." : "Only completed problems count. New allowances start each day; today's progress is kept.")
       color: root.failed ? "#A35462" : root.feedback ? "#477B72" : "#806C7C"
       font.pixelSize: 14; wrapMode: Text.WordWrap
     }
   }
   Rectangle {
-    x: 36; y: 437; width: 1012; height: 163; radius: 18; color: "#F1E4E9"; visible: !root.available
+    x: 36; y: 501; width: 1012; height: 148; radius: 18; color: "#F1E4E9"; visible: !root.available
     Text { x: 22; y: 19; text: root.connected && !root.managed ? "Parent controls need a one-time setup" : "Connecting to parent controls"; color: "#594355"; font.pixelSize: 20; font.bold: true }
     Text { x: 22; y: 57; width: 958; text: root.connected && !root.managed ? "Set up the optional parent service to protect daily limits. Then manage them here in Pawberry." : "Your saved limits are kept. Check the connection, then try again."; color: "#806C7C"; font.pixelSize: 15; wrapMode: Text.WordWrap }
-    HotelButton { objectName: "retryParentConnectionButton"; x: 22; y: 107; width: 230; height: 38; text: "Check connection"; onClicked: root.retryRequested() }
-    HotelButton { objectName: "parentSetupGuideButton"; x: 266; y: 107; width: 230; height: 38; text: "Setup guide"; visible: root.connected && !root.managed; onClicked: Qt.openUrlExternally("https://github.com/peterholko/omarchy-pawberry#parent-daily-practice-limits") }
+    HotelButton { objectName: "retryParentConnectionButton"; x: 22; y: 93; width: 230; height: 38; text: "Check connection"; onClicked: root.retryRequested() }
+    HotelButton { objectName: "parentSetupGuideButton"; x: 266; y: 93; width: 230; height: 38; text: "Setup guide"; visible: root.connected && !root.managed; onClicked: Qt.openUrlExternally("https://github.com/peterholko/omarchy-pawberry#parent-daily-practice-limits") }
   }
 }

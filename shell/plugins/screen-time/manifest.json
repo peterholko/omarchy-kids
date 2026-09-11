@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "omarchy.screen-time",
   "name": "School & Screen Time",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": "Omarchy, from Jankees van Woezik's omarchy-screen-time",
   "description": "One parent control panel for school mode, app permissions, free-time budgets, bedtime and grade 1\u20137 math practice.",
   "kinds": [

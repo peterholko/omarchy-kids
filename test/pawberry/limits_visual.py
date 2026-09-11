@@ -29,10 +29,10 @@ host = Daemon(paths.detect(), modules=['pawberry', 'time'], log=lambda _: None)
 host.auth = ParentAuth(verifier=lambda user, password: password == 'correct password')
 host.clock.logical = datetime(2026, 9, 10, 12).timestamp()
 def send(command, **kw): return host.dispatch(uid, {'scope':'pawberry','cmd':command,**kw})
-def limits(add, subtract):
-    result = host.dispatch(0, {'scope':'pawberry','cmd':'limits.set','user':user,'limits':{'add':add,'subtract':subtract}})
+def limits(add, subtract, multiply):
+    result = host.dispatch(0, {'scope':'pawberry','cmd':'limits.set','user':user,'limits':{'add':add,'subtract':subtract,'multiply':multiply}})
     assert result['ok'], result
-limits(1, 0)
+limits(1, 0, 1)
 
 class Bridge(QObject):
     reply = Signal(int, 'QVariant')
@@ -66,6 +66,7 @@ class Bridge(QObject):
     def saveLimits(self, token, limits, password, rewards):
         if hasattr(limits, 'toVariant'): limits = json.loads(engine.evaluate('JSON.stringify').call([limits]).toString())
         if hasattr(rewards, 'toVariant'): rewards = json.loads(engine.evaluate('JSON.stringify').call([rewards]).toString())
+        self.last_limits = limits
         self.request(token, {'cmd':'settings.set' if rewards else 'limits.set', 'limits':limits,
             'screen_time':rewards or {}, 'password':password})
 
@@ -126,7 +127,18 @@ click('operation-multiply'); click('digits-1'); capture('one-digit-menu')
 click('startButton'); assert 1<=state()['problems'][0]['a']<=9 and 1<=state()['problems'][0]['b']<=9
 capture('one-digit-multiplication')
 complete(); assert send('status')['completed']['multiply']==1
-js('game.reset()'); QTest.qWait(40); click('operation-divide'); capture('division-menu')
+click('nextButton')
+assert state()['problems'][1]['operation']=='divide', 'the next pet bypassed the multiplication cap'
+js('game.reset()'); QTest.qWait(40)
+assert not find('operation-multiply').isEnabled()
+for digits in (1,2,3):
+    click('digits-'+str(digits)); assert not find('operation-multiply').isEnabled()
+click('operation-mixed'); click('startButton')
+assert all(problem['operation']=='divide' for problem in state()['problems']), 'Mixed bypassed the multiplication cap'
+js('game.reset()'); QTest.qWait(40)
+capture('three-exhausted-limits')
+view.resize(840,600); capture('compact-three-exhausted-limits'); view.resize(1120,800)
+click('operation-divide'); capture('division-menu')
 click('startButton'); capture('division-working')
 assert step()['kind']=='divide-groups'
 check(step()['expected']); assert step()['kind']=='divide-product'
@@ -145,24 +157,30 @@ bridge.online=True; bridge.changed.emit()
 # The next day re-enables addition, while the explicit zero subtraction cap remains.
 host.clock.logical=datetime(2026,9,11,0,1).timestamp(); bridge.refresh(); QTest.qWait(20)
 assert find('operation-add').isEnabled() and not find('operation-subtract').isEnabled()
+assert find('operation-multiply').isEnabled()
 assert send('status')['remaining']['add']==1
 view.resize(840,600); capture('compact-division-menu')
 # The parent settings are part of the game, using the same persistent service.
 issued=send('begin',problem={'operation':'add','a':12,'b':34})
 assert send('complete',id=issued['id'],answer=46)['ok']
+issued=send('begin',problem={'operation':'multiply','a':7,'b':8})
+assert send('complete',id=issued['id'],answer=56)['ok']
 view.resize(1120,800)
 click('parentSettingsButton'); assert game.property('parentSettingsOpen')
 assert not find('startButton').isVisible()
 assert find('add-limit-count').property('text')=='1'
 assert find('subtractionLimits').property('choice')=='off'
+assert find('multiply-limit-count').property('text')=='1'
 assert not find('saveParentSettingsButton').isEnabled()
 capture('parent-settings')
-click('add-limit-daily'); click('subtract-limit-daily')
+click('add-limit-daily'); click('subtract-limit-daily'); click('multiply-limit-daily')
 find('add-limit-count').setProperty('text','5')
 find('subtract-limit-count').setProperty('text','7')
+find('multiply-limit-count').setProperty('text','3')
 # Polling while the parent is editing must not replace an unsaved draft.
 bridge.refresh(); QTest.qWait(30)
 assert find('add-limit-count').property('text')=='5'
+assert find('multiply-limit-count').property('text')=='3'
 find('parentPasswordInput').forceActiveFocus()
 type_text('wrong password')
 engine.globalObject().setProperty('passwordInput',engine.newQObject(find('parentPasswordInput')))
@@ -181,19 +199,21 @@ QTest.keyClick(view,Qt.Key_Return); assert bridge.requests==requests
 capture('checking-parent-password')
 QTest.qWait(450)
 assert not game.property('parentSaving')
-assert send('status')['limits']=={'add':1,'subtract':0}
+assert send('status')['limits']=={'add':1,'subtract':0,'multiply':1}
 assert "wasn't accepted" in find('parentSettingsFeedback').property('text'), find('parentSettingsFeedback').property('text')
 assert find('add-limit-count').property('text')=='5'
 capture('incorrect-parent-password')
 find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
 QTest.keyClick(view,Qt.Key_Return); QTest.qWait(500)
-assert send('status')['limits']=={'add':5,'subtract':7}
+assert send('status')['limits']=={'add':5,'subtract':7,'multiply':3}
 assert send('status')['completed']['add']==1 and send('status')['remaining']['add']==4
+assert send('status')['completed']['multiply']==1 and send('status')['remaining']['multiply']==2
 assert not find('saveParentSettingsButton').isEnabled()
 assert find('parentPasswordInput').property('text')==''
 assert 'saved' in find('parentSettingsFeedback').property('text')
 assert not find('parentSettings').property('dirty')
 capture('saved-parent-settings')
+view.resize(840,600); capture('compact-saved-parent-settings'); view.resize(1120,800)
 # Server lockout feedback disables retries until its countdown expires.
 click('add-limit-increase')
 host.auth.failures[uid] = (5, host.auth.monotonic() + 1.5)
@@ -210,21 +230,33 @@ find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
 click('saveParentSettingsButton')
 assert send('status')['limits']['add']==6
 # Unlimited and Unavailable have distinct meanings and round-trip on reopening.
-click('add-limit-unlimited'); click('subtract-limit-off')
+click('add-limit-unlimited'); click('subtract-limit-off'); click('multiply-limit-off')
 find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
 click('saveParentSettingsButton'); QTest.qWait(500)
-assert send('status')['limits']=={'add':None,'subtract':0}
+assert send('status')['limits']=={'add':None,'subtract':0,'multiply':0}
 click('closeParentSettingsButton'); click('parentSettingsButton')
 assert find('additionLimits').property('choice')=='unlimited'
 assert find('subtractionLimits').property('choice')=='off'
+assert find('multiplicationLimits').property('choice')=='off'
+click('multiply-limit-unlimited')
+find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
+click('saveParentSettingsButton')
+assert send('status')['limits']['multiply'] is None
+assert send('status')['completed']['multiply']==1
 click('add-limit-daily')
 find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
 for invalid in ('', '0', '10001', '-1', '1.5', '1,000'):
     find('add-limit-count').setProperty('text',invalid)
     assert not find('saveParentSettingsButton').isEnabled(), f'invalid daily limit was accepted: {invalid!r}'
+find('add-limit-count').setProperty('text','5'); click('multiply-limit-daily')
+assert find('multiplicationLimits').property('choice')=='daily'
+for invalid in ('', '0', '10001', '-1', '1.5', '1,000'):
+    find('multiply-limit-count').setProperty('text',invalid)
+    assert not find('saveParentSettingsButton').isEnabled(), f'invalid multiplication limit was accepted: {invalid!r}, valid={find("multiplicationLimits").property("valid")}, supported={find("parentSettings").property("multiplicationSupported")}'
 # Closing discards edits and credentials, without touching saved limits.
 click('closeParentSettingsButton'); click('parentSettingsButton')
 assert find('additionLimits').property('choice')=='unlimited'
+assert find('multiplicationLimits').property('choice')=='unlimited'
 assert find('parentPasswordInput').property('text')==''
 view.resize(840,600); capture('compact-parent-settings'); view.resize(1120,800)
 click('closeParentSettingsButton')
@@ -293,6 +325,10 @@ click('closeParentSettingsButton'); js('game.reset()')
 bridge.data = {key:value for key,value in send('status').items() if key != 'screen_time'}
 bridge.changed.emit(); click('parentSettingsButton')
 bridge.data.pop('screen_time',None); bridge.changed.emit(); QTest.qWait(20)
+bridge.data['limits'].pop('multiply',None); bridge.changed.emit(); QTest.qWait(20)
+assert not find('multiplicationLimits').isEnabled()
+assert 'Update parent controls' in find('multiplicationLimits').property('unavailableNote')
+capture('multiplication-service-upgrade')
 click('screenTimeSettingsTab')
 assert not find('screenTimeOnButton').isEnabled()
 assert 'Update the parent controls service' in find('screenTimeSettingsNote').property('text')
@@ -300,6 +336,7 @@ capture('screen-time-service-upgrade')
 click('practiceSettingsTab'); click('subtract-limit-daily')
 find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
 click('saveParentSettingsButton')
+assert 'multiply' not in bridge.last_limits, 'the new UI sent an unsupported limit to an older service'
 assert send('status')['limits']['subtract']==5
 click('closeParentSettingsButton')
 # Standalone play without a configured backend gets a setup explanation, not a fake save.

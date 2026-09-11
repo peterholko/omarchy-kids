@@ -12,7 +12,7 @@ from ..core import paths, storage
 from .rewards import Rewards, DEFAULTS, valid_patch
 
 OPERATIONS = ("add", "subtract", "multiply", "divide")
-LIMITED = ("add", "subtract")
+LIMITED = ("add", "subtract", "multiply")
 
 
 def answer_for(problem):

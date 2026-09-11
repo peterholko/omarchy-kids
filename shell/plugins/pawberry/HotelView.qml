@@ -220,7 +220,7 @@ FocusScope {
           }
         }
       }
-      Text { objectName: "quotaLabel"; x: 43; y: 458; width: 530; text: [root.quotaText("add"), root.quotaText("subtract")].filter(function(text) { return text !== "" }).join("   ·   "); color: "#977288"; font.pixelSize: 12 }
+      Text { objectName: "quotaLabel"; x: 43; y: 458; width: 530; height: 30; text: [root.quotaText("add"), root.quotaText("subtract"), root.quotaText("multiply")].filter(function(text) { return text !== "" }).join("   ·   "); color: "#977288"; font.pixelSize: 12; wrapMode: Text.WordWrap }
       Text { x: 43; y: 493; text: "2   CHOOSE YOUR NUMBERS"; color: "#977288"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.6 }
       Row {
         x: 40; y: 522; spacing: 10

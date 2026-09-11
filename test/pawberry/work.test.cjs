@@ -156,4 +156,9 @@ test('a spent operation is excluded from mixed play and the next guest', () => {
   assert.equal(Practice.sizeFor('add',1),2)
   assert.equal(Practice.sizeFor('multiply',1),1)
   assert.equal(Practice.sizeFor('divide',3),2)
+  status.remaining.multiply = 0
+  assert.deepEqual(Practice.choices(status), ['divide'])
+  for (const operation of ['add','subtract','multiply','mixed']) {
+    for (const random of [0,0.25,0.75,0.999]) assert.equal(Practice.nextKind(operation,status,() => random), 'divide')
+  }
 })

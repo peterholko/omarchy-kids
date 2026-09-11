@@ -65,6 +65,21 @@ test('optional time rewards use one authenticated settings update with no creden
   assert.equal(jobs[0].sendPassword,true)
 })
 
+test('multiplication caps use the same password transport with and without time rewards', () => {
+  for (const [value,argument] of [[5,'5'],[0,'0'],[null,'unlimited']]) {
+    for (const rewards of [null,{enabled:false,minutes_per_problem:1,daily_cap_minutes:30}]) {
+      const {context,jobs}=bridge()
+      context.saveLimits(3,{add:5,subtract:null,multiply:value},'private',rewards)
+      const command=Array.from(jobs[0].command)
+      assert.equal(command[1],rewards ? 'settings' : 'limits')
+      assert.deepEqual(command.slice(command.indexOf('--multiplication'),command.indexOf('--multiplication')+2),['--multiplication',argument])
+      assert(!command.includes('private'))
+      assert.equal(jobs[0].pendingPassword,'private')
+      assert.equal(jobs[0].sendPassword,true)
+    }
+  }
+})
+
 test('background status checks yield to a parent save and cannot interrupt its password check', () => {
   const {context,jobs}=bridge()
   context.request(-1,{cmd:'status'})

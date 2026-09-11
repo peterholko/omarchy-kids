@@ -7,23 +7,24 @@ Rectangle {
   property string title: "Addition"
   property int completed: 0
   property string choice: "unlimited"
+  property string unavailableNote: ""
   readonly property bool valid: choice !== "daily" || (amount.acceptableInput && Number.isInteger(Number(amount.text)) && Number(amount.text) >= 1 && Number(amount.text) <= 10000)
   readonly property var limit: choice === "unlimited" ? null : choice === "off" ? 0 : Number(amount.text)
   signal edited()
-  implicitHeight: 128
+  implicitHeight: 104
   radius: 18; color: "#FFFDF9"; border.color: "#E9DDE0"
   function load(value) {
     choice = value === null || value === undefined ? "unlimited" : value === 0 ? "off" : "daily"
     amount.text = value > 0 ? String(value) : "5"
   }
   Rectangle {
-    x: 22; y: 27; width: 48; height: 48; radius: 16; color: "#F1E4E9"
-    Text { anchors.centerIn: parent; text: root.operation === "add" ? "+" : "−"; color: "#A95F79"; font.pixelSize: 33 }
+    x: 22; y: 23; width: 48; height: 48; radius: 16; color: "#F1E4E9"
+    Text { anchors.centerIn: parent; text: root.operation === "add" ? "+" : root.operation === "subtract" ? "−" : "×"; color: "#A95F79"; font.pixelSize: 33 }
   }
-  Text { x: 86; y: 27; text: root.title; color: "#594355"; font.pixelSize: 23; font.bold: true }
-  Text { x: 86; y: 64; text: root.completed + " completed today"; color: "#94798A"; font.pixelSize: 14 }
+  Text { x: 86; y: 18; text: root.title; color: "#594355"; font.pixelSize: 22; font.bold: true }
+  Text { x: 86; y: 55; text: root.completed + " completed today"; color: "#94798A"; font.pixelSize: 14 }
   Row {
-    x: 440; y: 19; spacing: 8
+    x: 440; y: 10; spacing: 8
     Repeater {
       model: [{key: "unlimited", label: "Unlimited"}, {key: "daily", label: "Daily limit"}, {key: "off", label: "Unavailable"}]
       delegate: HotelButton {
@@ -36,7 +37,7 @@ Rectangle {
     }
   }
   Row {
-    x: 440; y: 73; spacing: 8; visible: root.choice === "daily"
+    x: 440; y: 59; spacing: 8; visible: root.choice === "daily" && !root.unavailableNote
     HotelButton {
       objectName: root.operation + "-limit-decrease"
       width: 40; height: 36; text: "−"; enabled: root.valid && Number(amount.text) > 1
@@ -62,8 +63,8 @@ Rectangle {
     Text { y: 9; text: "completed problems per day"; color: "#806C7C"; font.pixelSize: 14 }
   }
   Text {
-    x: 440; y: 82; width: 480; visible: root.choice !== "daily"
-    text: root.choice === "off" ? "This operation stays unavailable until you change it." : "No daily limit for this operation."
+    x: 440; y: 68; width: 480; visible: root.choice !== "daily" || !!root.unavailableNote
+    text: root.unavailableNote || (root.choice === "off" ? "This operation stays unavailable until you change it." : "No daily limit for this operation.")
     color: "#806C7C"; font.pixelSize: 14
   }
 }

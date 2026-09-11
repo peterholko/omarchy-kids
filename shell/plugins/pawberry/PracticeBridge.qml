@@ -39,6 +39,8 @@ Item {
     var command = [clientPath, "limits", "--password-stdin",
       "--addition", limits.add === null ? "unlimited" : String(limits.add),
       "--subtraction", limits.subtract === null ? "unlimited" : String(limits.subtract)]
+    if (limits.multiply !== undefined)
+      command = command.concat(["--multiplication", limits.multiply === null ? "unlimited" : String(limits.multiply)])
     if (screenTime) {
       command[1] = "settings"
       command = command.concat(["--screen-time", screenTime.enabled ? "on" : "off",

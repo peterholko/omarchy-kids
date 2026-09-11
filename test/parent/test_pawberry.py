@@ -81,7 +81,7 @@ class PawberryLimitsTest(unittest.TestCase):
         self.assertEqual(self.send('status')['limits']['add'], 0)
         self.assertEqual(self.begin()['error'], 'daily_limit')
         self.assertEqual(self.send('reset')['error'], 'unknown_command')
-        self.assertEqual(self.send('limits.set', parent=True, limits={'multiply':0})['error'], 'invalid_limits')
+        self.assertEqual(self.send('limits.set', parent=True, limits={'divide':0})['error'], 'invalid_limits')
         for value in [-1, True, '5', 2.5, 10001]:
             self.assertEqual(self.send('limits.set', parent=True, limits={'add':value})['error'], 'invalid_limits')
         self.assertTrue(self.send('limits.set', parent=True, limits={'add':None})['ok'])
@@ -98,6 +98,41 @@ class PawberryLimitsTest(unittest.TestCase):
         self.host.clock.logical = datetime(2026, 9, 10, 23).timestamp()
         self.assertEqual(self.begin()['error'], 'daily_limit')
         self.assertEqual(self.send('status')['day'], '2026-09-11')
+
+    def test_multiplication_limit_shares_all_digit_levels_and_keeps_existing_counts(self):
+        self.assertIsNone(self.send('status')['limits']['multiply'])
+        self.assertTrue(self.finish('multiply', 7, 8)['ok'])
+        self.host = self.make_host()
+        result = self.send('limits.set', password='correct', limits={'multiply':3})
+        self.assertEqual(result['completed']['multiply'], 1)
+        self.assertEqual(result['remaining']['multiply'], 2)
+        for _ in range(3): issued = self.begin('multiply', 7, 8)
+        self.assertEqual(self.send('complete', id=issued['id'], answer=55)['error'], 'incorrect_answer')
+        self.assertEqual(self.send('status')['remaining']['multiply'], 2)
+        self.assertTrue(self.finish('multiply', 24, 12)['ok'])
+        result = self.finish('multiply', 123, 234)
+        self.assertEqual(result['remaining']['multiply'], 0)
+        self.assertTrue(self.send('complete', id=result['id'], answer=28782)['already_completed'])
+        self.host = self.make_host()
+        for a, b in [(7, 8), (24, 12), (123, 234)]:
+            self.assertEqual(self.begin('multiply', a, b)['error'], 'daily_limit')
+        self.assertEqual(self.send('status')['completed']['multiply'], 3)
+        self.assertTrue(self.finish('divide', 56, 8)['ok'])
+        self.host.clock.logical = datetime(2026, 9, 11, 0, 1).timestamp()
+        self.assertEqual(self.send('status')['remaining']['multiply'], 3)
+        self.assertTrue(self.finish('multiply', 7, 8)['ok'])
+
+    def test_multiplication_unavailable_unlimited_and_partial_updates(self):
+        issued = self.begin('multiply', 7, 8)
+        self.assertEqual(self.send('limits.set', limits={'multiply':0})['error'], 'bad_password')
+        self.assertTrue(self.send('limits.set', password='correct', limits={'multiply':0})['ok'])
+        self.assertEqual(self.send('complete', id=issued['id'], answer=56)['error'], 'daily_limit')
+        self.assertEqual(self.begin('multiply', 24, 12)['error'], 'daily_limit')
+        self.send('settings.set', password='correct', limits={'add':5,'subtract':5})
+        self.assertEqual(self.send('status')['limits']['multiply'], 0)
+        self.send('limits.set', password='correct', limits={'multiply':None})
+        self.assertTrue(self.finish('multiply', 7, 8)['ok'])
+        self.assertEqual(self.send('status')['limits'], {'add':5,'subtract':5,'multiply':None})
 
     def test_parent_lowering_limit_and_concurrent_windows(self):
         issue = self.begin()
@@ -161,6 +196,15 @@ class PawberryLimitsTest(unittest.TestCase):
         with patch.object(proto, 'request', side_effect=OSError), contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(client.main(['status']), 1)
         self.assertEqual(json.loads(output.getvalue()), {'ok':False, 'error':'unavailable'})
+
+    def test_cli_multiplication_limit_for_both_parent_commands(self):
+        for command in ('limits', 'settings'):
+            for value, expected in [('5',5), ('0',0), ('unlimited',None)]:
+                with patch.object(proto, 'request', return_value={'ok':True}) as request, patch('os.geteuid', return_value=self.uid), patch('sys.stdin', io.StringIO('correct\n')), contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(client.main([command,'--multiplication',value,'--password-stdin']), 0)
+                    payload = request.call_args.args[1]
+                    self.assertEqual(payload['limits'], {'multiply':expected})
+                    self.assertEqual(payload['password'], 'correct')
 
 
 if __name__ == '__main__': unittest.main()

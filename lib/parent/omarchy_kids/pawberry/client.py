@@ -29,6 +29,7 @@ def main(argv=None):
         if command in ("limits", "settings"):
             part.add_argument("--addition", type=limit, default=argparse.SUPPRESS)
             part.add_argument("--subtraction", type=limit, default=argparse.SUPPRESS)
+            part.add_argument("--multiplication", type=limit, default=argparse.SUPPRESS)
             part.add_argument("--password-stdin", action="store_true")
         if command == "settings":
             part.add_argument("--screen-time", choices=("on", "off"))
@@ -47,9 +48,9 @@ def main(argv=None):
         payload = {"cmd": "status", "user": args.user}
         if args.command in ("limits", "settings"):
             patch = {op: getattr(args, option) for option, op in
-                     (("addition", "add"), ("subtraction", "subtract")) if hasattr(args, option)}
+                     (("addition", "add"), ("subtraction", "subtract"), ("multiplication", "multiply")) if hasattr(args, option)}
             if not patch and args.command == "limits":
-                parser.error("limits requires --addition or --subtraction")
+                parser.error("limits requires --addition, --subtraction or --multiplication")
             payload.update(cmd="limits.set", limits=patch)
             if args.command == "settings":
                 rewards = {key: getattr(args, option) for option, key in

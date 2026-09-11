@@ -64,7 +64,7 @@ Rectangle {
     Text { x: 632; y: 41; text: "minutes  (1–1,440)"; color: "#806C7C"; font.pixelSize: 15 }
   }
   Text {
-    objectName: "screenTimeTotals"; x: 24; y: 234; width: 964; color: "#477B72"; font.pixelSize: 14
+    objectName: "screenTimeTotals"; x: 24; anchors.bottom: parent.bottom; anchors.bottomMargin: 17; width: 964; color: "#477B72"; font.pixelSize: 14
     text: root.canEnable ? "Today: " + (Number(root.status.earned_today_seconds) / 60).toFixed(1) + " min earned in Pawberry  ·  " + (Number(root.status.remaining_today_seconds) / 60).toFixed(1) + " min left to earn" : "Screen-time rewards are off by default."
   }
 }
