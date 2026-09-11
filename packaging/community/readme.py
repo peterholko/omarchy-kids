@@ -61,7 +61,7 @@ python3 -I "$HOME/.config/omarchy/plugins/{plugin}/school/school-desktop.py" ena
 
 Click the School & Screen Time widget to open the one control panel. Today shows the budget, activity and time grants; Time + Math sets budgets, bedtime and recall level; School + Apps sets school hours and app permissions. Free Time and changes to the schedule or allowed apps require the controls parent password; the password field displays checking feedback. School Mode never automatically opens Math Time after login or unlock, and stops an earning session already in progress. Deliberately opened practice remains optional. Bedtime still applies.
 
-The settings include optional access to Number Grove, Paw Post Typing and Pawberry Pet Hotel when their desktop launchers are installed. Service 2.1.0 also supports independent Pawberry daily addition/subtraction limits: `sudo omarchy-kids-controls-pawberry-client limits --user CHILD_USERNAME --addition 5 --subtraction 5`. Use `0` to disable an operation or `unlimited` to remove the cap; completed problems count once per local day, across game restarts. Other desktop IDs can be configured with the client’s `config patch` command.
+The settings include optional access to Number Grove, Paw Post Typing and Pawberry Pet Hotel when their desktop launchers are installed. Service 2.2.0 supports [Pawberry 1.4.0](https://github.com/peterholko/omarchy-pawberry)'s in-game **Parents** screen for independent addition/subtraction daily limits and optional screen-time rewards. Parents choose minutes per completed problem and a Pawberry daily maximum; rewards start off and share the overall earning cap. Both time rewards and daily limits are saved with the controls parent password. Other desktop IDs can be configured with the client’s `config patch` command.
 
 There is one browser profile. This plugin does not filter websites; use a separate DNS/browser policy if needed. The filtered launcher and standard shortcut changes do not prevent custom shortcuts, terminal commands or manually started applications.
 
@@ -108,13 +108,14 @@ The shared service uses Python 3's standard library, systemd/logind and Omarchy'
         if name == 'pawberry':
             text += """### Parent daily practice limits
 
-Open **Parents** inside Pawberry. For addition and subtraction separately, choose **Unlimited**, **Daily limit** or **Unavailable**. Enter the number of completed problems allowed per day, then enter the controls parent password and select **Save limits**. For example, choose **Daily limit** and **5** for each to allow five of each per day. The password is masked; **Checking password…** stays visible while it verifies. An incorrect password leaves saved settings unchanged. Opening settings pauses an active visit; **Back to the hotel** returns to the same work.
+Open **Parents → Daily practice** inside Pawberry. For addition and subtraction separately, choose **Unlimited**, **Daily limit** or **Unavailable**. Enter the number of completed problems allowed per day, then enter the controls parent password and select **Save settings**. For example, choose **Daily limit** and **5** for each to allow five of each per day. The password is masked; **Checking password…** stays visible while it verifies. An incorrect password leaves saved settings unchanged. Opening settings pauses an active visit; **Back to the hotel** returns to the same work.
 
 ![Pawberry's in-game parent settings with separate addition and subtraction limits](parent-settings.png)
 
-Parent limits need a one-time setup of the optional [School & Screen Time](https://github.com/peterholko/omarchy-screen-time) service, version 2.1.0 or newer. If it is already set up, manage limits directly in Pawberry. For an existing older installation, update the plugin, then review and install its local service payload:
+Parent limits and optional rewards need a one-time setup of the [School & Screen Time](https://github.com/peterholko/omarchy-screen-time) service. Version **2.2.0** supports both tabs; service 2.1.0 remains compatible with daily practice limits. For an existing installation, update both plugins, then review and install the local service payload:
 
 ```bash
+omarchy plugin update io.github.peterholko.pawberry
 omarchy plugin update io.github.peterholko.screen-time
 sudo "$HOME/.config/omarchy/plugins/io.github.peterholko.screen-time/setup" --user linnea --upgrade
 ```
@@ -124,6 +125,14 @@ Replace `linnea` with the child's account name. On a first install, follow the l
 Both operations default to unlimited. Only completed full problems count; incorrect answers and unfinished problems do not. Restarting, changing difficulty or saving a new limit does not reset today's completed count. New allowances start each local calendar day. Exhausted operations become unavailable, including in Mixed; multiplication and division stay available. The next pet switches to an available operation. Root owns the limits and counters separately from the saved collection. A configured service must respond before a problem can start or award a pet; there is no unlimited fallback on service failure.
 
 The optional CLI alternative is `omarchy-kids-controls-pawberry-client limits --addition 5 --subtraction 5` from the child's session. It asks for the controls parent password. Use `0` to disable an operation or `unlimited` to remove its cap; omitted operations keep their settings.
+
+### Optional screen-time rewards
+
+Inside **Parents → Screen time**, turn **Earn screen time** on, choose **minutes per completed problem** and a **daily maximum from Pawberry**, then save with the controls parent password. Rewards start off; the initial values are one minute per problem and a maximum of 30 minutes per day. Screen Time must be enabled for this account with earning turned on. The time already earned today is shown in the settings.
+
+![Optional Pawberry screen-time rewards configured inside the game](screen-time-settings.png)
+
+A completed problem in any of the four operations adds minutes to the normal screen-time balance. The game confirms the amount after the pet reveal, and the activity log labels it as Pawberry. Both Pawberry's cap and the overall daily earning cap apply; a final reward can be smaller near the cap. Wrong answers, unfinished problems and repeated submissions cannot add time. Saving new settings or disabling rewards keeps earned time and today's counters. School Mode, bedtime/break periods, paused tracking, locked sessions and Together mode do not award minutes. The normal lock flow still applies at zero time; Pawberry does not hold the lock off or open automatically after unlock. Pet and accessory rewards remain available when time rewards are off or capped.
 
 """
             text += '![Bubbles the axolotl wearing a collected bow in the accessory wardrobe](collection.png)\n\n'

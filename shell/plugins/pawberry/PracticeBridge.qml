@@ -33,12 +33,18 @@ Item {
       pendingPassword: secret, sendPassword: sendPassword})
     watchdog.start(); current.running = true
   }
-  function saveLimits(token, limits, password) {
+  function saveLimits(token, limits, password, screenTime) {
     if (!ready || !managed) { reply(token, {ok: false, error: "unavailable"}); return }
     // The existing parent client reads this password from stdin, never argv.
     var command = [clientPath, "limits", "--password-stdin",
       "--addition", limits.add === null ? "unlimited" : String(limits.add),
       "--subtraction", limits.subtract === null ? "unlimited" : String(limits.subtract)]
+    if (screenTime) {
+      command[1] = "settings"
+      command = command.concat(["--screen-time", screenTime.enabled ? "on" : "off",
+        "--minutes-per-problem", String(screenTime.minutes_per_problem),
+        "--daily-reward-minutes", String(screenTime.daily_cap_minutes)])
+    }
     launch(token, command, password, true)
   }
   function request(token, payload) {

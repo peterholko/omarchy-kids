@@ -92,6 +92,7 @@ def games(name, destination):
     if name == 'pawberry':
         shutil.copy2(ROOT / 'docs/images/pawberry-collection.png', destination / 'collection.png')
         shutil.copy2(ROOT / 'docs/images/pawberry-parent-settings.png', destination / 'parent-settings.png')
+        shutil.copy2(ROOT / 'docs/images/pawberry-screen-time.png', destination / 'screen-time-settings.png')
 
 
 def math(destination):

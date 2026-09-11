@@ -64,8 +64,10 @@ class ExportsTest(unittest.TestCase):
         self.assertIn('policy: practiceBridge', (game / 'Pawberry.qml').read_text())
         self.assertTrue((game / 'ParentSettings.qml').is_file())
         self.assertTrue((game / 'PracticeLimitRow.qml').is_file())
+        self.assertTrue((game / 'ScreenTimeSettings.qml').is_file())
         self.assertIn('--password-stdin', bridge)
         self.assertTrue((game / 'parent-settings.png').is_file())
+        self.assertTrue((game / 'screen-time-settings.png').is_file())
         service = BASE / 'omarchy-screen-time/service'
         self.assertTrue((service / 'omarchy_kids/pawberry/service.py').is_file())
         self.assertIn("elif role == 'pawberry'", (service / 'runtime.py').read_text())

@@ -18,6 +18,7 @@ FocusScope {
   property string pendingAction: ""
   property string problemId: ""
   property string practiceNote: ""
+  property int timeRewardSeconds: 0
   readonly property bool checking: pendingSession !== null
   function available(kind) { return kind === "mixed" || Practice.available(practiceStatus, kind) }
   function chooseOperation(kind) {
@@ -88,13 +89,14 @@ FocusScope {
     if (collectionOpen) wardrobe.forceActiveFocus()
     else focusAnswer()
   }
-  function saveParentLimits(limits, password) {
+  function saveParentLimits(limits, password, screenTime) {
     if (!parentSettingsOpen || parentSaving || !policy || !policyReady || !policy.managed) return
     parentSaving = true
-    policy.saveLimits(++requestToken, limits, password)
+    policy.saveLimits(++requestToken, limits, password, screenTime)
   }
   function newProblem(kind) { return Steps.generate(kind, Practice.sizeFor(kind, digitCount)) }
   function beginProblem(next) {
+    timeRewardSeconds = 0
     var candidate = next.problems[next.problemIndex]
     if (!Practice.available(practiceStatus, candidate.operation)) {
       var kind = Practice.nextKind("mixed", practiceStatus)
@@ -144,7 +146,7 @@ FocusScope {
       } else practiceNote = "Couldn't check with parent controls. Please try again."
       focusAnswer(); return
     }
-    if (action === "complete") welcome(next)
+    if (action === "complete") { timeRewardSeconds = Number(result.reward_seconds) || 0; welcome(next) }
     else { problemId = result.id; next.paused = !windowActive; session = next; focusAnswer() }
   }
   function check() {
@@ -274,7 +276,8 @@ FocusScope {
           HotelButton { objectName: "nextButton"; x: 224; y: 104; width: 380; height: 49; visible: root.roomComplete; enabled: !root.checking; primary: true; text: root.checking ? "Preparing practice…" : root.session && root.session.rooms === 3 ? "See our happy guests  →" : "Prepare the next room  →"; onClicked: root.nextRoom() }
           Text {
             objectName: "stepFeedback"; x: 20; y: 163; width: 582; height: 45
-            text: root.practiceNote || (root.showHint && root.step ? root.step.hint : root.session && root.session.note ? root.session.note : "Type a number, then press Enter. H opens a hint.")
+            text: root.roomComplete && root.timeRewardSeconds > 0 ? "You also earned " + (root.timeRewardSeconds % 60 === 0 ? (root.timeRewardSeconds / 60) + " min" : root.timeRewardSeconds + " seconds") + " of extra screen time!"
+              : root.practiceNote || (root.showHint && root.step ? root.step.hint : root.session && root.session.note ? root.session.note : "Type a number, then press Enter. H opens a hint.")
             color: root.session && root.session.error && !root.showHint ? "#A35462" : "#8D7281"
             font.pixelSize: 13; wrapMode: Text.WordWrap
           }
@@ -336,7 +339,7 @@ FocusScope {
       connected: root.policy !== null && root.policyReady
       managed: root.policy !== null && root.policy.managed
       busy: root.parentSaving
-      onSaveRequested: function(limits, password) { root.saveParentLimits(limits, password) }
+      onSaveRequested: function(limits, password, screenTime) { root.saveParentLimits(limits, password, screenTime) }
       onCloseRequested: root.closeParentSettings()
       onRetryRequested: if (root.policy) root.policy.refresh()
     }

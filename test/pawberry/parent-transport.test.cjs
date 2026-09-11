@@ -56,6 +56,15 @@ test('unavailable controls cannot report a saved limit and cancellation clears q
   assert.equal(jobs[0].destroyed,true)
 })
 
+test('optional time rewards use one authenticated settings update with no credential arguments', () => {
+  const {context,jobs}=bridge()
+  context.saveLimits(3,{add:5,subtract:null},'private',{enabled:true,minutes_per_problem:2,daily_cap_minutes:30})
+  assert.deepEqual(Array.from(jobs[0].command), ['/installed parent client','settings','--password-stdin',
+    '--addition','5','--subtraction','unlimited','--screen-time','on','--minutes-per-problem','2','--daily-reward-minutes','30'])
+  assert.equal(jobs[0].pendingPassword,'private')
+  assert.equal(jobs[0].sendPassword,true)
+})
+
 test('background status checks yield to a parent save and cannot interrupt its password check', () => {
   const {context,jobs}=bridge()
   context.request(-1,{cmd:'status'})

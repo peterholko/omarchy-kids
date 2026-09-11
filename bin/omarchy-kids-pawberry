@@ -1,17 +1,18 @@
 #!/bin/bash
-# omarchy:summary=Play Pawberry Pet Hotel or set daily practice limits
-# omarchy:args=[status|limits --addition COUNT --subtraction COUNT] [--user NAME]
+# omarchy:summary=Play Pawberry Pet Hotel or configure parent limits and time rewards
+# omarchy:args=[status|limits|settings] [OPTIONS] [--user NAME]
 # omarchy:examples=omarchy kids pawberry | omarchy kids pawberry limits --user linnea --addition 5 --subtraction 5
 
 set -euo pipefail
 case "${1:-}" in
   "") omarchy-shell shell summon omarchy.pawberry ;;
   -h|--help)
-    echo "Usage: omarchy kids pawberry [status|limits --addition COUNT --subtraction COUNT] [--user NAME]"
+    echo "Usage: omarchy kids pawberry [status|limits|settings] [OPTIONS] [--user NAME]"
     echo "Limits count completed problems per day. Use 0 to disable or unlimited to remove a limit."
     echo "Parent commands ask for the parent password. Run from the child's session or use sudo with --user."
+    echo "Use settings --help for optional screen-time rewards, or open Parents inside the game."
     ;;
-  status|limits)
+  status|limits|settings)
     if (( EUID != 0 )) && [[ " $* " == *" --user "* ]]; then
       exec sudo env OMARCHY_PATH="$OMARCHY_PATH" "$0" "$@"
     fi

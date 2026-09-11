@@ -25,7 +25,7 @@ temporary = tempfile.TemporaryDirectory(prefix='pawberry-qt-policy-')
 os.environ['SCREEN_TIME_ROOT'] = temporary.name
 uid = os.getuid() or pwd.getpwnam('nobody').pw_uid
 user = pwd.getpwuid(uid).pw_name
-host = Daemon(paths.detect(), modules=['pawberry'], log=lambda _: None)
+host = Daemon(paths.detect(), modules=['pawberry', 'time'], log=lambda _: None)
 host.auth = ParentAuth(verifier=lambda user, password: password == 'correct password')
 host.clock.logical = datetime(2026, 9, 10, 12).timestamp()
 def send(command, **kw): return host.dispatch(uid, {'scope':'pawberry','cmd':command,**kw})
@@ -62,10 +62,12 @@ class Bridge(QObject):
             if 'remaining' in result: self.data = result; self.changed.emit()
             self.reply.emit(token, result)
         QTimer.singleShot(self.delay, finish)
-    @Slot(int, 'QVariant', str)
-    def saveLimits(self, token, limits, password):
+    @Slot(int, 'QVariant', str, 'QVariant')
+    def saveLimits(self, token, limits, password, rewards):
         if hasattr(limits, 'toVariant'): limits = json.loads(engine.evaluate('JSON.stringify').call([limits]).toString())
-        self.request(token, {'cmd':'limits.set', 'limits':limits, 'password':password})
+        if hasattr(rewards, 'toVariant'): rewards = json.loads(engine.evaluate('JSON.stringify').call([rewards]).toString())
+        self.request(token, {'cmd':'settings.set' if rewards else 'limits.set', 'limits':limits,
+            'screen_time':rewards or {}, 'password':password})
 
 errors=[]
 def message(kind, context, text):
@@ -180,7 +182,7 @@ capture('checking-parent-password')
 QTest.qWait(450)
 assert not game.property('parentSaving')
 assert send('status')['limits']=={'add':1,'subtract':0}
-assert "wasn't accepted" in find('parentSettingsFeedback').property('text')
+assert "wasn't accepted" in find('parentSettingsFeedback').property('text'), find('parentSettingsFeedback').property('text')
 assert find('add-limit-count').property('text')=='5'
 capture('incorrect-parent-password')
 find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
@@ -240,6 +242,66 @@ click('pauseButton'); click('pausedParentSettingsButton')
 assert game.property('parentSettingsOpen')
 click('closeParentSettingsButton'); assert state()['paused']
 click('resumeButton'); js('game.reset()')
+# The same parent screen optionally links completed problems to the real time balance.
+bridge.refresh(); click('parentSettingsButton'); click('screenTimeSettingsTab')
+assert not find('screenTimeOnButton').isEnabled()
+assert 'Enable School' in find('screenTimeSettingsNote').property('text')
+capture('screen-time-not-enrolled')
+enrolled = host.dispatch(0, {'scope':'time','cmd':'users.set','user':user,'enabled':True})
+assert enrolled['ok']
+bridge.refresh(); QTest.qWait(30)
+assert find('screenTimeOnButton').isEnabled()
+click('screenTimeOnButton')
+find('screenTimeMinutesInput').setProperty('text','2')
+find('screenTimeCapInput').setProperty('text','5')
+find('parentPasswordInput').forceActiveFocus(); type_text('wrong password')
+click('saveParentSettingsButton')
+assert not send('status')['screen_time']['enabled']
+assert find('screenTimeSettings').property('rewardEnabled')
+find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
+click('saveParentSettingsButton')
+assert send('status')['screen_time']['enabled']
+assert send('status')['screen_time']['minutes_per_problem']==2
+assert send('status')['screen_time']['daily_cap_minutes']==5
+assert 'saved' in find('parentSettingsFeedback').property('text')
+capture('screen-time-parent-settings')
+view.resize(840,600); capture('compact-screen-time-settings'); view.resize(1120,800)
+# Invalid reward inputs cannot change either tab's settings.
+click('screenTimeOffButton'); click('screenTimeOnButton')
+find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
+for name, bad in [('screenTimeMinutesInput','0'),('screenTimeMinutesInput','61'),('screenTimeMinutesInput','1.5'),('screenTimeCapInput','1441')]:
+    find('screenTimeMinutesInput').setProperty('text','2'); find('screenTimeCapInput').setProperty('text','5')
+    find(name).setProperty('text',bad)
+    assert not find('saveParentSettingsButton').isEnabled()
+click('closeParentSettingsButton')
+account = host.services['time'].account_for(uid)
+before = account.day.remaining
+click('operation-multiply'); click('digits-1'); click('startButton'); complete()
+assert account.day.remaining == before + 120
+assert game.property('timeRewardSeconds')==120
+assert '2 min' in find('stepFeedback').property('text')
+capture('screen-time-earned')
+click('parentSettingsButton'); click('screenTimeSettingsTab')
+assert '2.0 min earned' in find('screenTimeTotals').property('text')
+click('screenTimeOffButton')
+find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
+click('saveParentSettingsButton')
+assert not send('status')['screen_time']['enabled']
+assert account.day.earned == 120
+click('closeParentSettingsButton'); js('game.reset()')
+# An older backend still supports editing the original daily practice limits.
+bridge.data = {key:value for key,value in send('status').items() if key != 'screen_time'}
+bridge.changed.emit(); click('parentSettingsButton')
+bridge.data.pop('screen_time',None); bridge.changed.emit(); QTest.qWait(20)
+click('screenTimeSettingsTab')
+assert not find('screenTimeOnButton').isEnabled()
+assert 'Update the parent controls service' in find('screenTimeSettingsNote').property('text')
+capture('screen-time-service-upgrade')
+click('practiceSettingsTab'); click('subtract-limit-daily')
+find('parentPasswordInput').forceActiveFocus(); type_text('correct password')
+click('saveParentSettingsButton')
+assert send('status')['limits']['subtract']==5
+click('closeParentSettingsButton')
 # Standalone play without a configured backend gets a setup explanation, not a fake save.
 bridge.controlled=False; bridge.changed.emit(); click('parentSettingsButton')
 assert find('parentSetupGuideButton').isVisible()
@@ -250,5 +312,5 @@ assert not find('parentSetupGuideButton').isVisible()
 assert not find('additionLimits').isEnabled()
 capture('parent-controls-offline')
 assert not errors, '\n'.join(errors)
-print('PASS: real service + Qt quota gates, restart/difficulty bypass, next guest, easy modes, asynchronous reward checking, service failure, daily reset, compact UI, in-game parent settings, password masking/checking, wrong-password rejection, saved limits, and pause/focus restoration.')
+print('PASS: real service + Qt practice limits, parent authentication, optional screen-time settings, credits and caps, invalid inputs, old-service compatibility, daily reset, compact UI, and pause/focus restoration.')
 view.close()

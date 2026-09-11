@@ -1,5 +1,6 @@
 """Screen-time accounting and operations hosted by the parent core."""
 import json
+import copy
 import math
 import os
 import pwd
@@ -354,6 +355,44 @@ class Account:
     def earn_room(self):
         cap = self.profile["earn"]["daily_cap_minutes"] * 60
         return max(0, cap - self.day.earned)
+
+    def activity_reward_reason(self, now):
+        if self.school_active(now):
+            return "school_mode_active"
+        if self.blocking_period(now):
+            return "bedtime"
+        if self.together or not self.profile["earn"]["enabled"]:
+            return "earning_disabled"
+        if self.paused or self.watcher.locked:
+            return "screen_time_paused"
+        if self.earn_room() <= 0:
+            return "daily_cap_reached"
+        return ""
+
+    def credit_activity(self, activity, identifier, seconds, daily_cap, label, now):
+        """Internal verified-completion hook; never exposed as a client command.
+
+        The caller holds the host lock and durably records its completion
+        before calling. Save credit and its receipt together before changing
+        the live balance, so a failed write or retried completion cannot mint
+        duplicate minutes. Activity credits share the normal earning cap.
+        """
+        previous = self.day.activity_rewards.get(activity, {})
+        if previous.get("last_id") == identifier:
+            return previous["last_reward_seconds"]
+        earned = previous.get("earned_seconds", 0)
+        reward = 0 if self.activity_reward_reason(now) else min(
+            seconds, self.earn_room(), max(0, daily_cap - earned))
+        candidate = copy.deepcopy(self.day)
+        candidate.add("earn", reward, {"source": activity, "q": label})
+        candidate.activity_rewards[activity] = {"earned_seconds": earned + reward,
+            "last_id": identifier, "last_reward_seconds": reward}
+        self.store.save_day(candidate)
+        self.day = candidate
+        if reward > 0 and self.day.remaining > 0:
+            self.clear_block()
+        self.publish_status(now)
+        return reward
 
     def quiz_next(self, now, choices=0):
         if self.school_active(now):

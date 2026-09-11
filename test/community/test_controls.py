@@ -83,6 +83,20 @@ class ControlsTest(unittest.TestCase):
         self.assertTrue(self.send('school', 'users.set', root=True, enabled=False)['ok'])
         self.assertTrue(self.send('time', 'status')['ok'])
 
+    def test_pawberry_time_rewards_use_the_shared_cap_and_parent_password(self):
+        self.enable('time')
+        settings = {'enabled':True, 'minutes_per_problem':2, 'daily_cap_minutes':3}
+        self.assertEqual(self.send('pawberry','settings.set',screen_time=settings,password='wrong')['error'],'bad_password')
+        self.assertTrue(self.send('pawberry','settings.set',screen_time=settings,password='correct password')['ok'])
+        rewards=[]
+        for _ in range(3):
+            issued=self.send('pawberry','begin',problem={'a':56,'b':7,'operation':'divide'})
+            result=self.send('pawberry','complete',id=issued['id'],answer=8)
+            rewards.append(result['reward_seconds'])
+            self.assertEqual(self.send('pawberry','complete',id=issued['id'],answer=8)['reward_seconds'],result['reward_seconds'])
+        self.assertEqual(rewards,[120,60,0])
+        self.assertEqual(self.send('time','status')['earned_seconds'],180)
+
     def test_password_check_cannot_select_another_user_or_settings_scope(self):
         self.enable('school'); self.enable('time')
         self.assertEqual(self.send('school', 'mode.set', mode='free', password='bad')['error'], 'bad_password')
