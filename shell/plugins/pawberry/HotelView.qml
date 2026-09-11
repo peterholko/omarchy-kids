@@ -42,6 +42,9 @@ FocusScope {
   property url collectionLocation: "file://" + (StandardPaths.writableLocation(StandardPaths.StateLocation) + "/omarchy-pawberry/collection.ini").split("/").map(encodeURIComponent).join("/")
   readonly property var collection: collectionStore.collection
   property bool collectionOpen: false
+  property bool parentSettingsOpen: false
+  property bool parentSaving: false
+  property bool wasPausedBeforeSettings: false
   property var visitPets: ["peaches", "biscuit", "bluebell"]
   property var lastReward: null
   readonly property string currentPet: visitPets[session ? session.problemIndex : 0] || "peaches"
@@ -58,9 +61,9 @@ FocusScope {
   // A focus scope otherwise restores the last button, even after it is hidden.
   Item { id: answerInputTarget; objectName: "answerInputTarget"; focus: true }
   function focusAnswer() { answerInputTarget.forceActiveFocus() }
-  function reset() { requestToken++; pendingSession = null; pendingAction = ""; problemId = ""; practiceNote = ""; if (policy) { policy.cancel(); policy.refresh() }; session = null; answerInput = ""; showHint = false; collectionOpen = false; lastReward = null; focusAnswer() }
+  function reset() { parentSettingsOpen = false; parentSaving = false; parents.clear(); requestToken++; pendingSession = null; pendingAction = ""; problemId = ""; practiceNote = ""; if (policy) { policy.cancel(); policy.refresh() }; session = null; answerInput = ""; showHint = false; collectionOpen = false; lastReward = null; focusAnswer() }
   function openCollection() {
-    if (working || paused) return
+    if (working || paused || parentSettingsOpen || checking) return
     wardrobe.selectedPet = roomComplete ? currentPet : (collection.pets[0] || "peaches")
     collectionOpen = true; wardrobe.forceActiveFocus()
   }
@@ -69,6 +72,26 @@ FocusScope {
   function wearReward() {
     if (lastReward && lastReward.accessoryId) equip(lastReward.petId, lastReward.accessoryId)
     focusAnswer()
+  }
+  function openParentSettings() {
+    if (checking || parentSaving || parentSettingsOpen) return
+    wasPausedBeforeSettings = paused
+    if (session && session.phase !== "results") setPaused(true)
+    parentSettingsOpen = true
+    parents.open()
+    if (policy) policy.refresh()
+  }
+  function closeParentSettings() {
+    if (parentSaving) return
+    parents.clear(); parentSettingsOpen = false
+    if (session && session.phase !== "results" && !wasPausedBeforeSettings && windowActive) setPaused(false)
+    if (collectionOpen) wardrobe.forceActiveFocus()
+    else focusAnswer()
+  }
+  function saveParentLimits(limits, password) {
+    if (!parentSettingsOpen || parentSaving || !policy || !policyReady || !policy.managed) return
+    parentSaving = true
+    policy.saveLimits(++requestToken, limits, password)
   }
   function newProblem(kind) { return Steps.generate(kind, Practice.sizeFor(kind, digitCount)) }
   function beginProblem(next) {
@@ -86,7 +109,7 @@ FocusScope {
     } else { session = next; focusAnswer() }
   }
   function start() {
-    if (checking || !policyReady || !available(operation)) return
+    if (checking || parentSettingsOpen || !policyReady || !available(operation)) return
     var problems = []
     for (var i = 0; i < 3; i++) {
       var kind = Practice.nextKind(operation, practiceStatus)
@@ -106,6 +129,11 @@ FocusScope {
     session = next; answerInput = ""; showHint = false; practiceNote = ""; focusAnswer()
   }
   function policyReply(token, result) {
+    if (token === requestToken && parentSaving) {
+      parentSaving = false
+      parents.finish(result)
+      return
+    }
     if (token !== requestToken || !pendingSession) return
     var next = pendingSession, action = pendingAction
     pendingSession = null; pendingAction = ""
@@ -120,7 +148,7 @@ FocusScope {
     else { problemId = result.id; next.paused = !windowActive; session = next; focusAnswer() }
   }
   function check() {
-    if (!working || paused || collectionOpen || checking) return
+    if (!working || paused || collectionOpen || parentSettingsOpen || checking) return
     var next = Session.submit(session, answerInput)
     if (session.phase === "work" && next.phase === "complete") {
       if (policy && policy.managed) {
@@ -133,7 +161,7 @@ FocusScope {
     session = next; practiceNote = ""; focusAnswer()
   }
   function nextRoom() {
-    if (checking || !roomComplete) return
+    if (checking || parentSettingsOpen || !roomComplete) return
     var next = Session.advance(session)
     answerInput = ""; showHint = false; lastReward = null
     if (next.phase === "work") beginProblem(next)
@@ -142,6 +170,7 @@ FocusScope {
   function setPaused(value) { if (session) session = Session.pause(session, value); if (!value) focusAnswer() }
   onWindowActiveChanged: if (!windowActive && session && session.phase !== "results") setPaused(true)
   Keys.onPressed: function(event) {
+    if (parentSettingsOpen) return
     if (event.isAutoRepeat) { event.accepted = true; return }
     if (collectionOpen) { if (event.key === Qt.Key_Escape) { closeCollection(); event.accepted = true }; return }
     if (event.key === Qt.Key_Escape && session && session.phase !== "results") { setPaused(!paused); event.accepted = true; return }
@@ -165,14 +194,15 @@ FocusScope {
     Text { x: 37; y: 25; text: "♥"; color: "#AD6581"; font.pixelSize: 38 }
     Text { x: 87; y: 26; text: "Pawberry Pet Hotel"; color: "#554252"; font.pixelSize: 25; font.bold: true }
     Text { x: 89; y: 58; text: "A LITTLE CARE. A LITTLE MATH. A LOT OF PAWS."; color: "#927888"; font.pixelSize: 10; font.letterSpacing: 1.4 }
-    HotelButton { objectName: "collectionButton"; x: 591; y: 28; width: 189; height: 40; text: "My collection  ·  " + root.collection.pets.length; enabled: !root.working && !root.paused; onClicked: root.openCollection() }
-    HotelButton { objectName: "motionButton"; x: 790; y: 28; width: 158; height: 40; text: root.reducedMotion ? "Motion: off" : "Motion: on"; onClicked: { root.reducedMotion = !root.reducedMotion; if (!root.collectionOpen) root.focusAnswer() } }
-    HotelButton { objectName: "pauseButton"; x: 958; y: 28; width: 80; height: 40; visible: root.session !== null && root.session.phase !== "results"; text: "Pause"; onClicked: root.setPaused(true) }
+    HotelButton { objectName: "collectionButton"; x: 501; y: 28; width: 167; height: 40; text: "My collection  ·  " + root.collection.pets.length; enabled: !root.working && !root.paused && !root.parentSettingsOpen && !root.checking; onClicked: root.openCollection() }
+    HotelButton { objectName: "parentSettingsButton"; x: 678; y: 28; width: 126; height: 40; text: "Parents"; enabled: !root.parentSettingsOpen && !root.checking; onClicked: root.openParentSettings() }
+    HotelButton { objectName: "motionButton"; x: 814; y: 28; width: 134; enabled: !root.parentSettingsOpen; height: 40; text: root.reducedMotion ? "Motion: off" : "Motion: on"; onClicked: { root.reducedMotion = !root.reducedMotion; if (!root.collectionOpen) root.focusAnswer() } }
+    HotelButton { objectName: "pauseButton"; x: 958; y: 28; width: 80; height: 40; visible: root.session !== null && root.session.phase !== "results" && !root.parentSettingsOpen; text: "Pause"; onClicked: root.setPaused(true) }
     HotelButton { x: 1048; y: 28; width: 38; height: 40; text: "×"; onClicked: root.quitRequested() }
     Rectangle { x: 36; y: 91; width: 1048; height: 1; color: "#E5DADF" }
 
     Item {
-      anchors.fill: parent; visible: root.session === null && !root.collectionOpen
+      anchors.fill: parent; visible: root.session === null && !root.collectionOpen && !root.parentSettingsOpen
       Text { x: 40; y: 140; text: "Tiny paws.\nBig brainwaves."; color: "#594355"; font.pixelSize: 48; font.bold: true; lineHeight: 1.08 }
       Text { x: 43; y: 268; width: 500; text: "23 friends to meet! Show your math work to welcome three surprise guests each visit. Finish each problem to earn a pet and a new accessory."; color: "#806C7C"; font.pixelSize: 18; wrapMode: Text.WordWrap; lineHeight: 1.3 }
       Text { x: 43; y: 372; text: "1   PICK YOUR PRACTICE"; color: "#977288"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.6 }
@@ -218,7 +248,7 @@ FocusScope {
     }
 
     Item {
-      anchors.fill: parent; visible: (root.working || root.roomComplete) && !root.collectionOpen; enabled: !root.paused
+      anchors.fill: parent; visible: (root.working || root.roomComplete) && !root.collectionOpen && !root.parentSettingsOpen; enabled: !root.paused
       Rectangle {
         x: 36; y: 119; width: 656; height: 642; radius: 23; color: "#FFFDF9"; border.color: "#E9DDE0"
         Text { x: 26; y: 20; text: root.session && root.problem ? "GUEST " + (root.session.problemIndex + 1) + " / 3  ·  " + root.operationNames[root.problem.operation].toUpperCase() : ""; color: "#967487"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.3 }
@@ -281,7 +311,7 @@ FocusScope {
     }
 
     Item {
-      anchors.fill: parent; visible: root.session !== null && root.session.phase === "results" && !root.collectionOpen
+      anchors.fill: parent; visible: root.session !== null && root.session.phase === "results" && !root.collectionOpen && !root.parentSettingsOpen
       Text { x: 40; y: 135; width: 1040; text: "You welcomed all three pets!"; color: "#624658"; font.pixelSize: 37; font.bold: true; horizontalAlignment: Text.AlignHCenter }
       Text { x: 40; y: 194; width: 1040; text: "Saved in your collection: " + root.collection.pets.length + " / 23 friends and " + root.collection.accessories.length + " / 20 accessories."; color: "#9A7B8E"; font.pixelSize: 18; horizontalAlignment: Text.AlignHCenter }
       Row {
@@ -294,20 +324,33 @@ FocusScope {
 
     CollectionView {
       id: wardrobe; objectName: "collectionView"; x: 0; y: 110; width: 1120; height: 690
-      visible: root.collectionOpen; collection: root.collection
+      visible: root.collectionOpen && !root.parentSettingsOpen; collection: root.collection
       onEquipRequested: function(petId, accessoryId) { root.equip(petId, accessoryId) }
       onCloseRequested: root.closeCollection()
     }
 
+    ParentSettings {
+      id: parents; objectName: "parentSettings"; x: 18; y: 100; width: 1084; height: 664
+      visible: root.parentSettingsOpen
+      status: root.practiceStatus || ({})
+      connected: root.policy !== null && root.policyReady
+      managed: root.policy !== null && root.policy.managed
+      busy: root.parentSaving
+      onSaveRequested: function(limits, password) { root.saveParentLimits(limits, password) }
+      onCloseRequested: root.closeParentSettings()
+      onRetryRequested: if (root.policy) root.policy.refresh()
+    }
+
     Rectangle {
-      anchors.fill: parent; visible: root.paused; color: "#99594A56"; z: 20
+      anchors.fill: parent; visible: root.paused && !root.parentSettingsOpen; color: "#99594A56"; z: 20
       MouseArea { anchors.fill: parent }
       Rectangle {
-        anchors.centerIn: parent; width: 500; height: 280; radius: 25; color: "#FFF8F4"
+        anchors.centerIn: parent; width: 500; height: 338; radius: 25; color: "#FFF8F4"
         Text { x: 28; y: 33; width: 444; text: "A little paws."; color: "#67485D"; font.pixelSize: 32; font.bold: true; horizontalAlignment: Text.AlignHCenter }
         Text { x: 30; y: 94; width: 440; text: "Your work and your guests are safe right here."; color: "#907486"; font.pixelSize: 16; horizontalAlignment: Text.AlignHCenter }
         HotelButton { objectName: "resumeButton"; x: 30; y: 148; width: 440; primary: true; text: "Back to my guest"; onClicked: root.setPaused(false) }
-        HotelButton { objectName: "leaveButton"; x: 30; y: 207; width: 440; text: "Leave this visit and start fresh"; onClicked: root.reset() }
+        HotelButton { objectName: "pausedParentSettingsButton"; x: 30; y: 207; width: 440; text: "Parent settings"; onClicked: root.openParentSettings() }
+        HotelButton { objectName: "leaveButton"; x: 30; y: 266; width: 440; text: "Leave this visit and start fresh"; onClicked: root.reset() }
       }
     }
   }

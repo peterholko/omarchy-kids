@@ -83,14 +83,20 @@ omarchy kids pawberry
 
 With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School + Apps** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. Rewards are collectible pets and accessories, with no screen-time credits. **Motion: off** shows the same rewards immediately without animation.
 
-Parents can limit completed addition and subtraction problems separately. For example, allow Linnea five of each per day:
+Open **Parents** inside Pawberry to set separate addition and subtraction limits for the account playing the game. Choose **Daily limit** and enter **5** for each to allow five completed problems of each kind per day, or choose **Unlimited** or **Unavailable**. Enter the parent password and select **Save limits**. The password field and button show **Checking password…** while it verifies; an incorrect password leaves the saved settings unchanged. Opening settings pauses an active visit, and **Back to the hotel** returns to the same work.
+
+![Pawberry's in-game parent settings with separate addition and subtraction limits](docs/images/pawberry-parent-settings.png)
+
+Both operations default to unlimited. A completed full problem uses one allowance; mistakes, intermediate steps and unfinished problems do not. Counts persist across visits, game restarts and reboots, and reset at the next local calendar day. Changing a limit keeps today's completed counts. Reaching the limit disables that operation at every difficulty and excludes it from Mixed; the next guest switches to an available operation. Multiplication and division remain available. The Kids core service stores these limits and counters; the child's collection file cannot reset them. Standalone-plugin users need the optional [School & Screen Time service](https://github.com/peterholko/omarchy-screen-time), version 2.1.0 or newer, set up once; everyday changes then happen inside Pawberry.
+
+The command-line alternative remains available:
 
 ```bash
 omarchy kids pawberry limits --user linnea --addition 5 --subtraction 5
 omarchy kids pawberry status --user linnea
 ```
 
-The limits command asks for the parent password. Use `0` to make an operation unavailable, or `unlimited` to remove its limit; omitted operations retain their settings. The default is unlimited. A completed full problem uses one allowance; mistakes, intermediate steps and unfinished problems do not. Counts persist across visits, game restarts and reboots, and reset at the next local calendar day. Reaching the limit disables that operation at every difficulty and excludes it from Mixed; the next guest switches to an available operation. Multiplication and division remain available. The Kids core service stores these limits and counters; the child's collection file cannot reset them. Standalone-plugin users can enable the same limits through the optional [School & Screen Time service](https://github.com/peterholko/omarchy-screen-time).
+The limits command asks for the parent password. Use `0` to make an operation unavailable, or `unlimited` to remove its limit; omitted operations retain their settings.
 
 The preview is the actual Qt component rendered locally. See [how the steps, artwork and checks work](docs/pawberry.md); installed Omarchy integration remains for a laptop check.
 

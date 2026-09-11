@@ -108,18 +108,22 @@ The shared service uses Python 3's standard library, systemd/logind and Omarchy'
         if name == 'pawberry':
             text += """### Parent daily practice limits
 
-Install or update [School & Screen Time](https://github.com/peterholko/omarchy-screen-time), then review and install its local service payload (version 2.1.0 or newer):
+Open **Parents** inside Pawberry. For addition and subtraction separately, choose **Unlimited**, **Daily limit** or **Unavailable**. Enter the number of completed problems allowed per day, then enter the controls parent password and select **Save limits**. For example, choose **Daily limit** and **5** for each to allow five of each per day. The password is masked; **Checking password…** stays visible while it verifies. An incorrect password leaves saved settings unchanged. Opening settings pauses an active visit; **Back to the hotel** returns to the same work.
+
+![Pawberry's in-game parent settings with separate addition and subtraction limits](parent-settings.png)
+
+Parent limits need a one-time setup of the optional [School & Screen Time](https://github.com/peterholko/omarchy-screen-time) service, version 2.1.0 or newer. If it is already set up, manage limits directly in Pawberry. For an existing older installation, update the plugin, then review and install its local service payload:
 
 ```bash
 omarchy plugin update io.github.peterholko.screen-time
 sudo "$HOME/.config/omarchy/plugins/io.github.peterholko.screen-time/setup" --user linnea --upgrade
-sudo omarchy-kids-controls-pawberry-client limits --user linnea --addition 5 --subtraction 5
-sudo omarchy-kids-controls-pawberry-client status --user linnea
 ```
 
-Replace `linnea` with the child's account name. On a first install, follow the linked plugin's installation instructions; setup asks for a separate controls parent password. A fresh setup also enrolls School & Screen Time; you can disable those controls while retaining the service for Pawberry with `sudo omarchy-kids-controls disable controls --user linnea`. Updating an existing setup preserves its enrollments. From the child's session, `omarchy-kids-controls-pawberry-client limits --addition 5 --subtraction 5` asks for that controls password without sudo.
+Replace `linnea` with the child's account name. On a first install, follow the linked plugin's installation instructions; setup asks for a separate controls parent password. A fresh setup also enrolls School & Screen Time; you can disable those controls while retaining the service for Pawberry with `sudo omarchy-kids-controls disable controls --user linnea`. Updating an existing setup preserves its enrollments. The in-game settings apply to the account playing Pawberry, using that controls password.
 
-This example allows five completed addition problems and five subtraction problems per local day. Use `0` to disable an operation or `unlimited` to remove its cap. Unspecified limits stay unchanged; both default to unlimited. Incorrect answers and unfinished problems do not count. Restarting or changing difficulty does not reset the count. Exhausted operations disappear from the available choices, including Mixed; multiplication and division stay available. The next pet switches to an available operation. Root owns the limits and counters separately from the saved collection. A configured service must respond before a problem can start or award a pet; there is no unlimited fallback on service failure.
+Both operations default to unlimited. Only completed full problems count; incorrect answers and unfinished problems do not. Restarting, changing difficulty or saving a new limit does not reset today's completed count. New allowances start each local calendar day. Exhausted operations become unavailable, including in Mixed; multiplication and division stay available. The next pet switches to an available operation. Root owns the limits and counters separately from the saved collection. A configured service must respond before a problem can start or award a pet; there is no unlimited fallback on service failure.
+
+The optional CLI alternative is `omarchy-kids-controls-pawberry-client limits --addition 5 --subtraction 5` from the child's session. It asks for the controls parent password. Use `0` to disable an operation or `unlimited` to remove its cap; omitted operations keep their settings.
 
 """
             text += '![Bubbles the axolotl wearing a collected bow in the accessory wardrobe](collection.png)\n\n'
