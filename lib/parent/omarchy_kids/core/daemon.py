@@ -27,7 +27,7 @@ class Daemon:
         self.services = {}
         self.health = {}
         migrate(layout)
-        allowed = {"school": "school_mode", "time": "screen_time"}
+        allowed = {"school": "school_mode", "time": "screen_time", "pawberry": "pawberry"}
         for name, package in allowed.items():
             if modules is not None and name not in modules:
                 continue

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtCore
 import "WorkSteps.js" as Steps
+import "PracticePolicy.js" as Practice
 import "WorkSession.js" as Session
 import "PetCatalog.js" as Catalog
 import "PetCollection.js" as Collection
@@ -9,6 +10,29 @@ import "PetCollection.js" as Collection
 FocusScope {
   id: root
   property bool windowActive: true
+  property var policy: null
+  readonly property bool policyReady: !policy || policy.ready
+  readonly property var practiceStatus: policy ? policy.status : null
+  property int requestToken: 0
+  property var pendingSession: null
+  property string pendingAction: ""
+  property string problemId: ""
+  property string practiceNote: ""
+  readonly property bool checking: pendingSession !== null
+  function available(kind) { return kind === "mixed" || Practice.available(practiceStatus, kind) }
+  function chooseOperation(kind) {
+    operation = kind
+    if (kind === "divide" || ((kind === "add" || kind === "subtract") && digitCount === 1)) digitCount = 2
+    practiceNote = ""; focusAnswer()
+  }
+  function quotaText(kind) {
+    if (!practiceStatus || !practiceStatus.remaining || practiceStatus.remaining[kind] === null || practiceStatus.remaining[kind] === undefined) return ""
+    return operationNames[kind] + ": " + practiceStatus.remaining[kind] + " left today"
+  }
+  Connections {
+    target: root.policy
+    function onReply(token, result) { root.policyReply(token, result) }
+  }
   property string operation: "add"
   property int digitCount: 2
   property bool reducedMotion: false
@@ -26,7 +50,7 @@ FocusScope {
   readonly property bool working: session !== null && session.phase === "work"
   readonly property bool roomComplete: session !== null && session.phase === "complete"
   readonly property bool paused: session !== null && session.paused
-  readonly property var operationNames: ({add: "Addition", subtract: "Subtraction", multiply: "Multiplication", mixed: "Mixed"})
+  readonly property var operationNames: ({add: "Addition", subtract: "Subtraction", multiply: "Multiplication", divide: "Division", mixed: "Mixed"})
   signal quitRequested()
   focus: true
   CollectionStore { id: collectionStore; location: root.collectionLocation }
@@ -34,7 +58,7 @@ FocusScope {
   // A focus scope otherwise restores the last button, even after it is hidden.
   Item { id: answerInputTarget; objectName: "answerInputTarget"; focus: true }
   function focusAnswer() { answerInputTarget.forceActiveFocus() }
-  function reset() { session = null; answerInput = ""; showHint = false; collectionOpen = false; lastReward = null; focusAnswer() }
+  function reset() { requestToken++; pendingSession = null; pendingAction = ""; problemId = ""; practiceNote = ""; if (policy) { policy.cancel(); policy.refresh() }; session = null; answerInput = ""; showHint = false; collectionOpen = false; lastReward = null; focusAnswer() }
   function openCollection() {
     if (working || paused) return
     wardrobe.selectedPet = roomComplete ? currentPet : (collection.pets[0] || "peaches")
@@ -46,38 +70,82 @@ FocusScope {
     if (lastReward && lastReward.accessoryId) equip(lastReward.petId, lastReward.accessoryId)
     focusAnswer()
   }
+  function newProblem(kind) { return Steps.generate(kind, Practice.sizeFor(kind, digitCount)) }
+  function beginProblem(next) {
+    var candidate = next.problems[next.problemIndex]
+    if (!Practice.available(practiceStatus, candidate.operation)) {
+      var kind = Practice.nextKind("mixed", practiceStatus)
+      candidate = newProblem(kind)
+      next.problems[next.problemIndex] = candidate
+      next.board = JSON.parse(JSON.stringify(candidate.board))
+      practiceNote = "Today's limit is reached. Let's try " + operationNames[kind].toLowerCase() + "!"
+    }
+    if (policy && policy.managed) {
+      pendingSession = next; pendingAction = "begin"
+      policy.request(++requestToken, {cmd: "begin", problem: {a: candidate.a, b: candidate.b, operation: candidate.operation}})
+    } else { session = next; focusAnswer() }
+  }
   function start() {
+    if (checking || !policyReady || !available(operation)) return
     var problems = []
-    var kinds = operation === "mixed" ? ["add", "subtract", "multiply"] : [operation, operation, operation]
-    for (var i = 0; i < kinds.length; i++) {
-      var candidate = Steps.generate(kinds[i], digitCount)
+    for (var i = 0; i < 3; i++) {
+      var kind = Practice.nextKind(operation, practiceStatus)
+      var candidate = newProblem(kind)
       for (var attempt = 0; attempt < 30 && problems.some(function(p) { return p.a === candidate.a && p.b === candidate.b && p.operation === candidate.operation }); attempt++)
-        candidate = Steps.generate(kinds[i], digitCount)
+        candidate = newProblem(kind)
       problems.push(candidate)
     }
     visitPets = Collection.guests(collection, Catalog.petIds, problems.length)
-    session = Session.create(problems); answerInput = ""; showHint = false; lastReward = null; collectionOpen = false
-    focusAnswer()
+    answerInput = ""; showHint = false; lastReward = null; collectionOpen = false; practiceNote = ""
+    beginProblem(Session.create(problems))
+  }
+  function welcome(next) {
+    lastReward = Collection.award(collection, currentPet, Catalog.accessoryIds)
+    collectionStore.save(lastReward.collection)
+    next.paused = paused || !windowActive
+    session = next; answerInput = ""; showHint = false; practiceNote = ""; focusAnswer()
+  }
+  function policyReply(token, result) {
+    if (token !== requestToken || !pendingSession) return
+    var next = pendingSession, action = pendingAction
+    pendingSession = null; pendingAction = ""
+    if (!result.ok) {
+      if (result.error === "daily_limit" || result.error === "stale_problem") {
+        reset()
+        practiceNote = result.error === "daily_limit" ? "That practice is done for today. Pick another kind of math!" : "Another visit was opened. Please start a new visit here."
+      } else practiceNote = "Couldn't check with parent controls. Please try again."
+      focusAnswer(); return
+    }
+    if (action === "complete") welcome(next)
+    else { problemId = result.id; next.paused = !windowActive; session = next; focusAnswer() }
   }
   function check() {
-    if (!working || paused || collectionOpen) return
+    if (!working || paused || collectionOpen || checking) return
     var next = Session.submit(session, answerInput)
-    if (next.stepIndex > session.stepIndex) { answerInput = ""; showHint = false }
     if (session.phase === "work" && next.phase === "complete") {
-      lastReward = Collection.award(collection, currentPet, Catalog.accessoryIds)
-      collectionStore.save(lastReward.collection)
+      if (policy && policy.managed) {
+        pendingSession = next; pendingAction = "complete"
+        policy.request(++requestToken, {cmd: "complete", id: problemId, answer: problem.answer})
+      } else welcome(next)
+      return
     }
-    session = next
-    focusAnswer()
+    if (next.stepIndex > session.stepIndex) { answerInput = ""; showHint = false }
+    session = next; practiceNote = ""; focusAnswer()
   }
-  function nextRoom() { session = Session.advance(session); answerInput = ""; showHint = false; lastReward = null; focusAnswer() }
+  function nextRoom() {
+    if (checking || !roomComplete) return
+    var next = Session.advance(session)
+    answerInput = ""; showHint = false; lastReward = null
+    if (next.phase === "work") beginProblem(next)
+    else { session = next; focusAnswer() }
+  }
   function setPaused(value) { if (session) session = Session.pause(session, value); if (!value) focusAnswer() }
   onWindowActiveChanged: if (!windowActive && session && session.phase !== "results") setPaused(true)
   Keys.onPressed: function(event) {
     if (event.isAutoRepeat) { event.accepted = true; return }
     if (collectionOpen) { if (event.key === Qt.Key_Escape) { closeCollection(); event.accepted = true }; return }
     if (event.key === Qt.Key_Escape && session && session.phase !== "results") { setPaused(!paused); event.accepted = true; return }
-    if (!working || paused) return
+    if (!working || paused || checking) return
     if (!(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) && /^[0-9]$/.test(event.text)) {
       if (answerInput.length < 7) answerInput += event.text
       event.accepted = true
@@ -111,32 +179,36 @@ FocusScope {
       Row {
         x: 40; y: 401; spacing: 8
         Repeater {
-          model: ["add", "subtract", "multiply", "mixed"]
+          model: ["add", "subtract", "multiply", "divide", "mixed"]
           delegate: HotelButton {
             required property string modelData
             objectName: "operation-" + modelData
-            width: 126; height: 46; text: root.operationNames[modelData]; selected: root.operation === modelData
-            font.pixelSize: 14; onClicked: { root.operation = modelData; root.focusAnswer() }
+            width: 100; height: 46; enabled: root.available(modelData) && !root.checking; text: root.operationNames[modelData]; selected: root.operation === modelData
+            font.pixelSize: 12; onClicked: root.chooseOperation(modelData)
           }
         }
       }
-      Text { x: 43; y: 486; text: "2   CHOOSE YOUR NUMBERS"; color: "#977288"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.6 }
+      Text { objectName: "quotaLabel"; x: 43; y: 458; width: 530; text: [root.quotaText("add"), root.quotaText("subtract")].filter(function(text) { return text !== "" }).join("   ·   "); color: "#977288"; font.pixelSize: 12 }
+      Text { x: 43; y: 493; text: "2   CHOOSE YOUR NUMBERS"; color: "#977288"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.6 }
       Row {
-        x: 40; y: 515; spacing: 10
+        x: 40; y: 522; spacing: 10
         Repeater {
-          model: [2, 3]
+          model: root.operation === "divide" ? [2] : root.operation === "multiply" || root.operation === "mixed" ? [1, 2, 3] : [2, 3]
           delegate: HotelButton {
             required property int modelData
             objectName: "digits-" + modelData
-            width: 260; height: 48
-            text: modelData === 2 ? "Two digits   ·   " + (root.operation === "subtract" ? "68 − 24" : root.operation === "multiply" ? "24 × 38" : "24 + 38")
-              : "Three digits   ·   " + (root.operation === "subtract" ? "247 − 185" : root.operation === "multiply" ? "247 × 185" : "247 + 185")
+            width: root.operation === "divide" ? 530 : root.operation === "multiply" || root.operation === "mixed" ? 170 : 260; height: 48
+            font.pixelSize: 13
+            text: root.operation === "divide" ? "Easy table facts   ·   42 ÷ 6   ·   no remainders"
+              : modelData === 1 ? "1 digit  ·  7 × 6"
+              : modelData === 2 ? "2 digits   ·   " + (root.operation === "subtract" ? "68 − 24" : root.operation === "multiply" ? "24 × 38" : "24 + 38")
+              : "3 digits   ·   " + (root.operation === "subtract" ? "247 − 185" : root.operation === "multiply" ? "247 × 185" : "247 + 185")
             selected: root.digitCount === modelData; onClicked: { root.digitCount = modelData; root.focusAnswer() }
           }
         }
       }
-      HotelButton { objectName: "startButton"; x: 40; y: 616; width: 530; height: 56; primary: true; text: "Open the pet hotel  →"; font.pixelSize: 17; onClicked: root.start() }
-      Text { x: 43; y: 691; width: 520; text: "No countdown. No lost hearts.\nWe check your working before the final answer."; color: "#94798A"; font.pixelSize: 14; lineHeight: 1.4 }
+      HotelButton { objectName: "startButton"; x: 40; y: 616; width: 530; height: 56; primary: true; enabled: root.policyReady && !root.checking && root.available(root.operation); text: root.checking ? "Checking practice…" : !root.policyReady ? "Connecting to parent controls…" : !root.available(root.operation) ? "Pick another kind of math" : "Open the pet hotel  →"; font.pixelSize: 17; onClicked: root.start() }
+      Text { x: 43; y: 691; width: 520; text: root.practiceNote || "No countdown. No lost hearts.\nWe check your working before the final answer."; wrapMode: Text.WordWrap; color: "#94798A"; font.pixelSize: 14; lineHeight: 1.4 }
       Rectangle {
         x: 611; y: 143; width: 470; height: 582; radius: 25; color: "#F1E4E9"
         Text { x: 25; y: 27; text: "WHO WILL YOU WELCOME TODAY?"; color: "#916D83"; font.pixelSize: 12; font.bold: true; font.letterSpacing: 1.4 }
@@ -151,7 +223,7 @@ FocusScope {
         x: 36; y: 119; width: 656; height: 642; radius: 23; color: "#FFFDF9"; border.color: "#E9DDE0"
         Text { x: 26; y: 20; text: root.session && root.problem ? "GUEST " + (root.session.problemIndex + 1) + " / 3  ·  " + root.operationNames[root.problem.operation].toUpperCase() : ""; color: "#967487"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.3 }
         Text { x: 26; y: 46; text: root.problem ? root.problem.a + " " + root.problem.symbol + " " + root.problem.b : ""; color: "#594355"; font.pixelSize: 32; font.bold: true }
-        Text { x: 336; y: 54; width: 292; text: "Your checked column work"; horizontalAlignment: Text.AlignRight; color: "#9B8691"; font.pixelSize: 13 }
+        Text { x: 336; y: 54; width: 292; text: root.problem && root.problem.operation === "divide" ? "Your checked division work" : "Your checked column work"; horizontalAlignment: Text.AlignRight; color: "#9B8691"; font.pixelSize: 13 }
         WorkBoard { objectName: "workBoard"; x: 22; y: 99; width: 605; height: 294; problem: root.problem; board: root.session ? root.session.board : null; step: root.step }
         Rectangle {
           x: 16; y: 413; width: 624; height: 212; radius: 17; color: root.roomComplete ? "#EDF3E8" : "#FAF0F2"
@@ -166,13 +238,13 @@ FocusScope {
             Accessible.role: Accessible.EditableText
             Accessible.name: "Answer for this step"
           }
-          HotelButton { objectName: "checkButton"; x: 204; y: 103; width: 215; height: 49; visible: root.working; primary: true; text: root.step && root.step.kind === "final" ? "Reveal my pet  ♥" : "Check step  ↵"; onClicked: root.check() }
+          HotelButton { objectName: "checkButton"; x: 204; y: 103; width: 215; height: 49; visible: root.working; enabled: !root.checking; primary: true; text: root.checking ? "Checking practice…" : root.step && root.step.kind === "final" ? "Reveal my pet  ♥" : "Check step  ↵"; onClicked: root.check() }
           HotelButton { objectName: "hintButton"; x: 430; y: 103; width: 175; height: 49; visible: root.working; text: root.showHint ? "Hide hint" : "A little hint"; onClicked: { root.showHint = !root.showHint; root.focusAnswer() } }
           HotelButton { objectName: "wearRewardButton"; x: 18; y: 104; width: 195; height: 49; visible: root.roomComplete && root.lastReward !== null && !!root.lastReward.accessoryId; text: root.collection.outfits[root.currentPet] === (root.lastReward ? root.lastReward.accessoryId : "") ? "Looking lovely!" : "Try it on  ♥"; onClicked: root.wearReward() }
-          HotelButton { objectName: "nextButton"; x: 224; y: 104; width: 380; height: 49; visible: root.roomComplete; primary: true; text: root.session && root.session.rooms === 3 ? "See our happy guests  →" : "Prepare the next room  →"; onClicked: root.nextRoom() }
+          HotelButton { objectName: "nextButton"; x: 224; y: 104; width: 380; height: 49; visible: root.roomComplete; enabled: !root.checking; primary: true; text: root.checking ? "Preparing practice…" : root.session && root.session.rooms === 3 ? "See our happy guests  →" : "Prepare the next room  →"; onClicked: root.nextRoom() }
           Text {
             objectName: "stepFeedback"; x: 20; y: 163; width: 582; height: 45
-            text: root.showHint && root.step ? root.step.hint : root.session && root.session.note ? root.session.note : "Type a number, then press Enter. H opens a hint."
+            text: root.practiceNote || (root.showHint && root.step ? root.step.hint : root.session && root.session.note ? root.session.note : "Type a number, then press Enter. H opens a hint.")
             color: root.session && root.session.error && !root.showHint ? "#A35462" : "#8D7281"
             font.pixelSize: 13; wrapMode: Text.WordWrap
           }
@@ -201,7 +273,7 @@ FocusScope {
             required property var modelData
             width: workLog.width; spacing: 3
             Text { text: modelData.title; width: parent.width; color: "#8D7182"; font.pixelSize: 11; wrapMode: Text.WordWrap }
-            Text { text: modelData.expression + " = " + modelData.value; width: parent.width; color: "#624C5D"; font.pixelSize: 14; wrapMode: Text.WordWrap }
+            Text { text: modelData.kind === "divide-groups" ? modelData.expression.replace("?", String(modelData.value)) : modelData.expression + " = " + modelData.value; width: parent.width; color: "#624C5D"; font.pixelSize: 14; wrapMode: Text.WordWrap }
           }
           ScrollBar.vertical: ScrollBar {}
         }

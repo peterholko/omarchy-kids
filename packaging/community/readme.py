@@ -61,7 +61,7 @@ python3 -I "$HOME/.config/omarchy/plugins/{plugin}/school/school-desktop.py" ena
 
 Click the School & Screen Time widget to open the one control panel. Today shows the budget, activity and time grants; Time + Math sets budgets, bedtime and recall level; School + Apps sets school hours and app permissions. Free Time and changes to the schedule or allowed apps require the controls parent password; the password field displays checking feedback. School Mode never automatically opens Math Time after login or unlock, and stops an earning session already in progress. Deliberately opened practice remains optional. Bedtime still applies.
 
-The settings include optional access to Number Grove, Paw Post Typing and Pawberry Pet Hotel when their desktop launchers are installed. Other desktop IDs can be configured with the client’s `config patch` command.
+The settings include optional access to Number Grove, Paw Post Typing and Pawberry Pet Hotel when their desktop launchers are installed. Service 2.1.0 also supports independent Pawberry daily addition/subtraction limits: `sudo omarchy-kids-controls-pawberry-client limits --user CHILD_USERNAME --addition 5 --subtraction 5`. Use `0` to disable an operation or `unlimited` to remove the cap; completed problems count once per local day, across game restarts. Other desktop IDs can be configured with the client’s `config patch` command.
 
 There is one browser profile. This plugin does not filter websites; use a separate DNS/browser policy if needed. The filtered launcher and standard shortcut changes do not prevent custom shortcuts, terminal commands or manually started applications.
 
@@ -90,7 +90,7 @@ sudo omarchy-kids-controls enable {module} --user CHILD_USERNAME
 The shared service uses Python 3's standard library, systemd/logind and Omarchy's shell/lock/notification commands. School desktop effects also use Bash 5, Hyprland's Lua IPC, jq and flock, supplied by Omarchy. No pip packages, network services or API keys are needed.
 
 - Code: `/usr/lib/omarchy-kids-controls/`
-- Commands: `/usr/bin/omarchy-kids-controls` and `omarchy-kids-controls-{{time,school,grove}}-client`
+- Commands: `/usr/bin/omarchy-kids-controls` and `omarchy-kids-controls-{{time,school,grove,pawberry}}-client`
 - Unit: `/etc/systemd/system/omarchy-kids-controls.service`
 - Private configuration and password: `/etc/omarchy-kids-controls/`
 - Private service state and per-user read-only status: `/var/lib/omarchy-kids-controls/`
@@ -102,10 +102,26 @@ The shared service uses Python 3's standard library, systemd/logind and Omarchy'
             'math': 'Practice uses the same local recall generator as the service, with grades 1–7: number bonds, facts within 20, core 1–10 multiplication/division tables, then familiar fractions, decimals, percentages, divisibility and signed facts. Practice works without the controls service. Earning time is available only when the School & Screen Time service enables it; answers and time grants are checked by that service.',
             'number-grove': 'Choose calm or adventure play and a grade from 1–6. Move through the garden and collect answers with Space or Enter. Grades 5 and 6 focus on multiplication and division tables. Optional time rewards use the School & Screen Time service; ordinary play is fully standalone.',
             'paw-post': 'Deliver animal mail through home-row practice, everyday words and short messages, with accuracy and typing-speed feedback. No background service is required.',
-            'pawberry': 'Collect 23 pets and 20 accessories by completing two- and three-digit addition, subtraction and multiplication. Enter the carries, borrowing and partial products before the final answer. Each finished problem welcomes a pet and earns a new accessory until the wardrobe is full. New pets are chosen before returning guests. Use **Try it on** after a reward or **My collection** to dress your friends in bows, hats, crowns, flowers, stars and scarves. Incorrect answers never take away earned rewards. Your collection and outfits are saved immediately under `$XDG_STATE_HOME/omarchy-pawberry/collection.ini` (normally `~/.local/state/omarchy-pawberry/collection.ini`) and retained across updates, restarts and removal. The Kids package and standalone plugin share this per-user collection. No background service is required.',
+            'pawberry': 'Collect 23 pets and 20 accessories by completing two- and three-digit addition/subtraction, one- through three-digit multiplication, and easy two-digit / one-digit division with no remainders. Enter the carries, borrowing and partial products before the final answer. Each finished problem welcomes a pet and earns a new accessory until the wardrobe is full. New pets are chosen before returning guests. Use **Try it on** after a reward or **My collection** to dress your friends in bows, hats, crowns, flowers, stars and scarves. Incorrect answers never take away earned rewards. Your collection and outfits are saved immediately under `$XDG_STATE_HOME/omarchy-pawberry/collection.ini` (normally `~/.local/state/omarchy-pawberry/collection.ini`) and retained across updates, restarts and removal. The Kids package and standalone plugin share this per-user collection. Ordinary play needs no background service. Optional parent limits use the School & Screen Time service.',
         }
         text += '## Play\n\n' + details[name] + '\n\n'
         if name == 'pawberry':
+            text += """### Parent daily practice limits
+
+Install or update [School & Screen Time](https://github.com/peterholko/omarchy-screen-time), then review and install its local service payload (version 2.1.0 or newer):
+
+```bash
+omarchy plugin update io.github.peterholko.screen-time
+sudo "$HOME/.config/omarchy/plugins/io.github.peterholko.screen-time/setup" --user linnea --upgrade
+sudo omarchy-kids-controls-pawberry-client limits --user linnea --addition 5 --subtraction 5
+sudo omarchy-kids-controls-pawberry-client status --user linnea
+```
+
+Replace `linnea` with the child's account name. On a first install, follow the linked plugin's installation instructions; setup asks for a separate controls parent password. A fresh setup also enrolls School & Screen Time; you can disable those controls while retaining the service for Pawberry with `sudo omarchy-kids-controls disable controls --user linnea`. Updating an existing setup preserves its enrollments. From the child's session, `omarchy-kids-controls-pawberry-client limits --addition 5 --subtraction 5` asks for that controls password without sudo.
+
+This example allows five completed addition problems and five subtraction problems per local day. Use `0` to disable an operation or `unlimited` to remove its cap. Unspecified limits stay unchanged; both default to unlimited. Incorrect answers and unfinished problems do not count. Restarting or changing difficulty does not reset the count. Exhausted operations disappear from the available choices, including Mixed; multiplication and division stay available. The next pet switches to an available operation. Root owns the limits and counters separately from the saved collection. A configured service must respond before a problem can start or award a pet; there is no unlimited fallback on service failure.
+
+"""
             text += '![Bubbles the axolotl wearing a collected bow in the accessory wardrobe](collection.png)\n\n'
         text += f'''### Optional app launcher and School Mode
 

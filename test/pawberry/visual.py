@@ -90,8 +90,9 @@ capture('menu')
 click('operation-mixed', focused=True); click('digits-3', focused=True)
 tab_to('startButton'); key(Qt.Key_Space)
 s = state()
-assert [p['operation'] for p in s['problems']] == ['add','subtract','multiply']
-assert all(100 <= p['a'] <= 999 and 100 <= p['b'] <= 999 for p in s['problems'])
+assert len(s['problems']) == 3
+assert all(p['operation'] in ['add','subtract','multiply','divide'] for p in s['problems'])
+assert all((10 <= p['a'] <= 99 and 2 <= p['b'] <= 9) if p['operation'] == 'divide' else (100 <= p['a'] <= 999 and 100 <= p['b'] <= 999) for p in s['problems'])
 key(Qt.Key_Space); assert state() == s, 'hidden Start button restarted the visit'
 # Fixed examples exercise the same view and session transitions as generated visits.
 for name in ['WorkSteps.js', 'WorkSession.js']:

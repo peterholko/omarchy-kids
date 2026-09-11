@@ -58,6 +58,19 @@ class ControlsTest(unittest.TestCase):
     def enable(self, scope):
         self.assertTrue(self.send(scope, 'users.set', root=True, enabled=True)['ok'])
 
+    def test_pawberry_limits_work_without_time_or_school_enrollment(self):
+        self.assertEqual(self.send('time', 'status')['error'], 'not_managed')
+        self.assertEqual(self.send('pawberry', 'limits.set', limits={'add':1})['error'], 'bad_password')
+        self.assertTrue(self.send('pawberry', 'limits.set', limits={'add':1, 'subtract':0}, password='correct password')['ok'])
+        issued = self.send('pawberry', 'begin', problem={'operation':'add', 'a':12, 'b':34})
+        self.assertTrue(issued['ok'])
+        completed = self.send('pawberry', 'complete', id=issued['id'], answer=46)
+        self.assertEqual(completed['remaining']['add'],0)
+        self.assertEqual(self.send('pawberry', 'begin', problem={'operation':'add', 'a':12, 'b':34})['error'],'daily_limit')
+        self.host = Daemon(paths.detect(), log=lambda _: None)
+        self.assertEqual(self.send('pawberry', 'status')['remaining']['add'],0)
+        self.assertTrue(self.send('pawberry', 'begin', problem={'operation':'divide', 'a':42, 'b':6})['ok'])
+
     def test_modules_enroll_and_remove_independently(self):
         self.enable('school')
         self.assertEqual(self.send('time', 'status')['error'], 'not_managed')

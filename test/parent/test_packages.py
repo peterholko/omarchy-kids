@@ -48,7 +48,7 @@ print(json.dumps(sorted(host.services)))
                     self.assertTrue((dest / 'usr/lib/systemd/system/omarchy-kids-timed.service').exists())
                     env = {**os.environ, 'SCREEN_TIME_ROOT': str(dest / 'state'), 'OMARCHY_PATH': str(dest / 'usr/share/omarchy')}
                     output = subprocess.check_output([sys.executable, '-I', '-c', script, str(dest / 'usr/share/omarchy/lib/parent')], env=env, text=True)
-                    self.assertEqual(json.loads(output), ['school', 'time'] if 'time' in selected else [])
+                    self.assertEqual(json.loads(output), sorted((['school', 'time'] if 'time' in selected else []) + (['pawberry'] if 'pawberry' in selected else [])))
                     for module in optional:
                         self.assertEqual((dest / 'usr/bin' / ('omarchy-kids-' + module)).exists(), module in selected)
                     self.assertEqual((dest / 'usr/share/applications/omarchy-paw-post.desktop').exists(), 'typing' in selected)

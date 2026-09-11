@@ -1,13 +1,21 @@
 #!/bin/bash
-# omarchy:summary=Play Pawberry Pet Hotel and show every step of long arithmetic
+# omarchy:summary=Play Pawberry Pet Hotel or set daily practice limits
+# omarchy:args=[status|limits --addition COUNT --subtraction COUNT] [--user NAME]
+# omarchy:examples=omarchy kids pawberry | omarchy kids pawberry limits --user linnea --addition 5 --subtraction 5
 
 set -euo pipefail
-if [[ ${1:-} == "--help" || ${1:-} == "-h" ]]; then
-  echo "Usage: omarchy kids pawberry"
-  echo "Type each intermediate value; Enter checks it, H offers a hint, and Escape pauses."
-elif (( $# )); then
-  echo "Usage: omarchy kids pawberry" >&2
-  exit 2
-else
-  omarchy-shell shell summon omarchy.pawberry
-fi
+case "${1:-}" in
+  "") omarchy-shell shell summon omarchy.pawberry ;;
+  -h|--help)
+    echo "Usage: omarchy kids pawberry [status|limits --addition COUNT --subtraction COUNT] [--user NAME]"
+    echo "Limits count completed problems per day. Use 0 to disable or unlimited to remove a limit."
+    echo "Parent commands ask for the parent password. Run from the child's session or use sudo with --user."
+    ;;
+  status|limits)
+    if (( EUID != 0 )) && [[ " $* " == *" --user "* ]]; then
+      exec sudo env OMARCHY_PATH="$OMARCHY_PATH" "$0" "$@"
+    fi
+    exec "$OMARCHY_PATH/bin/omarchy-kids-pawberry-client" "$@"
+    ;;
+  *) echo "Unknown command. Run omarchy kids pawberry --help." >&2; exit 2 ;;
+esac

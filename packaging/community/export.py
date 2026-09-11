@@ -71,6 +71,9 @@ def games(name, destination):
 ''' + text[end:]
     path.write_text(text)
     shutil.copy2(TEMPLATES / 'SchoolPolicy.qml', destination / 'SchoolPolicy.qml')
+    if name == 'pawberry':
+        replace(destination / 'PracticeBridge.qml', 'omarchyPath + "/bin/omarchy-kids-pawberry-client"', '"/usr/bin/omarchy-kids-controls-pawberry-client"')
+        replace(destination / 'PracticeBridge.qml', 'property bool optional: false', 'property bool optional: true')
     if name == 'number-grove':
         replace(destination / 'RewardBridge.qml', 'omarchyPath + "/bin/omarchy-kids-grove-client"',
                 '"/usr/bin/omarchy-kids-controls-grove-client"')

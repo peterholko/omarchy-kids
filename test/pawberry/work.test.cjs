@@ -112,3 +112,48 @@ test('problem construction rejects unsupported or invalid arithmetic', () => {
   for (const args of [[9,10,'add'],[10,1000,'add'],[42.5,10,'add'],[20,30,'subtract'],[40,20,'divide']]) assert.throws(() => Steps.build(...args))
   assert.throws(() => Steps.generate('add',4)); assert.throws(() => Session.create([]))
 })
+
+test('single-digit multiplication includes all 1–9 facts and checks the working', () => {
+  for (let a = 1; a <= 9; a++) for (let b = 1; b <= 9; b++) {
+    const p = Steps.build(a,b,'multiply'), solved = solve(p)
+    assert.equal(value(solved.board.result), a*b)
+    assert(p.steps.some(s => s.kind === 'multiply-column'))
+    assert(p.steps.length > 1)
+  }
+  for (let i=0;i<200;i++) {
+    const p = Steps.generate('multiply',1)
+    assert(p.a >= 1 && p.a <= 9 && p.b >= 1 && p.b <= 9)
+  }
+  assert.throws(() => Steps.generate('add',1))
+})
+
+test('easy division uses exact two-digit table facts and verifies multiplication and subtraction', () => {
+  for (let b=2;b<=9;b++) for (let q=2;q<=9;q++) if (b*q>=10) {
+    const p = Steps.build(b*q,b,'divide'), solved = solve(p)
+    assert.deepEqual(p.steps.map(s => s.expected), [q,b*q,0,q])
+    assert.deepEqual(p.steps.map(s => s.kind), ['divide-groups','divide-product','divide-remainder','final'])
+    assert.equal(value(solved.board.result), q)
+    assert.equal(solved.board.remainder[0],0)
+    let state = Session.create([p]); state = Session.submit(state,String(q))
+    state = Session.submit(state,String(q))
+    assert.equal(state.stepIndex,1,'the final answer cannot skip the multiplication check')
+  }
+  for (let i=0;i<200;i++) {
+    const p = Steps.generate('divide',2)
+    assert(p.a>=10 && p.a<=81 && p.b>=2 && p.b<=9 && p.answer<=9)
+    assert.equal(p.a % p.b,0)
+  }
+  for (const [a,b] of [[7,2],[43,6],[99,3],[56,0]]) assert.throws(() => Steps.build(a,b,'divide'))
+  assert.throws(() => Steps.generate('divide',3))
+})
+
+test('a spent operation is excluded from mixed play and the next guest', () => {
+  const Practice = require('../../shell/plugins/pawberry/PracticePolicy.js')
+  const status = {remaining:{add:0,subtract:0,multiply:null,divide:null}}
+  assert.deepEqual(Practice.choices(status), ['multiply','divide'])
+  for (let i=0;i<20;i++) assert(['multiply','divide'].includes(Practice.nextKind('add',status)))
+  assert.equal(Practice.nextKind('subtract',{remaining:{subtract:1}}), 'subtract')
+  assert.equal(Practice.sizeFor('add',1),2)
+  assert.equal(Practice.sizeFor('multiply',1),1)
+  assert.equal(Practice.sizeFor('divide',3),2)
+})

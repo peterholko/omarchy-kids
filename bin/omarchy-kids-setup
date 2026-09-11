@@ -37,6 +37,12 @@ for module in screen-time school-mode; do
   fi
 done
 
+# Pawberry's counters use the parent host even without School & Screen Time.
+# Enabling an empty host does not enroll the account in either restriction.
+if [[ -f $OMARCHY_PATH/lib/parent/omarchy_kids/pawberry/service.py ]]; then
+  systemctl enable omarchy-kids-timed.service
+fi
+
 # Do not let an administrator's cached sudo authentication carry over to the
 # child profile. Existing processes retain their groups until a reboot.
 runuser -u "$user" -- sudo -K

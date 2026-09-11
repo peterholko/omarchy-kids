@@ -10,7 +10,7 @@ Selectable parental-control and learning modules for Omarchy.
 | School & Screen Time | `omarchy-kids-time` | One control panel for school/free time, app permissions, schedules, daily budgets, bedtime, time grants and grade 1–7 arithmetic recall. |
 | Number Grove | `omarchy-kids-grove` | Original arithmetic garden game with grades 1–6, calm/adventure play and optional screen-time rewards. |
 | Paw Post Typing | `omarchy-kids-typing` | Cute animal mail-delivery game: home row, everyday words, short messages, accuracy and typing speed. |
-| Pawberry Pet Hotel | `omarchy-kids-pawberry` | Collect 23 pets and 20 wearable accessories by showing every step of two- and three-digit arithmetic. |
+| Pawberry Pet Hotel | `omarchy-kids-pawberry` | Collect 23 pets and 20 accessories with worked arithmetic, easy times/division tables, and parent-set daily practice limits. |
 
 The six optional modules can be installed and removed individually. School and Screen Time install together; their existing per-account enrollment choices are preserved. Removing an optional module preserves its settings and history; removal first disables its services and restores its desktop or browser changes. Browsing logging is enabled only by an explicit parent action.
 
@@ -62,7 +62,7 @@ Each optional game package installs its own launcher icon. The icons appear in t
 
 ## Pawberry Pet Hotel math game
 
-Reveal a surprise pet by finishing a math problem! Checked steps prepare a bed, treat, and toy while the guest waits behind a mystery door. Meet **23 pets**, including Peaches the kitten, Biscuit the puppy, Bluebell the bunny, and 20 more friends such as Maple the red panda and Bubbles the axolotl. Each finished problem also earns a new accessory until all **20 accessories** are collected. Finish three problems per visit, choosing two- or three-digit **addition**, **subtraction**, **multiplication**, or a mixed visit covering all three.
+Reveal a surprise pet by finishing a math problem! Checked steps prepare a bed, treat, and toy while the guest waits behind a mystery door. Meet **23 pets**, including Peaches the kitten, Biscuit the puppy, Bluebell the bunny, and 20 more friends such as Maple the red panda and Bubbles the axolotl. Each finished problem also earns a new accessory until all **20 accessories** are collected. Finish three problems per visit. Choose two- or three-digit **addition** and **subtraction**, one-, two- or three-digit **multiplication**, easy **division** (two-digit dividend / one-digit divisor, no remainders), or **Mixed** practice. Easy multiplication covers 1–9 facts; division uses those same tables with a one-digit answer.
 
 ![Pawberry Pet Hotel revealing Peaches the kitten after every step of 300 minus 156 is checked](docs/images/pawberry.png)
 
@@ -70,17 +70,27 @@ Use **Try it on** when you earn a reward, or open **My collection** to dress you
 
 ![The Pawberry accessory wardrobe with Bubbles the axolotl wearing a collected bow](docs/images/pawberry-collection.png)
 
-The final answer stays locked behind the working: column totals and carries for addition, regrouping (including across zeros) for subtraction, and aligned partial products plus their column sums for multiplication. Wrong values keep the current step open. Hints, the growing worksheet, and a scrollable work log help without a countdown or lost hearts.
+The final answer stays locked behind the working: column totals and carries for addition, regrouping (including across zeros) for subtraction, and aligned partial products plus their column sums for multiplication. Division asks for equal groups, a multiplication check and the remainder before the final quotient. Wrong values keep the current step open. Hints, the growing worksheet, and a scrollable work log help without a countdown or lost hearts.
 
 From the updated checkout on the Omarchy laptop:
 
 ```bash
 ./packaging/build
 ./packaging/install ./build-output pawberry --user CHILD_USERNAME
+omarchy restart shell
 omarchy kids pawberry
 ```
 
 With a matching package cache, `omarchy kids plugin add pawberry` also installs it; `omarchy kids plugin remove pawberry` removes it independently. It requires only Kids core and works offline. To allow it during school, enter the parent password in **School + Apps** and turn on **Pawberry Pet Hotel** under **School apps**. It starts off unless already allowed. Rewards are collectible pets and accessories, with no screen-time credits. **Motion: off** shows the same rewards immediately without animation.
+
+Parents can limit completed addition and subtraction problems separately. For example, allow Linnea five of each per day:
+
+```bash
+omarchy kids pawberry limits --user linnea --addition 5 --subtraction 5
+omarchy kids pawberry status --user linnea
+```
+
+The limits command asks for the parent password. Use `0` to make an operation unavailable, or `unlimited` to remove its limit; omitted operations retain their settings. The default is unlimited. A completed full problem uses one allowance; mistakes, intermediate steps and unfinished problems do not. Counts persist across visits, game restarts and reboots, and reset at the next local calendar day. Reaching the limit disables that operation at every difficulty and excludes it from Mixed; the next guest switches to an available operation. Multiplication and division remain available. The Kids core service stores these limits and counters; the child's collection file cannot reset them. Standalone-plugin users can enable the same limits through the optional [School & Screen Time service](https://github.com/peterholko/omarchy-screen-time).
 
 The preview is the actual Qt component rendered locally. See [how the steps, artwork and checks work](docs/pawberry.md); installed Omarchy integration remains for a laptop check.
 

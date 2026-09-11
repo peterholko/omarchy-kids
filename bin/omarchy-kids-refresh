@@ -6,5 +6,10 @@ set -euo pipefail
 "$OMARCHY_PATH/bin/omarchy-kids-migrate"
 if [[ -d /run/systemd/system ]] && ! systemd-detect-virt --quiet --chroot; then
   systemctl daemon-reload
-  systemctl try-restart omarchy-kids-timed.service
+  if [[ -f $OMARCHY_PATH/lib/parent/omarchy_kids/pawberry/service.py ]] && omarchy-profile-child; then
+    systemctl enable omarchy-kids-timed.service
+    systemctl restart omarchy-kids-timed.service
+  else
+    systemctl try-restart omarchy-kids-timed.service
+  fi
 fi

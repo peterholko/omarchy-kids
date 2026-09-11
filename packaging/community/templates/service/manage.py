@@ -63,7 +63,7 @@ def verify_owned(path):
 
 def wrappers():
     result = {}
-    for role in ('time', 'school', 'grove'):
+    for role in ('time', 'school', 'grove', 'pawberry'):
         name = 'omarchy-kids-controls-' + role + '-client'
         result[Path('/usr/bin') / name] = f'#!/bin/bash\nexec /usr/bin/python3 -I {PREFIX}/runtime.py {role} "$@"\n'
     result[Path('/usr/bin/omarchy-kids-controls')] = f'#!/bin/bash\nexec /usr/bin/python3 -I {PREFIX}/manage.py "$@"\n'

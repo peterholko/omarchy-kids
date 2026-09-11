@@ -1,4 +1,4 @@
-# Parent core hosts the independently installed school and time services.
+# Parent core hosts the independently installed school, time and Pawberry services.
 [Unit]
 Description=Omarchy parent module host
 Documentation=https://github.com/peterholko/omarchy-kids

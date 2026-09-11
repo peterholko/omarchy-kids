@@ -43,7 +43,7 @@ class ExportsTest(unittest.TestCase):
                 text = path.read_text()
                 for relative in re.findall(r'^import "([^\"]+)"', text, re.M):
                     self.assertTrue((path.parent / relative).exists(), str(path) + ': ' + relative)
-                for old in ['omarchy-profile-child', 'mutateShellConfig', '/bin/omarchy-kids-time-client', '/bin/omarchy-kids-school-client', '/bin/omarchy-kids-grove-client', '/var/lib/omarchy/parent/']:
+                for old in ['omarchy-profile-child', 'mutateShellConfig', '/bin/omarchy-kids-time-client', '/bin/omarchy-kids-school-client', '/bin/omarchy-kids-grove-client', '/bin/omarchy-kids-pawberry-client', '/var/lib/omarchy/parent/']:
                     self.assertNotIn(old, text)
                 for target in re.findall(r'serviceFor\("([^\"]+)"\)', text):
                     self.assertEqual(target, json.loads((root / 'manifest.json').read_text())['id'])
@@ -55,6 +55,17 @@ class ExportsTest(unittest.TestCase):
             self.assertIn('desktopId.replace(/\\.desktop$/', policy)
             self.assertIn('/var/lib/omarchy-kids-controls/status/', policy)
             self.assertTrue((root / ('io.github.peterholko.' + name + '.desktop')).is_file())
+
+    def test_pawberry_optional_limits_have_a_privileged_service_and_client(self):
+        game = BASE / 'omarchy-pawberry'
+        bridge = (game / 'PracticeBridge.qml').read_text()
+        self.assertIn('property bool optional: true', bridge)
+        self.assertIn('/usr/bin/omarchy-kids-controls-pawberry-client', bridge)
+        self.assertIn('policy: practiceBridge', (game / 'Pawberry.qml').read_text())
+        service = BASE / 'omarchy-screen-time/service'
+        self.assertTrue((service / 'omarchy_kids/pawberry/service.py').is_file())
+        self.assertIn("elif role == 'pawberry'", (service / 'runtime.py').read_text())
+        self.assertIn("'grove', 'pawberry'", (service / 'manage.py').read_text())
 
     def test_math_practice_has_no_daemon_dependency(self):
         text = (BASE / 'omarchy-math-time/MathTime.qml').read_text()

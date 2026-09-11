@@ -64,6 +64,8 @@
   "pawberry": [
     "bin/omarchy-kids-pawberry",
     "shell/plugins/pawberry",
-    "default/pawberry/omarchy-pawberry.desktop"
+    "default/pawberry/omarchy-pawberry.desktop",
+    "bin/omarchy-kids-pawberry-client",
+    "lib/parent/omarchy_kids/pawberry"
   ]
 }

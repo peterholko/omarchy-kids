@@ -1,7 +1,7 @@
 // Long arithmetic as a sequence of required, independently checked steps.
 // Place-value arrays run from ones upwards. Qt and the session are consumers.
 var PLACES = ["ones", "tens", "hundreds", "thousands", "ten-thousands", "hundred-thousands", "millions"]
-var SYMBOLS = { add: "+", subtract: "−", multiply: "×" }
+var SYMBOLS = { add: "+", subtract: "−", multiply: "×", divide: "÷" }
 function length(value) { return String(value).length }
 function digit(value, column) { return Math.floor(value / Math.pow(10, column)) % 10 }
 function blanks(size) { return Array.from({length: size}, function() { return null }) }
@@ -9,7 +9,9 @@ function digits(value, size) { return blanks(size).map(function(_, i) { return i
 function effect(row, column, value) { return {row: row, column: column, value: value} }
 
 function build(a, b, operation) {
-  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 10 || b < 10 || a > 999 || b > 999
+  if (operation === "divide") return division(a, b)
+  var small = operation === "multiply" && a >= 1 && a <= 9 && b >= 1 && b <= 9
+  if (!Number.isInteger(a) || !Number.isInteger(b) || (!small && (a < 10 || b < 10)) || a > 999 || b > 999
       || !SYMBOLS[operation] || (operation === "subtract" && a < b)) throw new Error("Use two- or three-digit whole numbers and a nonnegative result.")
   var answer = operation === "add" ? a + b : operation === "subtract" ? a - b : a * b
   var columns = operation === "multiply" ? length(a) + length(b) : Math.max(length(a), length(b)) + 1
@@ -106,11 +108,41 @@ function build(a, b, operation) {
 }
 
 function generate(operation, size, random) {
-  if (["add", "subtract", "multiply"].indexOf(operation) < 0 || [2, 3].indexOf(size) < 0) throw new Error("Choose an operation and two or three digits.")
-  var rng = random || Math.random, low = size === 2 ? 10 : 100, range = size === 2 ? 90 : 900
+  if (operation === "divide") {
+    if (size !== 2) throw new Error("Division uses two-digit / one-digit table facts.")
+    var rng = random || Math.random, pairs = []
+    for (var divisor = 2; divisor <= 9; divisor++)
+      for (var quotient = 2; quotient <= 9; quotient++)
+        if (divisor * quotient >= 10) pairs.push([divisor * quotient, divisor])
+    var pair = pairs[Math.floor(rng() * pairs.length)]
+    return division(pair[0], pair[1])
+  }
+  if (["add", "subtract", "multiply"].indexOf(operation) < 0 || ([2, 3].indexOf(size) < 0 && !(operation === "multiply" && size === 1))) throw new Error("Choose an operation and two or three digits.")
+  var rng = random || Math.random, low = Math.pow(10, size - 1), range = low * 9
   var a = low + Math.floor(rng() * range), b = low + Math.floor(rng() * range)
   if (operation === "subtract" && a < b) { var swap = a; a = b; b = swap }
   return build(a, b, operation)
+}
+
+function division(a, b) {
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 10 || a > 99 || b < 2 || b > 9 || a % b !== 0 || a / b > 9)
+    throw new Error("Use an exact two-digit / one-digit table fact with a one-digit answer.")
+  var quotient = a / b
+  var board = {top: digits(a, 2), bottom: digits(b, 2), result: blanks(2), product: [null], remainder: [null]}
+  function checked(kind, title, expression, expected, hint, effects, row) {
+    return {kind: kind, title: title, expression: expression, expected: expected, hint: hint,
+      effects: effects || [], column: -1, row: row || "result", multiplier: -1}
+  }
+  return {a: a, b: b, operation: "divide", symbol: "÷", answer: quotient, columns: 2, partials: [], board: board, steps: [
+    checked("divide-groups", "How many equal groups?", b + " × ? = " + a, quotient,
+      "Think of the " + b + " times table. How many groups make " + a + "?", [effect("result", 0, quotient)]),
+    checked("divide-product", "Check with multiplication", quotient + " × " + b, a,
+      "Multiply the number of groups by the size of each group.", [effect("product", 0, a)], "product"),
+    checked("divide-remainder", "Check what is left", a + " − " + a, 0,
+      "Subtract what you shared. These table facts share equally, with nothing left over.", [effect("remainder", 0, 0)], "remainder"),
+    checked("final", "One last answer for your guest!", a + " ÷ " + b, quotient,
+      "Enter the number of equal groups. Your multiplication and subtraction checked the answer.")
+  ]}
 }
 
 if (typeof module !== "undefined") module.exports = {build: build, generate: generate, PLACES: PLACES}

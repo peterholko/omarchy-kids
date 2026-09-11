@@ -12,6 +12,8 @@ if role == 'daemon':
     for name in ('SCREEN_TIME_ROOT', 'SCREEN_TIME_LOCK_COMMAND', 'SCREEN_TIME_TEST_PASSWORD'):
         os.environ.pop(name, None)
     from omarchy_kids.core.daemon import main
+elif role == 'pawberry':
+    from omarchy_kids.pawberry.client import main
 elif role == 'grove':
     from omarchy_kids.number_grove.rewards import main
 elif role in {'school', 'time'}:

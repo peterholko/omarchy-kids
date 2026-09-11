@@ -13,7 +13,7 @@ def export_service(root, destination, name):
     shutil.copy2(root / 'lib/parent/omarchy_kids/__init__.py', package / '__init__.py')
     replace(package / '__init__.py', 'VERSION = "0.1.0"',
             'VERSION = "' + (TEMPLATES / 'service/VERSION').read_text().strip() + '"')
-    for part in ('core', 'screen_time', 'school_mode', 'number_grove'):
+    for part in ('core', 'screen_time', 'school_mode', 'number_grove', 'pawberry'):
         copy_tree(root / 'lib/parent/omarchy_kids' / part, package / part)
     # Package/ISO migrations and the old namespace manager are not part of the
     # community service. It never converts accounts or adopts Kids state.
